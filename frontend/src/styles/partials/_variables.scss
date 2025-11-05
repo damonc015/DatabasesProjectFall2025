@@ -1,4 +1,6 @@
 // Font
+$font-family: 'Balsamiq Sans', system-ui, sans-serif;
+
 // Colors
 $primary-color: #ffffff;
 $primary-color-two: #947a7a;
@@ -6,6 +8,11 @@ $secondary-color: #1F1F1F;
 $secondary-color-two: #3D3D3D;
 $tertiary-color: #947a7a;
 $tertiary-color-two: #3D3D3D;
+
+$form-border-width: 1.2px;
+$form-border-color: rgb(26, 26, 26, 0.4);
+$form-border-radius: 8px;
+$box-shadow: 1.5px 1.5px 2px 0 rgba(47, 47, 47, 0.4);
 
 // Dimensions
 $tempheight: 5rem;

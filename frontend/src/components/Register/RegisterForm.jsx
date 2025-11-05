@@ -3,28 +3,27 @@ import { Box, TextField, Button } from '@mui/material';
 import { Link } from '@tanstack/react-router';
 import Logo from '../Logo';
 
-const LoginForm = () => {
+const RegisterForm = () => {
   return (
-    <Box className='login-container' component='form' noValidate autoComplete='off'>
+    <Box className='register-container' component='form' noValidate autoComplete='off'>
       <div className='title-container'>
-        <span className='left-logo'>Sto</span>
-        <span className='right-logo'>ker</span>
         <Logo />
       </div>
       <div className='input-container'>
         <TextField className='input' label='Username' variant='outlined' />
         <TextField className='input' label='Password' variant='outlined' />
+        <TextField className='input' label='Join Household Code' variant='outlined' />
       </div>
       <div>
         <Button variant='contained' color='primary'>
-          Login
+          Register
         </Button>
         <p>
-          Don't have an account? <Link to='/register'>Register</Link>
+          Already have an account? <Link to='/login'>Login</Link>
         </p>
       </div>
     </Box>
   );
 };
 
-export default LoginForm;
+export default RegisterForm;

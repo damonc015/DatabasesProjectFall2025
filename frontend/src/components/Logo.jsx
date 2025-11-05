@@ -3,7 +3,7 @@ import React from 'react';
 const Logo = () => {
   return (
     <>
-      <svg xmlns='http://www.w3.org/2000/svg' width='626' height='660' viewBox='0 0 626 660' fill='none' style={{ width: '100%', height: 'auto', maxWidth: '200px' }}>
+      <svg className='svg-logo' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 626 660' fill='none'>
         {/* house */}
         <g className='house'>
           <path
@@ -84,7 +84,9 @@ const Logo = () => {
             fill='#0B0B0B'
           />
           {/* Smile */}
-          <path d='M207.51 491C290.203 568.036 330.952 562.613 423.51 493' stroke='black' strokeWidth='6' />
+          <g className='smile'>
+            <path d='M207.51 491C290.203 568.036 330.952 562.613 423.51 493' stroke='black' strokeWidth='6' />
+          </g>
         </g>
 
         {/* Floor Rectangle */}

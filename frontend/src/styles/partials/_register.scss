@@ -1,11 +1,49 @@
 @use './variables';
 
 .register {
-  background-color: variables.$primary-color;
-  height: variables.$tempheight;
-  width: variables.$tempwidth;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  height: 100%;
+  width: 100%;
+  .register-container {
+    background-color: variables.$primary-color;
+    height: 60%;
+    width: 50%;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    border: variables.$form-border-width solid variables.$form-border-color;
+    border-radius: variables.$form-border-radius;
+    overflow: hidden;
+    box-shadow: variables.$box-shadow;
+    .title-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      font-style: italic;
+    }
+    .input-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      .input {
+        width: 100%;
+        margin: 0.5rem 0;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .register .register-container {
+    height: 80%;
+  }
 }

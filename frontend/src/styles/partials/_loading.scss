@@ -8,6 +8,11 @@
   justify-content: center;
 }
 
+.svg-logo {
+  min-width: 8rem;
+  width: auto;
+  height: auto;
+}
 .house {
   animation: house-animation variables.$house-animation-duration linear infinite;
   animation-direction: alternate;
@@ -22,6 +27,12 @@
 .large-smoke {
   animation: smoke-animation variables.$smoke-animation-duration linear infinite;
   animation-delay: (#{math.random(2500)}ms);
+}
+
+.smile {
+//   animation: smile-animation variables.$smoke-animation-duration ease-out infinite;
+//   animation-delay: 2;
+//   transform-origin: center;
 }
 
 @keyframes house-animation {
@@ -46,5 +57,14 @@
     transform: translate(0, -20px);
     scale: 1;
     opacity: 0;
+  }
+}
+
+@keyframes smile-animation {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(70deg);
   }
 }

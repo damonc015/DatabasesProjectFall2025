@@ -1,10 +1,10 @@
 import React from 'react'
-import Loading from '../Loading';
+import RegisterForm from './RegisterForm';
 
 const Register = () => {
   return (
     <div className='register'>
-      <Loading />
+      <RegisterForm />
     </div>
   )
 }

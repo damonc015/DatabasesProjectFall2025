@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 
 export default function TemporaryNavigation() {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   const toggleMenu = () => {
     setIsOpen((prev) => !prev);
