@@ -1,7 +1,8 @@
-@import './partials/variables';
-@import './partials/dashboard';
-@import './partials/login';
-@import './partials/register';
+@use './partials/variables';
+@use './partials/dashboard';
+@use './partials/login';
+@use './partials/register';
+@use './partials/loading';
 
 body {
   margin: 0;
@@ -12,7 +13,7 @@ body {
 #root {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem 0;
+  padding: 0;
   text-align: center;
   position: relative;
   overflow: hidden;

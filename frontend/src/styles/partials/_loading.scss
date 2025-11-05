@@ -1,0 +1,50 @@
+@use './variables';
+@use 'sass:math';
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.house {
+  animation: house-animation variables.$house-animation-duration linear infinite;
+  animation-direction: alternate;
+  transform-origin: center;
+}
+
+.small-smoke {
+  animation: smoke-animation variables.$smoke-animation-duration linear infinite;
+  animation-delay: (#{math.random(1500)}ms);
+}
+
+.large-smoke {
+  animation: smoke-animation variables.$smoke-animation-duration linear infinite;
+  animation-delay: (#{math.random(2500)}ms);
+}
+
+@keyframes house-animation {
+  from {
+    transform: translate(0, 0) scale(1, 1);
+  }
+  to {
+    transform: translate(0, 20px) scale(1.05, 0.95);
+  }
+}
+
+@keyframes smoke-animation {
+  from {
+    transform: translate(0, 20px);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(0, 0) scale(1.02, 1.02);
+    opacity: 1;
+  }
+  to {
+    transform: translate(0, -20px);
+    scale: 1;
+    opacity: 0;
+  }
+}

@@ -1,0 +1,28 @@
+import React from 'react';
+import { Box, TextField, Button } from '@mui/material';
+import { Link } from '@tanstack/react-router';
+import Logo from '../Logo';
+
+const LoginForm = () => {
+  return (
+    <Box className='login-container' component='form' noValidate autoComplete='off'>
+      <div className='logo-container'>
+        <Logo />
+      </div>
+      <div>
+        <TextField className='input' label='Username' variant='outlined' />
+        <TextField className='input' label='Password' variant='outlined' />
+      </div>
+      <div>
+        <Button variant='contained' color='primary'>
+          Login
+        </Button>
+        <p>
+          Don't have an account? <Link to='/register'>Register</Link>
+        </p>
+      </div>
+    </Box>
+  );
+};
+
+export default LoginForm;
