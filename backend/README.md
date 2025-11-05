@@ -95,8 +95,8 @@ backend/
 - **MySQL connection error**: Make sure MySQL is running and credentials are correct
 - **Port 5001 already in use**: Change the port in `app.py` line 34
 - **Module not found**: Make sure you activated the virtual environment and installed dependencies
-- **Table doesn't exist**: Make sure your database tables are created (they use PascalCase names like `FoodItem`, `Household`)
+- **Table doesn't exist**: Make sure your database tables are created
 
 ## API Documentation
 
-See [API.md](API.md) for complete API endpoint documentation.
+See [API.md](API.md) for API endpoint documentation.

@@ -77,7 +77,7 @@ curl http://localhost:5001/api/food-items?household_id=1
     "Category": "dairy",
     "BaseUnit": "g"
   },
-  {
+  {x
     "FoodItemID": 2,
     "Name": "Bread",
     "Type": "perishable",
