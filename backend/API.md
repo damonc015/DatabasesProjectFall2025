@@ -77,7 +77,7 @@ curl http://localhost:5001/api/food-items?household_id=1
     "Category": "dairy",
     "BaseUnit": "g"
   },
-  {
+  {x
     "FoodItemID": 2,
     "Name": "Bread",
     "Type": "perishable",
@@ -100,49 +100,13 @@ curl http://localhost:5001/api/food-items?household_id=1
 
 **POST** `/api/food-items`
 
-Example:
-```bash
-curl -X POST http://localhost:5001/api/food-items \
-  -H "Content-Type: application/json" \
-  -d '{
-    "HouseholdID": 1,
-    "BaseUnitID": 1,
-    "Name": "Eggs",
-    "Type": "perishable",
-    "Category": "dairy"
-  }'
-```
 
 **Request Body:**
-```json
-{
-  "HouseholdID": 1,
-  "BaseUnitID": 1,
-  "Name": "Eggs",
-  "Type": "perishable",
-  "Category": "dairy",
-  "PreferredPackageID": null
-}
-```
 
 **Required Fields:**
-- `HouseholdID` (integer)
-- `BaseUnitID` (integer)
-- `Name` (string)
-
 **Optional Fields:**
-- `Type` (string)
-- `Category` (string)
-- `PreferredPackageID` (integer)
-
 **Response (201):**
-```json
-{
-  "FoodItemID": 3,
-  "Name": "Eggs",
-  "message": "Food item created successfully"
-}
-```
+
 
 ---
 
@@ -181,34 +145,11 @@ curl http://localhost:5001/api/households/1
 
 **POST** `/api/households`
 
-Example:
-```bash
-curl -X POST http://localhost:5001/api/households \
-  -H "Content-Type: application/json" \
-  -d '{
-    "HouseholdName": "Smith Family"
-  }'
-```
 
 **Request Body:**
-```json
-{
-  "HouseholdName": "Smith Family"
-}
-```
 
 **Required Fields:**
-- `HouseholdName` (string)
-
 **Response (201):**
-```json
-{
-  "HouseholdID": 1,
-  "HouseholdName": "Smith Family",
-  "JoinCode": "ABC123",
-  "message": "Household created successfully"
-}
-```
 
 ---
 
@@ -244,27 +185,7 @@ curl http://localhost:5001/api/shopping-lists/1/items
 
 ---
 
-## Error Responses
-
-All endpoints return JSON error responses:
-
-```json
-{
-  "error": "Error message here"
-}
-```
-
-### HTTP Status Codes
-
-- `200` - Success
-- `201` - Created
-- `400` - Bad Request (missing required fields)
-- `404` - Not Found
-- `500` - Internal Server Error
-
 ## Testing in Browser
-
-You can test GET endpoints directly in your browser:
 
 - Health check: http://localhost:5001/
 - Get food item: http://localhost:5001/api/food-items/1

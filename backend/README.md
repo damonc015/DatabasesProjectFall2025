@@ -12,7 +12,7 @@ Flask REST API backend for Stocker.
 
 ### 1. Install Dependencies
 
-**Option A: Using virtual environment (recommended)**
+**Option A: Using virtual environment**
 ```bash
 cd backend
 
@@ -45,8 +45,7 @@ MYSQL_USER=root
 MYSQL_PASSWORD=your_password
 MYSQL_DATABASE=pantry_app
 ```
-
-**Note:** For XAMPP, the password is often empty (leave `MYSQL_PASSWORD=` blank).
+**Note:** (if you didn't set a pw, leave `MYSQL_PASSWORD=` blank).
 
 ### 3. Create Database
 
@@ -59,7 +58,7 @@ CREATE DATABASE IF NOT EXISTS pantry_app;
 
 ```bash
 # Make sure virtual environment is activated
-source venv/bin/activate  # On macOS/Linux
+source venv/bin/activate 
 
 # Run the app
 python app.py
@@ -96,30 +95,8 @@ backend/
 - **MySQL connection error**: Make sure MySQL is running and credentials are correct
 - **Port 5001 already in use**: Change the port in `app.py` line 34
 - **Module not found**: Make sure you activated the virtual environment and installed dependencies
-- **Table doesn't exist**: Make sure your database tables are created (they use PascalCase names like `FoodItem`, `Household`)
+- **Table doesn't exist**: Make sure your database tables are created
 
 ## API Documentation
 
-See [API.md](API.md) for complete API endpoint documentation.
-
-## Database Schema
-
-The API uses MySQL/MariaDB with PascalCase table names:
-- `Household` - Household information
-- `Users` - User accounts
-- `FoodItem` - Food items in inventory
-- `BaseUnit` - Measurement units (g, cup, each, etc.)
-- `ShoppingList` - Shopping lists
-- `ShoppingListItem` - Items in shopping lists
-- `Location` - Storage locations
-- `Package` - Product packaging information
-- `InventoryTransaction` - Inventory change history
-- `PriceLog` - Price tracking
-- `StockLevel` - Target stock levels
-
-## Notes
-
-- All table names use PascalCase (e.g., `FoodItem`, not `food_items`)
-- The API uses raw SQL queries (not an ORM)
-- Stored procedures can be used for complex operations
-- Make sure your MySQL database is running and accessible
+See [API.md](API.md) for API endpoint documentation.
