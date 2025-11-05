@@ -1,173 +1,125 @@
-# backend
+# Pantry Manager API
 
-...
+Flask REST API backend for Stocker.
 
-## Docker Quickstart
+## Prerequisites
 
-This app can be run completely using `Docker` and `docker compose`. **Using Docker is recommended, as it guarantees the application is run using compatible versions of Python and Node**.
+- Python 3.8+
+- MySQL database running (XAMPP recommended)
+- MySQL database created (default name: `pantry_app`)
 
-There are three main services:
+## Quick Start
 
-To run the development version of the app
+### 1. Install Dependencies
+
+**Option A: Using virtual environment (recommended)**
+```bash
+cd backend
+
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate  # On macOS/Linux
+# or
+venv\Scripts\activate  # On Windows
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+**Option B: Install globally**
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+### 2. Configure Database
+
+Create a `.env` file in the `backend` directory:
+
+```env
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=your_password
+MYSQL_DATABASE=pantry_app
+```
+
+**Note:** For XAMPP, the password is often empty (leave `MYSQL_PASSWORD=` blank).
+
+### 3. Create Database
+
+Connect to MySQL and create the database:
+```sql
+CREATE DATABASE IF NOT EXISTS pantry_app;
+```
+
+### 4. Start the Server
 
 ```bash
-docker compose up flask-dev
+# Make sure virtual environment is activated
+source venv/bin/activate  # On macOS/Linux
+
+# Run the app
+python app.py
 ```
 
-To run the production version of the app
+The server will start on `http://localhost:5001`
+
+### 5. Test It
 
 ```bash
-docker compose up flask-prod
+curl http://localhost:5001/
 ```
 
-The list of `environment:` variables in the `docker compose.yml` file takes precedence over any variables specified in `.env`.
+You should see: `{"status":"ok","message":"Stocker API running"}`
 
-To run any commands using the `Flask CLI`
+## Project Structure
 
-```bash
-docker compose run --rm manage <<COMMAND>>
+```
+backend/
+├── app.py                 # Main Flask application
+├── config.py              # Configuration settings
+├── extensions.py          # Database connection helper
+├── routes/                # API route files
+│   ├── food_items.py
+│   ├── households.py
+│   └── shopping_lists.py
+├── requirements.txt       # Python dependencies
+├── .env                   # Environment variables (not in git)
+└── README.md              # This file
 ```
 
-Therefore, to initialize a database you would run
+## Troubleshooting
 
-```bash
-docker compose run --rm manage db init
-docker compose run --rm manage db migrate
-docker compose run --rm manage db upgrade
-```
+- **MySQL connection error**: Make sure MySQL is running and credentials are correct
+- **Port 5001 already in use**: Change the port in `app.py` line 34
+- **Module not found**: Make sure you activated the virtual environment and installed dependencies
+- **Table doesn't exist**: Make sure your database tables are created (they use PascalCase names like `FoodItem`, `Household`)
 
-A docker volume `node-modules` is created to store NPM packages and is reused across the dev and prod versions of the application. For the purposes of DB testing with `sqlite`, the file `dev.db` is mounted to all containers. This volume mount should be removed from `docker compose.yml` if a production DB server is used.
+## API Documentation
 
-Go to `http://localhost:8080`. You will see a pretty welcome screen.
+See [API.md](API.md) for complete API endpoint documentation.
 
-### Running locally
+## Database Schema
 
-Run the following commands to bootstrap your environment if you are unable to run the application using Docker
+The API uses MySQL/MariaDB with PascalCase table names:
+- `Household` - Household information
+- `Users` - User accounts
+- `FoodItem` - Food items in inventory
+- `BaseUnit` - Measurement units (g, cup, each, etc.)
+- `ShoppingList` - Shopping lists
+- `ShoppingListItem` - Items in shopping lists
+- `Location` - Storage locations
+- `Package` - Product packaging information
+- `InventoryTransaction` - Inventory change history
+- `PriceLog` - Price tracking
+- `StockLevel` - Target stock levels
 
-```bash
-cd stocker
-pip install -r requirements/dev.txt
-npm install
-npm run-script build
-npm start  # run the webpack dev server and flask server using concurrently
-```
+## Notes
 
-Go to `http://localhost:5000`. You will see a pretty welcome screen.
-
-#### Database Initialization (locally)
-
-Once you have installed your DBMS, run the following to create your app's
-database tables and perform the initial migration
-
-```bash
-flask db init
-flask db migrate
-flask db upgrade
-```
-
-## Deployment
-
-When using Docker, reasonable production defaults are set in `docker compose.yml`
-
-```text
-FLASK_ENV=production
-FLASK_DEBUG=0
-```
-
-Therefore, starting the app in "production" mode is as simple as
-
-```bash
-docker compose up flask-prod
-```
-
-If running without Docker
-
-```bash
-export FLASK_ENV=production
-export FLASK_DEBUG=0
-export DATABASE_URL="<YOUR DATABASE URL>"
-npm run build   # build assets with webpack
-flask run       # start the flask server
-```
-
-## Shell
-
-To open the interactive shell, run
-
-```bash
-docker compose run --rm manage shell
-flask shell # If running locally without Docker
-```
-
-By default, you will have access to the flask `app`.
-
-## Running Tests/Linter
-
-To run all tests, run
-
-```bash
-docker compose run --rm manage test
-flask test # If running locally without Docker
-```
-
-To run the linter, run
-
-```bash
-docker compose run --rm manage lint
-flask lint # If running locally without Docker
-```
-
-The `lint` command will attempt to fix any linting/style errors in the code. If you only want to know if the code will pass CI and do not wish for the linter to make changes, add the `--check` argument.
-
-## Migrations
-
-Whenever a database migration needs to be made. Run the following commands
-
-```bash
-docker compose run --rm manage db migrate
-flask db migrate # If running locally without Docker
-```
-
-This will generate a new migration script. Then run
-
-```bash
-docker compose run --rm manage db upgrade
-flask db upgrade # If running locally without Docker
-```
-
-To apply the migration.
-
-For a full migration command reference, run `docker compose run --rm manage db --help`.
-
-If you will deploy your application remotely (e.g on Heroku) you should add the `migrations` folder to version control.
-You can do this after `flask db migrate` by running the following commands
-
-```bash
-git add migrations/*
-git commit -m "Add migrations"
-```
-
-Make sure folder `migrations/versions` is not empty.
-
-## Asset Management
-
-Files placed inside the `assets` directory and its subdirectories
-(excluding `js` and `css`) will be copied by webpack's
-`file-loader` into the `static/build` directory. In production, the plugin
-`Flask-Static-Digest` zips the webpack content and tags them with a MD5 hash.
-As a result, you must use the `static_url_for` function when including static content,
-as it resolves the correct file name, including the MD5 hash.
-For example
-
-```html
-<link rel="shortcut icon" href="{{static_url_for('static', filename='build/favicon.ico') }}">
-```
-
-If all of your static files are managed this way, then their filenames will change whenever their
-contents do, and you can ask Flask to tell web browsers that they
-should cache all your assets forever by including the following line
-in ``.env``:
-
-```text
-SEND_FILE_MAX_AGE_DEFAULT=31556926  # one year
-```
+- All table names use PascalCase (e.g., `FoodItem`, not `food_items`)
+- The API uses raw SQL queries (not an ORM)
+- Stored procedures can be used for complex operations
+- Make sure your MySQL database is running and accessible
