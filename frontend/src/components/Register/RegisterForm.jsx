@@ -15,7 +15,7 @@ const RegisterForm = () => {
         <TextField className='input' label='Join Household Code' variant='outlined' />
       </div>
       <div>
-        <Button variant='contained' color='primary'>
+        <Button className='button' variant='contained' color='primary'>
           Register
         </Button>
         <p>

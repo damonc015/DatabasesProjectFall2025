@@ -16,7 +16,7 @@ const LoginForm = () => {
         <TextField className='input' label='Password' variant='outlined' />
       </div>
       <div>
-        <Button variant='contained' color='primary'>
+        <Button className='button' variant='contained' color='primary'>
           Login
         </Button>
         <p>
