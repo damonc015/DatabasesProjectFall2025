@@ -1,0 +1,13 @@
+{
+  "name": "stocker",
+  "version": "1.0.0",
+  "description": "Stocker application",
+  "scripts": {
+    "build": "./build.sh",
+    "start": "./start.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
+
