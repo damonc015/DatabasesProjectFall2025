@@ -16,6 +16,12 @@ if [ ! -d "frontend/dist" ]; then
     cd ..
 fi
 
+# Install backend dependencies
+echo "Installing backend dependencies..."
+cd backend
+pip install -r requirements.txt
+cd ..
+
 # Start the backend server
 echo "Starting backend..."
 cd backend
