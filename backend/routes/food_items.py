@@ -1,17 +1,36 @@
-"""Food items routes using raw SQL"""
-from flask import Blueprint, jsonify, request
-from extensions import get_db
+from flask import jsonify
+from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error
 
-bp = Blueprint('food_items', __name__, url_prefix='/api/food-items')
+bp = create_api_blueprint('food_items', '/api/food-items')
 
 
-@bp.route('/<int:food_item_id>', methods=['GET'])
+@document_api_route(bp, 'get', '/', 'Get all food items', 'Returns a list of food items (limited to 50)')
+@handle_db_error
+def db_test_get_food_items():
+    with db_cursor() as cursor:
+        query = """
+            SELECT 
+                fi.FoodItemID,
+                fi.Name,
+                fi.Type,
+                fi.Category,
+                fi.BaseUnitID,
+                fi.HouseholdID,
+                fi.PreferredPackageID,
+                bu.Abbreviation AS BaseUnit
+            FROM FoodItem fi
+            JOIN BaseUnit bu ON fi.BaseUnitID = bu.UnitID
+            LIMIT 50
+        """
+        cursor.execute(query)
+        results = cursor.fetchall()
+        return jsonify(results), 200
+
+
+@document_api_route(bp, 'get', '/<int:food_item_id>', 'Get food item by ID', 'Returns a single food item by its ID')
+@handle_db_error
 def get_food_item(food_item_id):
-    """Get a single food item by ID"""
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    
-    try:
+    with db_cursor() as cursor:
         query = """
             SELECT 
                 fi.FoodItemID,
@@ -33,8 +52,3 @@ def get_food_item(food_item_id):
             return jsonify({'error': 'Food item not found'}), 404
         
         return jsonify(result), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        cursor.close()
-        conn.close()

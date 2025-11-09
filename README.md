@@ -2,50 +2,87 @@
 # Database Fall 2025
 ## Prerequisites
 
-- **Python 3.8+** (Python 3.11 recommended)
-- **Node.js 20+** and **pnpm** (or npm/yarn)
-
 ### Backend Setup (Flask)
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
+- Python 3.8+
+- MySQL database (default name: `stocker`)
 
-2. Create and activate a virtual environment:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  
-   ```
+#### Quick Start
 
-3. Install dependencies:
-   ```bash
-   pip install -r requirements/dev.txt
-   ```
+##### 1. Install Dependencies
 
-4. Build assets:
-   ```bash
-   filler  # idk, looking it up still
-   ```
+**Using virtual environment**
+```bash
+cd backend
 
-5. Initialize the database: 
-   ```bash
-   flask db init
-   flask db migrate -m 
-   flask db upgrade  # idk, looking it up still as well
-   ```
+# Create virtual environment
+python3 -m venv venv
 
-6. Run the development server:
-   ```bash
-   npm start  # idk, looking it up still as well
-   ```
+# Activate virtual environment
+source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate  # Windows
 
-   Or run Flask separately:
-   ```bash
-   flask run
-   ```
+# Install dependencies
+pip install -r requirements.txt
+```
 
-   The backend will be available at `http://localhost:5000`
+#### 2. Configure Database
+
+Create a `.env` file in the `backend` directory:
+
+```env
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=your_password
+MYSQL_DATABASE=stocker 
+``` 
+**Note:** 
+MYSQL_DATABASE is your local db name
+(if you didn't set a pw, leave `MYSQL_PASSWORD=` blank).
+
+### 3. Connect/Create Database
+
+Connect to MySQL
+```sql
+CREATE DATABASE IF NOT EXISTS stocker;
+```
+
+### 4. Start the Server
+
+```bash
+source venv/bin/activate 
+
+# Run the app
+python app.py
+```
+
+The server will start on `http://localhost:5001`
+
+You should see: `{"status":"ok","message":"Stocker API running"}`
+
+## Project Structure
+
+```
+backend/
+├── app.py                 # Main Flask application
+├── config.py              # Configuration settings
+├── extensions.py          # Database connection helper
+├── routes/                # API route
+│   ├── food_items.py
+│   ├── households.py
+│   └── shopping_lists.py
+├── requirements.txt       # Python dependencies
+├── .env                   # Environment variables (git ignored)
+└── README.md
+```
+
+## Troubleshooting
+- **MySQL connection error**: Make sure MySQL is running and credentials are correct
+- **Port 5001 already in use**: Change the port in `app.py` line 34
+
+## API Documentation
+See [API.md](API.md) for API endpoint documentation.
 
 ### Frontend Setup (React)
 

@@ -1,18 +1,13 @@
-from flask import Blueprint, jsonify, request
-import random
-import string
-from extensions import get_db
+from flask import jsonify
+from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error
 
-bp = Blueprint('households', __name__, url_prefix='/api/households')
+bp = create_api_blueprint('households', '/api/households')
 
 
-@bp.route('/<int:household_id>', methods=['GET'])
+@document_api_route(bp, 'get', '/<int:household_id>', 'Get household by ID', 'Returns household information including member and food item counts')
+@handle_db_error
 def get_household(household_id):
-    """Get a single household by ID"""
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    
-    try:
+    with db_cursor() as cursor:
         query = """
             SELECT 
                 h.HouseholdID,
@@ -33,8 +28,3 @@ def get_household(household_id):
             return jsonify({'error': 'Household not found'}), 404
         
         return jsonify(result), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        cursor.close()
-        conn.close()

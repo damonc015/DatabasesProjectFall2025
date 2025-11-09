@@ -19,6 +19,7 @@ export default function TemporaryNavigation() {
             Dashboard
           </Link>
           <Link to='/register'>Register</Link>
+          <Link to='/db-test'>DB Test</Link>
         </nav>
       ) : (
         <button className='tempnav-button' onClick={toggleMenu}>Show Menu</button>

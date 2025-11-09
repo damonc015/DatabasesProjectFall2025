@@ -1,6 +1,6 @@
 import React from 'react';
 import Box from '@mui/material/Box';
-import Grid2 from '@mui/material/Grid2';
+import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
@@ -10,17 +10,17 @@ const Inventory = () => {
   return (
     <div className='inventoryContainer'>
       <Box sx={{ flexGrow: 1 }}>
-        <Grid2 container spacing={2}>
+        <Grid container spacing={2}>
           {items.map((item) => (
-            <Grid2 size={3} key={item}>
+            <Grid item xs={12} sm={6} md={4} lg={3} key={item}>
               <Card variant='outlined'>
                 <CardContent>
                   <Typography variant='h6'>{item}</Typography>
                 </CardContent>
               </Card>
-            </Grid2>
+            </Grid>
           ))}
-        </Grid2>
+        </Grid>
       </Box>
     </div>
   );

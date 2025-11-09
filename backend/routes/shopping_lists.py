@@ -1,17 +1,13 @@
-"""Shopping lists routes using raw SQL"""
-from flask import Blueprint, jsonify, request
-from extensions import get_db
+from flask import jsonify
+from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error
 
-bp = Blueprint('shopping_lists', __name__, url_prefix='/api/shopping-lists')
+bp = create_api_blueprint('shopping_lists', '/api/shopping-lists')
 
 
-@bp.route('/<int:shopping_list_id>/items', methods=['GET'])
+@document_api_route(bp, 'get', '/<int:shopping_list_id>/items', 'Get shopping list items', 'Returns all items in a shopping list')
+@handle_db_error
 def get_shopping_list_items(shopping_list_id):
-    """Get items for a specific shopping list"""
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    
-    try:
+    with db_cursor() as cursor:
         query = """
             SELECT 
                 sli.ShoppingListItemID,
@@ -33,10 +29,4 @@ def get_shopping_list_items(shopping_list_id):
         """
         cursor.execute(query, (shopping_list_id,))
         results = cursor.fetchall()
-        
         return jsonify(results), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        cursor.close()
-        conn.close()

@@ -1,33 +1,43 @@
-from flask import Flask, jsonify
+import os
+from apiflask import APIFlask
+from flask import jsonify, send_from_directory
+from flask_cors import CORS
 from config import config
 from routes import food_items_bp, shopping_lists_bp, households_bp
 
 
 def create_app(config_name='development'):
-    app = Flask(__name__)
+    if config_name == 'production':
+        frontend_dist = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend', 'dist')
+        app = APIFlask(__name__, static_folder=frontend_dist, static_url_path='')
+    else:
+        app = APIFlask(__name__, static_folder=None)
+    
     app.config.from_object(config[config_name])
     
-    # Store MySQL config for get_db() function
-    app.config['MYSQL_HOST'] = config[config_name].MYSQL_HOST
-    app.config['MYSQL_PORT'] = config[config_name].MYSQL_PORT
-    app.config['MYSQL_USER'] = config[config_name].MYSQL_USER
-    app.config['MYSQL_PASSWORD'] = config[config_name].MYSQL_PASSWORD
-    app.config['MYSQL_DATABASE'] = config[config_name].MYSQL_DATABASE
-    app.config['MYSQL_UNIX_SOCKET'] = config[config_name].MYSQL_UNIX_SOCKET
+    app.title = "Pantry App API"
+    app.version = "1.0.0"
+  
+    app.url_map.strict_slashes = False
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
     
-    # Register blueprints
     app.register_blueprint(food_items_bp)
     app.register_blueprint(shopping_lists_bp)
     app.register_blueprint(households_bp)
     
-    @app.route('/')
-    def index():
-        """Health check endpoint"""
-        return jsonify({'status': 'ok', 'message': 'Stocker API running'})
+    if config_name == 'production':
+        @app.route('/', defaults={'path': ''})
+        @app.route('/<path:path>')
+        def serve_frontend(path):
+            file_path = os.path.join(app.static_folder, path)
+            if path and os.path.isfile(file_path):
+                return send_from_directory(app.static_folder, path)
+            return send_from_directory(app.static_folder, 'index.html')
     
     return app
 
 
 if __name__ == '__main__':
-    app = create_app('development')
-    app.run(debug=True, port=5001)
+    config_name = os.getenv('FLASK_ENV', 'development')
+    app = create_app(config_name)
+    app.run(debug=(config_name == 'development'), port=5001)
