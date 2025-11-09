@@ -26,6 +26,10 @@ cd backend
 pip install -r requirements.txt
 cd ..
 
+# Make start.sh executable
+chmod +x start.sh
+chmod +x build.sh
+
 echo "================================================"
 echo "Build complete."
 echo "================================================"
