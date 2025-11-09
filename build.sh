@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Install mise tools (Node.js, Python)
+echo "Installing mise tools..."
+mise install || true
+
 # Build frontend
 echo "Building frontend..."
 cd frontend
