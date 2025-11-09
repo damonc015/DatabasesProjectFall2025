@@ -4,6 +4,32 @@ from extensions import db_cursor
 bp = Blueprint('food_items', __name__, url_prefix='/api/food-items')
 
 
+@bp.route('/', methods=['GET'])
+def db_test_get_food_items():
+    try:
+        with db_cursor() as cursor:
+            query = """
+                SELECT 
+                    fi.FoodItemID,
+                    fi.Name,
+                    fi.Type,
+                    fi.Category,
+                    fi.BaseUnitID,
+                    fi.HouseholdID,
+                    fi.PreferredPackageID,
+                    bu.Abbreviation AS BaseUnit
+                FROM FoodItem fi
+                JOIN BaseUnit bu ON fi.BaseUnitID = bu.UnitID
+                LIMIT 50
+            """
+            cursor.execute(query)
+            results = cursor.fetchall()
+            
+            return jsonify(results), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/<int:food_item_id>', methods=['GET'])
 def get_food_item(food_item_id):
     try:
