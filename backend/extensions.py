@@ -11,7 +11,8 @@ def get_db():
         port=current_app.config['MYSQL_PORT'],
         user=current_app.config['MYSQL_USER'],
         password=current_app.config.get('MYSQL_PASSWORD') or '',
-        database=current_app.config['MYSQL_DATABASE']
+        database=current_app.config['MYSQL_DATABASE'],
+        unix_socket=current_app.config.get('MYSQL_UNIX_SOCKET')
     )
     return conn
 
