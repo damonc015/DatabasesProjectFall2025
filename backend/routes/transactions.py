@@ -26,18 +26,21 @@ def db_get_transactions_paged(household_id):
         # Get paged data
         query = """
             SELECT 
-                fi.Name,
-                u.DisplayName,
-                tx.QtyInBaseUnits,
+                fi.Name AS FoodName,
+                u.DisplayName AS UserName,
+                tx.QtyInBaseUnits AS QtyInTotal,
+                p.BaseUnitAmt AS QtyPerPackage,
                 tx.TransactionType,
                 tx.CreatedAt,
                 l.LocationName,
-                bu.Abbreviation
+                bu.Abbreviation AS BaseUnitAbbr,
+                p.Label AS PackageLabel
             FROM InventoryTransaction tx
             INNER JOIN FoodItem fi ON tx.FoodItemID = fi.FoodItemID
             INNER JOIN Users u ON tx.UserID = u.UserID
             INNER JOIN Location l ON tx.LocationID = l.LocationID
             INNER JOIN BaseUnit bu ON fi.BaseUnitID = bu.UnitID
+            INNER JOIN Package p ON fi.PreferredPackageID = p.PackageID
             WHERE u.HouseholdID = %s
             ORDER BY tx.CreatedAt DESC
             LIMIT %s OFFSET %s
@@ -83,15 +86,18 @@ def db_get_expiring_transactions(household_id):
         # Get paged data
         query = """
             SELECT 
-                fi.Name,
-                tx.QtyInBaseUnits,
+                fi.Name AS FoodName,
+                tx.QtyInBaseUnits AS QtyInTotal,
+                p.BaseUnitAmt AS QtyPerPackage,
                 tx.ExpirationDate,
                 l.LocationName,
-                bu.Abbreviation
+                bu.Abbreviation AS BaseUnitAbbr,
+                p.Label AS PackageLabel 
             FROM InventoryTransaction tx
             INNER JOIN FoodItem fi ON tx.FoodItemID = fi.FoodItemID
             INNER JOIN Location l ON tx.LocationID = l.LocationID
             INNER JOIN BaseUnit bu ON fi.BaseUnitID = bu.UnitID
+            INNER JOIN Package p ON fi.PreferredPackageID = p.PackageID
             WHERE 
                 l.HouseholdID = %s AND 
                 DATE(tx.ExpirationDate) > CURDATE() AND 

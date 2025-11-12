@@ -8,7 +8,9 @@ import {
   Pagination,
   Divider,
   Box,
-  IconButton
+  IconButton,
+  FormControlLabel,
+  Switch
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
@@ -18,6 +20,7 @@ const Transactions = () => {
   const [page, setPage] = useState(1);
   const [rowsPerPage] = useState(5);
   const [total, setTotal] = useState(0);
+  const [showPackage, setShowPackage] = useState(false);
   
   const householdId = 1; // TODO: get household id from context
 
@@ -53,6 +56,17 @@ const Transactions = () => {
     }
   };
 
+  const displayQty = (QtyInTotal,QtyPerPackage,PackageLabel,BaseUnitAbbr) => {
+    if(showPackage){
+      if(QtyInTotal % QtyPerPackage === 0)
+        return `${Math.round(QtyInTotal / QtyPerPackage)} ${PackageLabel}${QtyInTotal / QtyPerPackage > 1 ? "s":""}`
+      else return `${Math.round(QtyInTotal)}/${Math.round(QtyPerPackage)} ${PackageLabel}`
+    } 
+    else{
+      return `${Math.round(QtyInTotal)}${BaseUnitAbbr}`
+    }
+  }
+
   return (
     <div className='transactionsContainer'>
       <Box display="flex" alignItems="center" gap={1} maxHeight='5vh'>
@@ -68,7 +82,8 @@ const Transactions = () => {
               <React.Fragment key={index}>
                 <ListItem sx={{ py: 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="body" fontWeight="bold" sx={{ flex: 1 }}>
-                    {tx.DisplayName} {tx.TransactionType}{tx.TransactionType === 'add' ? 'ed':'d'} {Math.round(tx.QtyInBaseUnits)}{tx.Abbreviation} {tx.Name} at {tx.LocationName}
+                    {tx.UserName} {tx.TransactionType}{tx.TransactionType === 'add' ? 'ed':'d'}{" "}
+                    {displayQty(tx.QtyInTotal,tx.QtyPerPackage,tx.PackageLabel,tx.BaseUnitAbbr)} of {tx.FoodName} at {tx.LocationName}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', ml: 2 }}>
                     {new Date(tx.CreatedAt).toLocaleString()}
@@ -78,7 +93,18 @@ const Transactions = () => {
               </React.Fragment>
             ))}
           </List>
-          <Box display="flex" justifyContent="center" mt={0} pt={1} sx={{maxHeight: '8px', borderTop: 1, borderColor: 'divider'}}>
+          <Box display="flex" justifyContent="space-between" mt={0} pt={1} sx={{maxHeight: '8px', borderTop: 1, borderColor: 'divider'}}>
+            <FormControlLabel 
+              control={
+                <Switch 
+                  checked={showPackage} 
+                  onChange={(e) => setShowPackage(e.target.checked)}
+                  size="small"
+                />
+              }
+              label={<Typography variant="caption">Show in Package</Typography>}
+              sx={{ ml: 1, mt: 0.5, pt: 1 }}
+            />
             <Pagination 
               count={Math.ceil(total / rowsPerPage)} 
               page={page} 
