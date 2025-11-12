@@ -13,7 +13,7 @@ import {
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 const Expiring = () => {
-  const [transactions, setTransactions] = useState([]);
+  const [expiring, setExpiring] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [rowsPerPage] = useState(5);
@@ -21,12 +21,12 @@ const Expiring = () => {
   
   const householdId = 1; // TODO: get household id from context
 
-  const fetchTransactions = () => {
+  const fetchExpiring = () => {
     setLoading(true);
     fetch(`/api/transactions/expiring/${householdId}?page=${page - 1}&limit=${rowsPerPage}`)
       .then(res => res.json())
       .then(result => {
-        setTransactions(result.data);
+        setExpiring(result.data);
         setTotal(result.total);
         setLoading(false);
       })
@@ -37,7 +37,7 @@ const Expiring = () => {
   };
 
   useEffect(() => {
-    fetchTransactions();
+    fetchExpiring();
   }, [page, rowsPerPage, householdId]);
 
   const handleChangePage = (event, value) => {
@@ -45,8 +45,12 @@ const Expiring = () => {
   };
 
   const handleRefresh = () => {
-    setPage(1);
-    fetchTransactions();
+    if (page === 1) {
+      fetchExpiring();
+    }
+    else {
+      setPage(1);
+    }
   };
 
   const computeDateDiff = (targetDate) => {
@@ -73,14 +77,14 @@ const Expiring = () => {
       <Card className='cardContainer' variant='outlined'>
         <CardContent sx={{ maxHeight: '50vh', overflow: 'auto', p: 0.5 }}>
           <List dense disablePadding>
-            {transactions.map((tx, index) => (
+            {expiring.map((tx, index) => (
               <React.Fragment key={index}>
                 <ListItem sx={{ py: 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="body" fontWeight="bold" sx={{ flex: 1 }}>
                     {tx.QtyInBaseUnits}{tx.Abbreviation} {tx.Name} at {tx.LocationName} is expiring in {computeDateDiff(tx.ExpirationDate)}
                   </Typography>
                 </ListItem>
-                {index < transactions.length - 1 && <Divider />}
+                {index < expiring.length - 1 && <Divider />}
               </React.Fragment>
             ))}
           </List>

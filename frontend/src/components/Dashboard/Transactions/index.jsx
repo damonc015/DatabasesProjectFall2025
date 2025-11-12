@@ -45,8 +45,12 @@ const Transactions = () => {
   };
 
   const handleRefresh = () => {
-    setPage(1);
-    fetchTransactions();
+    if (page === 1) {
+      fetchTransactions();
+    }
+    else {
+      setPage(1);
+    }
   };
 
   return (
