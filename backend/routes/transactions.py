@@ -1,9 +1,9 @@
-from time import sleep
+from datetime import datetime
+import pytz
 from flask import jsonify, request
 from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error
 
 bp = create_api_blueprint('transactions', '/api/transactions')
-
 
 @document_api_route(bp, 'get', '/<int:household_id>', 'Get transactions by household and page', 'Returns a list of transactions (paged)')
 @handle_db_error
@@ -22,7 +22,7 @@ def db_get_transactions_paged(household_id):
         """
         cursor.execute(count_query, (household_id,))
         total = cursor.fetchone()['total']
-        
+
         # Get paged data
         query = """
             SELECT 
@@ -45,6 +45,13 @@ def db_get_transactions_paged(household_id):
         cursor.execute(query, (household_id, limit, offset))
         results = cursor.fetchall()
         
+        # set New York Time Zone
+        tz = pytz.timezone("America/New_York")
+        for row in results:
+            if isinstance(row['CreatedAt'], datetime):
+                local_time = row['CreatedAt'].astimezone(tz)
+                row['CreatedAt'] = local_time.strftime("%a, %d %b %Y %H:%M:%S GMT%z")
+
         return jsonify({
             'data': results,
             'total': total,
