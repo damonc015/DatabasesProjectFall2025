@@ -163,7 +163,7 @@ def join_household():
     cursor = conn.cursor(dictionary=True)
 
     # validate household
-    cursor.execute("SELECT HouseholdID FROM Household WHERE JoinCode=%s", (join_code,))
+    cursor.execute("SELECT HouseholdID, HouseholdName FROM Household WHERE JoinCode=%s", (join_code,))
     h = cursor.fetchone()
     if not h:
         cursor.close()
@@ -192,7 +192,8 @@ def join_household():
 
     return jsonify({
         "message": "Joined household successfully",
-        "household_id": h["HouseholdID"]
+        "household_id": h["HouseholdID"],
+        "household_name": h["HouseholdName"]
     }), 200
 
 

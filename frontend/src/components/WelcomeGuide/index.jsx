@@ -33,6 +33,7 @@ export default function WelcomeGuide() {
 
       // Update localStorage
       stored.user.household_id = data.household.household_id;
+      stored.user.household = data.household.household_name;
       stored.user.join_code = data.household.join_code;
       stored.user.role = "owner";
       localStorage.setItem("user", JSON.stringify(stored));
@@ -68,6 +69,7 @@ export default function WelcomeGuide() {
 
       // Update localStorage  
       stored.user.household_id = data.household_id;
+      stored.user.household = data.household_name;
       stored.user.role = "member";
       localStorage.setItem("user", JSON.stringify(stored));
       localStorage.setItem("hasSeenWelcome", "true"); // Mark as seen

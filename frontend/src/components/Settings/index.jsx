@@ -91,6 +91,7 @@ export default function Settings() {
     if (!res.ok) return alert(data.error || "Error");
 
     stored.user.household_id = data.household_id;
+    stored.user.household = data.household_name;
     stored.user.role = "member";
     localStorage.setItem("user", JSON.stringify(stored));
     localStorage.setItem("hasSeenWelcome", "true"); // Mark as seen
@@ -114,6 +115,7 @@ export default function Settings() {
 
     // Update localStorage
     stored.user.household_id = data.household.household_id;
+    stored.user.household = data.household.household_name;
     stored.user.join_code = data.household.join_code;
     stored.user.role = "owner";
     localStorage.setItem("user", JSON.stringify(stored));
@@ -277,28 +279,65 @@ export default function Settings() {
             ) : (
               // Has household - show management options
               <>
-                <div style={{ marginBottom: "30px" }}>
-                  <h3>Join Another Household</h3>
-                  <TextField
-                    fullWidth
-                    placeholder={
-                      isOwner
-                        ? "Owner cannot join another household"
-                        : "Enter Join Code"
-                    }
-                    value={joinCode}
-                    disabled={isOwner}
-                    onChange={(e) => setJoinCode(e.target.value)}
-                    sx={{ marginBottom: "10px" }}
-                  />
-                  <Button
-                    variant="contained"
-                    disabled={isOwner || joinCode.trim() === ""}
-                    onClick={handleJoinHousehold}
-                  >
-                    Join
-                  </Button>
-                </div>
+                {isOwner && (
+                  // Owner: show create/join sections but disabled
+                  <>
+                    <div style={{ marginBottom: "30px" }}>
+                      <h3>Create New Household</h3>
+                      <TextField
+                        fullWidth
+                        value={householdName}
+                        disabled={true}
+                        placeholder="Owner cannot create a new household"
+                        sx={{ marginBottom: "10px" }}
+                      />
+                      <Button
+                        variant="contained"
+                        disabled={true}
+                      >
+                        Create Household
+                      </Button>
+                    </div>
+
+                    <div style={{ marginBottom: "30px" }}>
+                      <h3>Join Existing Household</h3>
+                      <TextField
+                        fullWidth
+                        placeholder="Owner cannot join another household"
+                        value={joinCode}
+                        disabled={true}
+                        sx={{ marginBottom: "10px" }}
+                      />
+                      <Button
+                        variant="contained"
+                        color="secondary"
+                        disabled={true}
+                      >
+                        Join Household
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+                {!isOwner && (
+                  <div style={{ marginBottom: "30px" }}>
+                    <h3>Join Another Household</h3>
+                    <TextField
+                      fullWidth
+                      placeholder="Enter Join Code"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value)}
+                      sx={{ marginBottom: "10px" }}
+                    />
+                    <Button
+                      variant="contained"
+                      disabled={joinCode.trim() === ""}
+                      onClick={handleJoinHousehold}
+                    >
+                      Join
+                    </Button>
+                  </div>
+                )}
 
                 {/* Owner Only */}
                 {isOwner && (
