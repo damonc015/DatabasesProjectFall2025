@@ -41,8 +41,4 @@ def create_app(config_name='development'):
 if __name__ == '__main__':
     config_name = os.getenv('FLASK_ENV', 'development')
     app = create_app(config_name)
-
-    print("=== All Flask routes loaded ===")
-    print([rule.rule for rule in app.url_map.iter_rules()])
-    
     app.run(debug=(config_name == 'development'), port=5001)

@@ -14,9 +14,16 @@ const Header = () => {
     navigate({ to: '/login' });
   }
 
+  const householdName = user?.household || 'No Household';
+
   return (
     <div className='headerContainer'>
-      <h1>Stocker</h1>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+        <h1>Stocker</h1>
+        <span style={{ fontSize: '14px', color: '#666', fontWeight: 'normal' }}>
+          {householdName}
+        </span>
+      </div>
       <div>
         <span>Welcome back, {username}</span>
         <SettingsIcon

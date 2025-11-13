@@ -2,6 +2,7 @@ from flask import jsonify, request
 from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error
 import mysql.connector
 from flask import current_app
+import uuid
 
 bp = create_api_blueprint('auth', '/api/auth')
 
@@ -169,10 +170,19 @@ def join_household():
         conn.close()
         return jsonify({"error": "Invalid join code"}), 404
 
-    # update user
+    # check if user is already in this household
+    cursor.execute("SELECT HouseholdID FROM Users WHERE UserID=%s", (user_id,))
+    u = cursor.fetchone()
+
+    if u and u["HouseholdID"] == h["HouseholdID"]:
+        cursor.close()
+        conn.close()
+        return jsonify({"error": "You are already in this household"}), 400
+    
+    # update user - set role to member when joining
     cursor.execute("""
         UPDATE Users
-        SET HouseholdID=%s
+        SET HouseholdID=%s, RoleName='member'
         WHERE UserID=%s
     """, (h["HouseholdID"], user_id))
 
@@ -184,6 +194,92 @@ def join_household():
         "message": "Joined household successfully",
         "household_id": h["HouseholdID"]
     }), 200
+
+
+@document_api_route(
+    bp, 'post', '/create-household',
+    'Create a new household',
+    'User creates a new household and becomes owner'
+)
+@handle_db_error
+def create_household():
+    data = request.get_json() or {}
+    user_id = data.get("user_id")
+    household_name = data.get("household_name", "")
+
+    if not user_id:
+        return jsonify({"error": "user_id required"}), 400
+
+    conn = get_write_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    # check if user exists
+    cursor.execute("""
+        SELECT UserID, HouseholdID, DisplayName
+        FROM Users
+        WHERE UserID=%s AND IsArchived=0
+    """, (user_id,))
+    user = cursor.fetchone()
+
+    if not user:
+        cursor.close()
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+
+    # check if user already has a household
+    if user["HouseholdID"]:
+        cursor.close()
+        conn.close()
+        return jsonify({"error": "User already belongs to a household"}), 400
+
+    # generate unique join code
+    while True:
+        join_code = str(uuid.uuid4())[:6].upper()
+        cursor.execute("SELECT HouseholdID FROM Household WHERE JoinCode=%s", (join_code,))
+        if not cursor.fetchone():
+            break  
+
+    # Use provided name or generate default name
+    if not household_name or household_name.strip() == "":
+        household_name = f"{user['DisplayName']}'s Household"
+
+    # create household
+    cursor.execute("""
+        INSERT INTO Household (HouseholdName, JoinCode)
+        VALUES (%s, %s)
+    """, (household_name, join_code))
+    
+    household_id = cursor.lastrowid
+
+    # update user - set as owner
+    cursor.execute("""
+        UPDATE Users
+        SET HouseholdID=%s, RoleName='owner'
+        WHERE UserID=%s
+    """, (household_id, user_id))
+
+    conn.commit()
+
+    # get household info
+    cursor.execute("""
+        SELECT HouseholdID, HouseholdName, JoinCode
+        FROM Household
+        WHERE HouseholdID=%s
+    """, (household_id,))
+    household = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    return jsonify({
+        "message": "Household created successfully",
+        "household": {
+            "household_id": household["HouseholdID"],
+            "household_name": household["HouseholdName"],
+            "join_code": household["JoinCode"]
+        }
+    }), 200
+
 
 @document_api_route(bp, 'post', '/remove-member',
                     'Remove user from household',
@@ -276,6 +372,18 @@ def update_profile():
             conn.close()
             return jsonify({"error": "Old password incorrect"}), 401
 
+        # prevent same password reuse
+        if new_password == old_password:
+            cursor.close()
+            conn.close()
+            return jsonify({"error": "New password cannot be the same as old password"}), 400
+        
+        # password length check
+        if len(new_password) < 6:
+            cursor.close()
+            conn.close()
+            return jsonify({"error": "Password must be at least 6 characters"}), 400
+
     updates = []
     params = []
 
@@ -300,3 +408,58 @@ def update_profile():
     conn.close()
 
     return jsonify({"message": "Profile updated successfully"}), 200
+
+
+@document_api_route(
+    bp, 'post', '/dissolve-household',
+    'Dissolve household',
+    'Remove all members from household (including owner)'
+)
+@handle_db_error
+def dissolve_household():
+    data = request.get_json() or {}
+    user_id = data.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "user_id required"}), 400
+
+    conn = get_write_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    # get user info (must be owner)
+    cursor.execute("""
+        SELECT HouseholdID, RoleName
+        FROM Users
+        WHERE UserID=%s AND IsArchived=0
+    """, (user_id,))
+    user = cursor.fetchone()
+
+    if not user:
+        cursor.close()
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+
+    if user["RoleName"] != "owner":
+        cursor.close()
+        conn.close()
+        return jsonify({"error": "Only owners can dissolve household"}), 403
+
+    household_id = user["HouseholdID"]
+
+    if not household_id:
+        cursor.close()
+        conn.close()
+        return jsonify({"error": "User is not in a household"}), 400
+
+     # remove ALL members from household and reset owner role to member
+    cursor.execute("""
+        UPDATE Users
+        SET HouseholdID=NULL, RoleName='member'
+        WHERE HouseholdID=%s
+    """, (household_id,))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return jsonify({"message": "All members removed from household successfully"}), 200
