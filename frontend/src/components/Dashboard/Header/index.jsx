@@ -1,12 +1,13 @@
 import React from 'react'
 import SettingsIcon from '@mui/icons-material/Settings';
 import Button from '@mui/material/Button';
+import StaticLogo from './StaticLogo';
 
 const Header = () => {
   const username = 'John Doe';
   return (
     <div className='headerContainer'>
-      <h1>Stocker</h1>
+      <StaticLogo />
       <div>
         <span>Welcome back, {username}</span>
         <SettingsIcon />

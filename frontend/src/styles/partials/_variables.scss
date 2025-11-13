@@ -1,7 +1,11 @@
-// Font
+// ---------
+// Fonts
+// ---------
 $font-family: 'Balsamiq Sans', system-ui, sans-serif;
 
+// ---------
 // Colors - in order of light to dark
+// ---------
 // off-white 
 $primary-color: #FAF8F4;
 // darker shades of off-white
@@ -22,17 +26,32 @@ $highlight-color-two: #946846;
 $text-primary-color: #1f1f1f;
 $text-secondary-color: #6b6258;
 
-
-
 $form-border-width: 1.2px;
 $form-border-color: rgb(26, 26, 26, 0.4);
 $form-border-radius: 8px;
 $box-shadow: 1.5px 1.5px 2px 0 rgba(47, 47, 47, 0.4);
 
+// ---------
 // Dimensions
+// ---------
 $tempheight: 5rem;
 $tempwidth: 50%;
 
+// login/register-container-full 
+$login-register-full-height: 60%;
+$login-register-full-width: 60%;
+// login/register-container-lg
+$login-register-lg-height: 60%;
+$login-register-lg-width: 70%;
+// login/register-container-md
+$login-register-md-height: 80%;
+$login-register-md-width: 75%;
+// login/register-container-sm
+$login-register-sm-height: 100%;
+$login-register-sm-width: 100%;
+
+// ---------
 // Animations
+// ---------
 $house-animation-duration: 2s;
 $smoke-animation-duration: 3s;

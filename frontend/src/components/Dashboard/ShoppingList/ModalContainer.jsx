@@ -1,36 +1,41 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
 import Modal from '@mui/material/Modal';
-import { useState } from 'react';
+import useShoppingListStore from '../../../stores/useShoppingListStore';
+import ShoppingListHeader from './List/ShoppingListHeader';
+import ShoppingListTable from './List/ShoppingListTable';
+import ShoppingHistoryHeader from './ShopHistory/ShoppingHistoryHeader';
+import ShoppingHistoryTable from './ShopHistory/ShoppingHistoryTable';
 
-const style = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: 400,
-  bgcolor: 'background.paper',
-  border: '2px solid #000',
-  boxShadow: 24,
-  p: 4,
-};
-
-export default function ModalContainer({ open, onClose }) {
+export default function ModalContainer() {
+  const { isModalOpen, closeModal, isListHistory, setIsListHistory } = useShoppingListStore();
   return (
-    <div>
-      <Modal
-        open={open}
-        onClose={onClose}
-        aria-labelledby='modal-modal-title'
-        aria-describedby='modal-modal-description'
-      >
-        <Box sx={style}>
-          <Typography id='modal-modal-title' variant='h6' component='h2'>
-            Text in a modal
-          </Typography>
+    <Modal
+      open={isModalOpen}
+      onClose={() => {
+        closeModal();
+        setIsListHistory(false);
+      }}
+      className='modalContainer'
+      aria-labelledby='modal-modal-title'
+      aria-describedby='modal-modal-description'
+    >
+      {isListHistory ? (
+        <Box className='alt-box'>
+          <ShoppingHistoryHeader />
+          <ShoppingHistoryTable />
         </Box>
-      </Modal>
-    </div>
+      ) : (
+        <Box className='box'>
+          <div className='shopping-list-container'>
+            <ShoppingListHeader />
+            <ShoppingListTable />
+          </div>
+          <Button className='button' variant='contained' color='primary' onClick={closeModal}>
+            Create New List
+          </Button>
+        </Box>
+      )}
+    </Modal>
   );
 }

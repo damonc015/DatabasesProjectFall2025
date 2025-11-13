@@ -1,0 +1,72 @@
+.db-test {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.db-test .success-box {
+  padding: 15px;
+  background-color: #efe;
+  border: 1px solid #cfc;
+  border-radius: 5px;
+  margin-bottom: 15px;
+}
+
+.db-test .items-list {
+  padding: 15px;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  max-height: 300px;
+  overflow: auto;
+  margin-bottom: 20px;
+}
+
+.db-test .items-list ul {
+  margin-top: 10px;
+  padding-left: 20px;
+  list-style: none;
+}
+
+.db-test .items-list ul li {
+  margin-bottom: 5px;
+}
+
+.db-test .input-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+}
+
+.db-test .input-section label {
+  margin-right: 10px;
+}
+
+.db-test .input-section input {
+  margin-left: 10px;
+  padding: 5px;
+  width: 100px;
+}
+
+.db-test .input-section button {
+  margin-left: 10px;
+  padding: 5px 15px;
+}
+
+.db-test .error-box {
+  padding: 15px;
+  background-color: #fee;
+  border: 1px solid #fcc;
+  border-radius: 5px;
+}
+
+.db-test .json-display {
+  padding: 15px;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  overflow: auto;
+  max-height: 600px;
+}
+/*# sourceMappingURL=DBTest.css.map */
