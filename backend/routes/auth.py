@@ -34,7 +34,8 @@ def login_user():
                 u.DisplayName,
                 u.RoleName,
                 u.HouseholdID,
-                h.HouseholdName
+                h.HouseholdName,
+                h.JoinCode
             FROM Users u
             LEFT JOIN Household h ON u.HouseholdID = h.HouseholdID
             WHERE u.UserName = %s
@@ -56,7 +57,8 @@ def login_user():
             "display_name": user["DisplayName"],
             "role": user["RoleName"],
             "household_id": user["HouseholdID"],
-            "household": user["HouseholdName"]
+            "household": user["HouseholdName"],
+            "join_code": user["JoinCode"]
         }
     }), 200
 
@@ -104,7 +106,7 @@ def register_user():
 
     # get user info
     cursor.execute("""
-        SELECT u.UserID, u.UserName, u.DisplayName, u.RoleName, h.HouseholdName
+        SELECT u.UserID, u.UserName, u.DisplayName, u.RoleName, h.HouseholdName, h.JoinCode
         FROM Users u
         LEFT JOIN Household h ON u.HouseholdID = h.HouseholdID
         WHERE u.UserName=%s
@@ -121,7 +123,8 @@ def register_user():
             "username": user["UserName"],
             "display_name": user["DisplayName"],
             "role": user["RoleName"],
-            "household": user["HouseholdName"]
+            "household": user["HouseholdName"],
+            "join_code": user["JoinCode"]
         }
     }), 200
 
