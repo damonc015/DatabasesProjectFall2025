@@ -3,7 +3,7 @@ from apiflask import APIFlask
 from flask import jsonify, send_from_directory
 from flask_cors import CORS
 from config import config
-from routes import food_items_bp, shopping_lists_bp, households_bp
+from routes import food_items_bp, shopping_lists_bp, households_bp, auth_bp
 
 
 def create_app(config_name='development'):
@@ -24,7 +24,8 @@ def create_app(config_name='development'):
     app.register_blueprint(food_items_bp)
     app.register_blueprint(shopping_lists_bp)
     app.register_blueprint(households_bp)
-    
+    app.register_blueprint(auth_bp)
+
     if config_name == 'production':
         @app.route('/', defaults={'path': ''})
         @app.route('/<path:path>')
@@ -36,8 +37,11 @@ def create_app(config_name='development'):
     
     return app
 
-
 if __name__ == '__main__':
     config_name = os.getenv('FLASK_ENV', 'development')
     app = create_app(config_name)
+
+    print("=== All Flask routes loaded ===")
+    print([rule.rule for rule in app.url_map.iter_rules()])
+    
     app.run(debug=(config_name == 'development'), port=5001)
