@@ -9,6 +9,7 @@ import Checkbox from '@mui/material/Checkbox';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import TableFallback from '../TableFallback';
 import Button from '@mui/material/Button';
+import NumberController from '../NumberController/NumberController';
 
 function createData(name, calories, fat, carbs, protein) {
   return { name, calories, fat, carbs, protein };
@@ -23,23 +24,23 @@ const tableHeaders = [
   { label: 'Remove from List', align: 'left' },
 ];
 const suggestedRows = [
-  { name: 'Frozen yoghurt', calories: 159, fat: 6.0, carbs: 24, protein: 4.0 },
-  { name: 'Ice cream sandwich', calories: 237, fat: 9.0, carbs: 37, protein: 4.3 },
-  { name: 'Eclair', calories: 262, fat: 16.0, carbs: 24, protein: 6.0 },
-  { name: 'Cupcake', calories: 305, fat: 3.7, carbs: 67, protein: 4.3 },
-  { name: 'Gingerbread', calories: 356, fat: 16.0, carbs: 49, protein: 3.9 },
+  // { name: 'Frozen yoghurt', calories: 159, fat: 6.0, carbs: 24, protein: 4.0 },
+  // { name: 'Ice cream sandwich', calories: 237, fat: 9.0, carbs: 37, protein: 4.3 },
+  // { name: 'Eclair', calories: 262, fat: 16.0, carbs: 24, protein: 6.0 },
+  // { name: 'Cupcake', calories: 305, fat: 3.7, carbs: 67, protein: 4.3 },
+  // { name: 'Gingerbread', calories: 356, fat: 16.0, carbs: 49, protein: 3.9 },
 ];
 const rows = [
-  createData('Frozen yoghurt', 159, 6.0, 24, 4.0),
-  createData('Ice cream sandwich', 237, 9.0, 37, 4.3),
-  createData('Eclair', 262, 16.0, 24, 6.0),
-  createData('Cupcake', 305, 3.7, 67, 4.3),
-  createData('Gingerbread', 356, 16.0, 49, 3.9),
-  createData('Frozen yoghurt', 159, 6.0, 24, 4.0),
-  createData('Ice cream sandwich', 237, 9.0, 37, 4.3),
-  createData('Eclair', 262, 16.0, 24, 6.0),
-  createData('Cupcake', 305, 3.7, 67, 4.3),
-  createData('Gingerbread', 356, 16.0, 49, 3.9),
+  // createData('Frozen yoghurt', 159, 6.0, 24, 4.0),
+  // createData('Ice cream sandwich', 237, 9.0, 37, 4.3),
+  // createData('Eclair', 262, 16.0, 24, 6.0),
+  // createData('Cupcake', 305, 3.7, 67, 4.3),
+  // createData('Gingerbread', 356, 16.0, 49, 3.9),
+  // createData('Frozen yoghurt', 159, 6.0, 24, 4.0),
+  // createData('Ice cream sandwich', 237, 9.0, 37, 4.3),
+  // createData('Eclair', 262, 16.0, 24, 6.0),
+  // createData('Cupcake', 305, 3.7, 67, 4.3),
+  // createData('Gingerbread', 356, 16.0, 49, 3.9),
 ];
 export default function CreateShoppingListTable() {
   return (
@@ -65,7 +66,7 @@ export default function CreateShoppingListTable() {
                 {row.calories}
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                {row.fat}
+                <NumberController id='1' defaultValue={100} />
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 {row.carbs}
@@ -100,36 +101,40 @@ export default function CreateShoppingListTable() {
               </TableCell>
             </TableRow>
           ))}
-          <TableRow
-            sx={{
-              position: 'sticky',
-              bottom: 0,
-              zIndex: 100,
-              backgroundColor: 'white',
-            }}
-          >
-            <TableCell
-              colSpan={4}
-              component='th'
-              scope='row'
-              align='center'
+          {/* Item total row, last row in table */}
+          {rows.length > 0 && suggestedRows.length > 0 && (
+            <TableRow
               sx={{
-                fontFamily: 'Balsamiq Sans',
-              }}
-            ></TableCell>
-            <TableCell
-              colSpan={2}
-              component='th'
-              scope='row'
-              align='center'
-              sx={{
-                fontFamily: 'Balsamiq Sans',
+                position: 'sticky',
+                bottom: 0,
+                zIndex: 100,
+                backgroundColor: 'white',
               }}
             >
-              Total Price: <span style={{ marginLeft: '1rem' }}>$0.00</span>
-            </TableCell>
-          </TableRow>
-          {rows.length === 0 && <TableFallback />}
+              <TableCell
+                colSpan={4}
+                component='th'
+                scope='row'
+                align='center'
+                sx={{
+                  fontFamily: 'Balsamiq Sans',
+                }}
+              ></TableCell>
+              <TableCell
+                colSpan={2}
+                component='th'
+                scope='row'
+                align='center'
+                sx={{
+                  fontFamily: 'Balsamiq Sans',
+                }}
+              >
+                Total Price: <span style={{ marginLeft: '1rem' }}>$0.00</span>
+              </TableCell>
+            </TableRow>
+          )}
+          {/* Fallback if there are no items */}
+          {rows.length === 0 && suggestedRows.length === 0 && <TableFallback />}
         </TableBody>
       </Table>
     </TableContainer>

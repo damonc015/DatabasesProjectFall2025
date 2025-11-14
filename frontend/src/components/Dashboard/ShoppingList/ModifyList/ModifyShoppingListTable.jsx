@@ -8,6 +8,7 @@ import Paper from '@mui/material/Paper';
 import Checkbox from '@mui/material/Checkbox';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import TableFallback from '../TableFallback';
+import NumberController from '../NumberController/NumberController';
 
 function createData(name, calories, fat, carbs, protein) {
   return { name, calories, fat, carbs, protein };
@@ -63,7 +64,7 @@ export default function ModifyShoppingListTable() {
                 {row.calories}
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                {row.fat}
+                <NumberController id='1' defaultValue={100} />
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 {row.carbs}
