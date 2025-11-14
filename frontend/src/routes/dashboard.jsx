@@ -8,6 +8,13 @@ function DashboardWrapper() {
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("user"));
     const user = stored?.user;
+    
+    // Redirect to register if user is not authenticated
+    if (!user || !user.id) {
+      navigate({ to: "/register" });
+      return;
+    }
+    
     const hasSeenWelcome = localStorage.getItem("hasSeenWelcome") === "true";
     
     // Only redirect to welcome if user has no household AND hasn't seen welcome page yet

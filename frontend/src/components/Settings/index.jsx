@@ -1,26 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { TextField, Button, Tabs, Tab, Box } from "@mui/material";
+import { useNavigate } from "@tanstack/react-router";
 
 export default function Settings() {
+  const navigate = useNavigate();
   const stored = JSON.parse(localStorage.getItem("user"));
   const user = stored?.user;
   const isOwner = user?.role === "owner";
 
-  // user info
   const [displayName, setDisplayName] = useState(user?.display_name || "");
   const [oldPw, setOldPw] = useState("");
   const [newPw, setNewPw] = useState("");
 
-  // join household
   const [joinCode, setJoinCode] = useState("");
   
-  // create household
   const [householdName, setHouseholdName] = useState("");
 
-  // members (only for owner)
   const [members, setMembers] = useState([]);
   
-  // tab state
   const [currentTab, setCurrentTab] = useState(0);
 
   // Fetch members only if owner
@@ -94,7 +91,7 @@ export default function Settings() {
     stored.user.household = data.household_name;
     stored.user.role = "member";
     localStorage.setItem("user", JSON.stringify(stored));
-    localStorage.setItem("hasSeenWelcome", "true"); // Mark as seen
+    localStorage.setItem("hasSeenWelcome", "true");
 
     alert("Joined household!");
     window.location.reload();
@@ -119,7 +116,7 @@ export default function Settings() {
     stored.user.join_code = data.household.join_code;
     stored.user.role = "owner";
     localStorage.setItem("user", JSON.stringify(stored));
-    localStorage.setItem("hasSeenWelcome", "true"); // Mark as seen
+    localStorage.setItem("hasSeenWelcome", "true");
 
     alert("Household created successfully!");
     window.location.reload();
@@ -188,7 +185,15 @@ export default function Settings() {
         paddingTop: "80px",
         minHeight: "100vh"
       }}>
-        <h2>Settings</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+          <h2>Settings</h2>
+          <Button 
+            variant="outlined" 
+            onClick={() => navigate({ to: "/dashboard" })}
+          >
+            Back to Dashboard
+          </Button>
+        </div>
 
         <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)} sx={{ marginBottom: "30px" }}>
           <Tab label="Personal Settings" />

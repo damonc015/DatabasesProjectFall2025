@@ -3,6 +3,7 @@ from extensions import db_cursor, create_api_blueprint, document_api_route, hand
 import mysql.connector
 from flask import current_app
 import uuid
+import bcrypt
 
 bp = create_api_blueprint('auth', '/api/auth')
 
@@ -35,19 +36,29 @@ def login_user():
                 u.DisplayName,
                 u.RoleName,
                 u.HouseholdID,
+                u.PasswordHash,
                 h.HouseholdName,
                 h.JoinCode
             FROM Users u
             LEFT JOIN Household h ON u.HouseholdID = h.HouseholdID
             WHERE u.UserName = %s
-              AND u.PasswordHash = %s
               AND u.IsArchived = 0
             LIMIT 1
         """ 
-        cursor.execute(query, (username, password))
+        cursor.execute(query, (username,))
         user = cursor.fetchone()
 
-        if not user:
+        if not user or not user.get("PasswordHash"):
+            return jsonify({'error': 'Invalid username or password'}), 401
+        
+        # Verify password using bcrypt
+        try:
+            password_hash = user["PasswordHash"]
+            if isinstance(password_hash, str):
+                password_hash = password_hash.encode('utf-8')
+            if not bcrypt.checkpw(password.encode('utf-8'), password_hash):
+                return jsonify({'error': 'Invalid username or password'}), 401
+        except (ValueError, TypeError):
             return jsonify({'error': 'Invalid username or password'}), 401
 
     return jsonify({
@@ -97,17 +108,20 @@ def register_user():
             return jsonify({'error': 'Invalid join code'}), 404
         household_id = h["HouseholdID"]
 
+    # Hash password using bcrypt
+    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
     # insert new user
     cursor.execute("""
         INSERT INTO Users (HouseholdID, UserName, DisplayName, RoleName, PasswordHash, IsArchived)
         VALUES (%s, %s, %s, %s, %s, 0)
-    """, (household_id, username, display_name, 'member', password))
+    """, (household_id, username, display_name, 'member', password_hash))
 
     conn.commit()
 
     # get user info
     cursor.execute("""
-        SELECT u.UserID, u.UserName, u.DisplayName, u.RoleName, h.HouseholdName, h.JoinCode
+        SELECT u.UserID, u.UserName, u.DisplayName, u.RoleName, u.HouseholdID, h.HouseholdName, h.JoinCode
         FROM Users u
         LEFT JOIN Household h ON u.HouseholdID = h.HouseholdID
         WHERE u.UserName=%s
@@ -124,6 +138,7 @@ def register_user():
             "username": user["UserName"],
             "display_name": user["DisplayName"],
             "role": user["RoleName"],
+            "household_id": user["HouseholdID"],
             "household": user["HouseholdName"],
             "join_code": user["JoinCode"]
         }
@@ -368,16 +383,25 @@ def update_profile():
             conn.close()
             return jsonify({"error": "old_password required to change password"}), 400
         
-        if user["PasswordHash"] != old_password:
+        # Verify old password using bcrypt
+        try:
+            password_hash = user["PasswordHash"]
+            if isinstance(password_hash, str):
+                password_hash = password_hash.encode('utf-8')
+            if not bcrypt.checkpw(old_password.encode('utf-8'), password_hash):
+                cursor.close()
+                conn.close()
+                return jsonify({"error": "Old password incorrect"}), 401
+            
+            # Verify new password is different from old password using bcrypt
+            if bcrypt.checkpw(new_password.encode('utf-8'), password_hash):
+                cursor.close()
+                conn.close()
+                return jsonify({"error": "New password cannot be the same as old password"}), 400
+        except (ValueError, TypeError):
             cursor.close()
             conn.close()
             return jsonify({"error": "Old password incorrect"}), 401
-
-        # prevent same password reuse
-        if new_password == old_password:
-            cursor.close()
-            conn.close()
-            return jsonify({"error": "New password cannot be the same as old password"}), 400
         
         # password length check
         if len(new_password) < 6:
@@ -393,8 +417,10 @@ def update_profile():
         params.append(new_name)
 
     if new_password:
+        # Hash new password using bcrypt
+        new_password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         updates.append("PasswordHash=%s")
-        params.append(new_password)
+        params.append(new_password_hash)
 
     params.append(user_id)
 

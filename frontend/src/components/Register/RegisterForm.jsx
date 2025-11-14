@@ -32,6 +32,9 @@ const RegisterForm = () => {
       }
 
       localStorage.setItem('user', JSON.stringify(data));
+      if (!data.user?.household_id) {
+        localStorage.removeItem('hasSeenWelcome');
+      }
       navigate({ to: '/dashboard' });
 
     } catch (err) {
