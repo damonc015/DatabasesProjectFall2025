@@ -11,14 +11,6 @@ import Button from '@mui/material/Button';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useShoppingLists } from '../../../../hooks/useShoppingLists';
 
-
-const suggestedRows = [
-  { name: 'Frozen yoghurt', calories: 159, fat: 6.0, carbs: 24, protein: 4.0 },
-  { name: 'Ice cream sandwich', calories: 237, fat: 9.0, carbs: 37, protein: 4.3 },
-  { name: 'Eclair', calories: 262, fat: 16.0, carbs: 24, protein: 6.0 },
-  { name: 'Cupcake', calories: 305, fat: 3.7, carbs: 67, protein: 4.3 },
-  { name: 'Gingerbread', calories: 356, fat: 16.0, carbs: 49, protein: 3.9 },
-];
 export default function ShoppingHistoryTable() {
   const { setIsListHistory } = useShoppingListStore();
   const { data, error, isLoading } = useShoppingLists();
@@ -70,7 +62,7 @@ export default function ShoppingHistoryTable() {
           </TableRow>
         </TableHead>
         <TableBody>
-          {suggestedRows.map((row) => (
+          {data.map((row) => (
             <TableRow
               key={row.name}
               onClick={() => setIsListHistory('modifylist')}
@@ -80,16 +72,16 @@ export default function ShoppingHistoryTable() {
               }}
             >
               <TableCell component='th' scope='row' align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                {row.name}
+                {row.ShoppingListID}
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                {row.calories}
+                {row.LastUpdated}
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                {row.fat}
+                {row.TotalCost ? `$${row.TotalCost}` : '$0.00'}
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                {row.Status}
+                {row.Status.toString().toUpperCase()}
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 <Button className='table-button' variant='contained' color='primary' endIcon={<DownloadIcon />}>

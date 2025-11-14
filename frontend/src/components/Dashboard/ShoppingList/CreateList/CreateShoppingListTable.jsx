@@ -18,18 +18,20 @@ export default function CreateShoppingListTable({ shoppingListId }) {
   if (error) return <div>Error: {error.message}</div>;
   if (!data) return <div>No items found</div>;
   const tableHeaders = [
-    { label: 'Item', align: 'left' },
-    { label: 'Price Per Unit', align: 'left' },
-    { label: 'Purchased Quantity', align: 'left' },
-    { label: 'Total Price', align: 'left' },
-    { label: 'Mark as Purchased', align: 'left' },
-    { label: 'Remove from List', align: 'left' },
+    { label: 'Item' },
+    { label: 'Price Per Unit' },
+    { label: 'Purchased Quantity' },
+    { label: 'Total Price' },
+    { label: 'Mark as Purchased' },
+    { label: 'Remove from List' },
   ];
   const suggestedRows = data.map((item) => {
     return {
+      ShoppingListItemID: item.ShoppingListItemID,
       FoodItemName: item.FoodItemName,
       PricePerUnit: item.PricePerUnit,
       PurchasedQty: item.PurchasedQty,
+      NeededQty: item.NeededQty,
       // price of one package of that item
       TotalPrice: item.TotalPrice,
       Status: item.Status,
@@ -37,7 +39,7 @@ export default function CreateShoppingListTable({ shoppingListId }) {
   });
   const rows = [];
   console.log(data);
-  // console.log(suggestedRows);
+  console.log(suggestedRows);
   return (
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 650 }} aria-label='simple table'>
@@ -61,10 +63,10 @@ export default function CreateShoppingListTable({ shoppingListId }) {
                 {row.PricePerUnit}
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                <NumberController id='1' defaultValue={100} />
+                <NumberController id={row.ShoppingListItemID} defaultValue={row.NeededQty} />
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                {row.TotalPrice}
+                {row.TotalPrice ? `$${row.TotalPrice}` : '$0.00'}
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 <Checkbox />
