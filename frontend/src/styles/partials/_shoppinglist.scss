@@ -1,18 +1,16 @@
 @use './variables';
 
 .modalContainer {
-  > * {
-    box-sizing: content-box;
-  }
-  .box, .alt-box {
+  .box,
+  .alt-box {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     width: 90%;
     height: 90%;
-    border: variables.$form-border-width solid green;
-    border-radius: 12px;
+    border: 2px solid rgb(26, 26, 26, 0.7);
+    border-radius: 10px;
     background-color: variables.$primary-color;
     display: flex;
     flex-direction: column;
@@ -20,8 +18,15 @@
   }
   .button {
     display: block;
-    margin: 0 auto 2rem auto;
+    margin: auto;
     background-color: variables.$highlight-color-two;
+  }
+  .table-button {
+    background-color: variables.$highlight-color-two;
+    display: flex;
+    width: 60%;
+    margin: auto;
+    border-radius: 10px;
   }
 }
 .box {
@@ -33,19 +38,23 @@
 .shopping-list-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  max-height: 88%;
+  align-items: stretch;
+  justify-content: start;
+  height: 88%;
   overflow-y: scroll;
 }
 .shopping-list-header-container {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  border: variables.$form-border-width solid orange;
+  margin: 0 1rem;
+  // border: variables.$form-border-width solid orange;
+  border-bottom: variables.$form-border-width solid variables.$form-border-color;
+  > :last-child {
+    padding: 0;
+    margin-right: 1.5rem;
+  }
 }
 .shopping-list-pre-header {
   display: flex;
@@ -53,25 +62,34 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  border: variables.$form-border-width solid red;
+  background-color: variables.$secondary-color;
+  // border: variables.$form-border-width solid red;
+  border-bottom: variables.$form-border-width solid variables.$form-border-color;
   > * {
-    margin: 1rem;
+    margin: .8rem 1.5rem;
   }
 }
 .shopping-list-header {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  border: variables.$form-border-width solid variables.$form-border-color;
+  justify-content: start;
+  gap: 1rem;
+  // border: variables.$form-border-width solid variables.$form-border-color;
   > * {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: start;
-    width: 100%;
-    padding: 1rem;
+    padding: 0.5rem 0.5rem;
     gap: 1rem;
   }
+}
+
+.shopping-history-table-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
 }

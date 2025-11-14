@@ -37,6 +37,10 @@ body {
 .MuiPickersOutlinedInput-notchedOutline {
   border-color: variables.$form-border-color !important;
 }
+// checkbox
+.MuiCheckbox-root.Mui-checked {
+  color: variables.$highlight-color-two !important;
+}
 
 .muiicon {
   cursor: pointer;
@@ -44,6 +48,14 @@ body {
     background-color: rgb(220, 220, 220);
     border-radius: 60%;
     box-shadow: 0 0 10px 2px rgb(194, 194, 194);
+  }
+}
+.muiicon-noshadow {
+  cursor: pointer;
+  &:hover {
+    background-color: transparent;
+    border-radius: 60%;
+    box-shadow: none;
   }
 }
 

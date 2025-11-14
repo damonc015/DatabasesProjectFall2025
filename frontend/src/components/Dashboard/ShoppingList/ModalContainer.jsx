@@ -2,40 +2,72 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Modal from '@mui/material/Modal';
 import useShoppingListStore from '../../../stores/useShoppingListStore';
-import ShoppingListHeader from './List/ShoppingListHeader';
-import ShoppingListTable from './List/ShoppingListTable';
+import CreateShoppingListHeader from './CreateList/CreateShoppingListHeader';
+import CreateShoppingListTable from './CreateList/CreateShoppingListTable';
+import ModifyShoppingListHeader from './ModifyList/ModifyShoppingListHeader';
+import ModifyShoppingListTable from './ModifyList/ModifyShoppingListTable';
 import ShoppingHistoryHeader from './ShopHistory/ShoppingHistoryHeader';
 import ShoppingHistoryTable from './ShopHistory/ShoppingHistoryTable';
 
 export default function ModalContainer() {
   const { isModalOpen, closeModal, isListHistory, setIsListHistory } = useShoppingListStore();
+  const displayModalContent = () => {
+    switch (isListHistory) {
+      case 'history':
+        return (
+          <Box className='alt-box'>
+            <ShoppingHistoryHeader />
+            <ShoppingHistoryTable />
+          </Box>
+        );
+      case 'createlist':
+        return (
+          <Box className='box'>
+            <div className='shopping-list-container'>
+              <CreateShoppingListHeader />
+              <CreateShoppingListTable />
+            </div>
+            <Button className='button' variant='contained' color='primary' onClick={closeModal}>
+              Create New List
+            </Button>
+          </Box>
+        );
+      case 'modifylist':
+        return (
+          <Box className='box'>
+            <div className='shopping-list-container'>
+              <ModifyShoppingListHeader />
+              <ModifyShoppingListTable />
+            </div>
+            <Button
+              className='button'
+              variant='contained'
+              color='primary'
+              onClick={() => {
+                closeModal();
+                setIsListHistory('createlist');
+              }}
+            >
+              Save Changes
+            </Button>
+          </Box>
+        );
+      default:
+        return <Box></Box>;
+    }
+  };
   return (
     <Modal
       open={isModalOpen}
       onClose={() => {
         closeModal();
-        setIsListHistory(false);
+        setIsListHistory('createlist');
       }}
       className='modalContainer'
       aria-labelledby='modal-modal-title'
       aria-describedby='modal-modal-description'
     >
-      {isListHistory ? (
-        <Box className='alt-box'>
-          <ShoppingHistoryHeader />
-          <ShoppingHistoryTable />
-        </Box>
-      ) : (
-        <Box className='box'>
-          <div className='shopping-list-container'>
-            <ShoppingListHeader />
-            <ShoppingListTable />
-          </div>
-          <Button className='button' variant='contained' color='primary' onClick={closeModal}>
-            Create New List
-          </Button>
-        </Box>
-      )}
+      {displayModalContent()}
     </Modal>
   );
 }
