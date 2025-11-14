@@ -28,3 +28,20 @@ def get_household(household_id):
             return jsonify({'error': 'Household not found'}), 404
         
         return jsonify(result), 200
+
+
+@document_api_route(bp, 'get', '/<int:household_id>/locations', 'Get locations by household', 'Returns all locations for a household')
+@handle_db_error
+def get_household_locations(household_id):
+    with db_cursor() as cursor:
+        query = """
+            SELECT LocationID, LocationName
+            FROM Location
+            WHERE HouseholdID = %s AND IsArchived = 0
+            ORDER BY LocationName
+        """
+        cursor.execute(query, (household_id,))
+        results = cursor.fetchall()
+        
+        return jsonify(results), 200
+0
