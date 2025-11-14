@@ -25,7 +25,7 @@ export default function ModalContainer() {
           <Box className='box'>
             <div className='shopping-list-container'>
               <CreateShoppingListHeader />
-              <CreateShoppingListTable />
+              <CreateShoppingListTable shoppingListId={1} />
             </div>
             <Button className='button' variant='contained' color='primary' onClick={closeModal}>
               Create New List
