@@ -146,7 +146,8 @@ def get_inventory_totals(household_id):
             base_unit = item['BaseUnitAbbr']
             
             item['FormattedBaseUnits'] = f"{round(total_qty)}{base_unit}"
-            
+            item['FormattedPackages'] = _format_packages(whole_packages, remainder, package_label, base_unit, total_qty)
+        
         return jsonify(results), 200
 
 @document_api_route(bp, 'get', '/inventory/<int:household_id>/location/<int:location_id>', 
@@ -169,5 +170,18 @@ def get_inventory_by_location(household_id, location_id):
             base_unit = item['BaseUnitAbbr']
             
             item['FormattedBaseUnits'] = f"{round(total_qty)}{base_unit}"
+            item['FormattedPackages'] = _format_packages(whole_packages, remainder, package_label, base_unit, total_qty)
         
         return jsonify(results), 200
+
+
+def _format_packages(whole_packages, remainder, package_label, base_unit, total_qty):
+    # Format package: ie 2 Bags + 100g.
+    if whole_packages > 0 and remainder > 0:
+        plural = 's' if whole_packages > 1 else ''
+        return f"{whole_packages} {package_label}{plural} + {round(remainder)}{base_unit}"
+    elif whole_packages > 0:
+        plural = 's' if whole_packages > 1 else ''
+        return f"{whole_packages} {package_label}{plural}"
+    else:
+        return f"{round(total_qty)}{base_unit}"
