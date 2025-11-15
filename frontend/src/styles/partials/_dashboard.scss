@@ -19,6 +19,15 @@
 
 .inventoryContainer {
   width: 100%;
+  min-width: 20rem;
+  
+  @media (min-width: 37.5rem) {
+    min-width: 30rem;
+  }
+  
+  @media (min-width: 60rem) {
+    min-width: 37.5rem;
+  }
 }
 
 .monitorsContainer {

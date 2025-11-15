@@ -12,17 +12,27 @@ const FoodCard = ({ item, showPackage }) => {
     <Card 
       variant='outlined' 
       sx={{ 
-        height: '100%',
+        height: '14rem',
         display: 'flex',
         flexDirection: 'column',
         transition: 'box-shadow 0.2s',
+        overflow: 'hidden',
         '&:hover': {
           boxShadow: 3,
           cursor: 'pointer'
         }
       }}
     >
-      <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+      <CardContent 
+        sx={{ 
+          flexGrow: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          textAlign: 'center', 
+          overflowY: 'auto' 
+        }}
+      >
         <FoodIcon category={item.Category} />
         <Typography variant='h6' sx={{ mb: 1, mt: 1, fontWeight: 'bold' }}>
           {item.FoodName}

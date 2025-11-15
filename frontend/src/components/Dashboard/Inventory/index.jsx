@@ -91,10 +91,14 @@ const Inventory = () => {
 
       <Box 
         sx={{ 
-          flexGrow: 1,
-
+          backgroundColor: 'background.paper',
           borderRadius: 2,
-          p: 3
+          p: 3,
+          minHeight: '20rem',
+          maxHeight: '50vh',
+          overflowY: 'auto',
+          border: 2,
+          borderColor: 'divider'
         }}
       >
         <Grid container spacing={2}>
@@ -106,7 +110,22 @@ const Inventory = () => {
             </Grid>
           ) : (
             inventory.map((item) => (
-              <Grid item xs={6} sm={4} md={3} lg={2} xl={2} key={item.FoodItemID}>
+              <Grid 
+                item 
+                xs={12} 
+                sm={6} 
+                md={4} 
+                lg={2}
+                xl={2}
+                key={item.FoodItemID}
+                sx={{
+                  '@media (min-width: 1200px)': {
+                    width: '20%',
+                    maxWidth: '20%',
+                    flexBasis: '20%'
+                  }
+                }}
+              >
                 <FoodCard item={item} showPackage={showPackage} />
               </Grid>
             ))
