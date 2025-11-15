@@ -46,6 +46,8 @@ const RegisterForm = () => {
   return (
     <Box className='register-container' component='form' noValidate autoComplete='off'>
       <div className='title-container'>
+        <span className='left-logo'>Sto</span>
+        <span className='right-logo'>ker</span>
         <Logo />
       </div>
       {error && <p style={{ color: 'red' }}>{error}</p>}

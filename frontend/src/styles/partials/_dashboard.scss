@@ -19,8 +19,8 @@
   position: relative;
   .actionButtonContainer {
     position: absolute;
-    right: 2rem;
-    bottom: 0;
+    right: 4.5%;
+    bottom: 3%;
     .actionButton {
       background-color: variables.$highlight-color-two;
     }
@@ -37,10 +37,29 @@
   padding: 1.5rem 0;
   border: variables.$form-border-width solid variables.$form-border-color;
   > * {
-    margin: 0 1.5rem;
+    margin: 0 6rem;
   }
   .button {
     background-color: variables.$highlight-color-two;
+  }
+  .static-logo-container {
+    position: relative;
+    .db-logo {
+      width: 4rem;
+      height: 4rem;
+    }
+    .left-logo {
+      font-size: 2rem;
+      position: absolute;
+      left: -2.5rem;
+      top: 1.8rem;
+    }
+    .right-logo {
+      font-size: 2rem;
+      position: absolute;
+      right: -2.5rem;
+      top: 1.8rem;
+    }
   }
 }
 

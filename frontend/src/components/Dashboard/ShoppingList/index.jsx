@@ -1,8 +1,11 @@
 import React from 'react'
+import ModalContainer from './ModalContainer';
 
 const ShoppingList = () => {
   return (
-    <div className='shopping-list'>ShoppingList</div>
+    <>
+      <ModalContainer />
+    </>
   )
 }
 

@@ -3,6 +3,8 @@
 @use './partials/login';
 @use './partials/register';
 @use './partials/loading';
+@use './partials/shoppinglist';
+
 body {
   margin: 0;
   padding: 0;
