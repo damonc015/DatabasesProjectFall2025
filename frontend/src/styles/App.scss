@@ -10,18 +10,6 @@ body {
   font-family: variables.$font-family;
 }
 
-#root {
-  padding: 0;
-  text-align: center;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 100vh;
-  width: 100%;
-  background-color: variables.$secondary-color;
-}
-
 .tempnav {
   position: fixed;
   top: 0;
