@@ -63,7 +63,7 @@ const Inventory = () => {
   }
 
   return (
-    <Box sx={{ p: 2, width: '100%' }}>
+    <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant='h6'>Inventory</Typography>
         <FormControlLabel
@@ -89,7 +89,14 @@ const Inventory = () => {
         </Tabs>
       </Box>
 
-      <Box sx={{ flexGrow: 1 }}>
+      <Box 
+        sx={{ 
+          flexGrow: 1,
+
+          borderRadius: 2,
+          p: 3
+        }}
+      >
         <Grid container spacing={2}>
           {inventory.length === 0 ? (
             <Grid item xs={12}>

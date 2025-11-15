@@ -15,17 +15,21 @@ const Dashboard = () => {
   return (
     <div className='dashboard'>
       <Header />
-      <Search />
-      <Inventory />
-      <div className='monitorsContainer'>
-        <Transactions />
-        <Expiring />
-        <Box className='actionButtonContainer'>
-          <Fab className='actionButton' color='primary' aria-label='add shopping list' onClick={() => setModalOpen(prev => !prev)}>
-            <AddShoppingCartIcon />
-          </Fab>
-        </Box>
-        <ModalContainer open={modalOpen} onClose={() => setModalOpen(false)} />
+      <div className='mainContentContainer'>
+        <Search />
+        <div className='inventoryContainer'>
+          <Inventory />
+        </div>
+        <div className='monitorsContainer'>
+          <Transactions />
+          <Expiring />
+          <Box className='actionButtonContainer'>
+            <Fab className='actionButton' color='primary' aria-label='add shopping list' onClick={() => setModalOpen(prev => !prev)}>
+              <AddShoppingCartIcon />
+            </Fab>
+          </Box>
+          <ModalContainer open={modalOpen} onClose={() => setModalOpen(false)} />
+        </div>
       </div>
     </div>
   );
