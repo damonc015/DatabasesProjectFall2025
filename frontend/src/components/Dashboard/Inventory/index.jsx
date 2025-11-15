@@ -12,6 +12,7 @@ import Tab from '@mui/material/Tab';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import { FoodIcon } from '../../../utils/foodEmojis';
+import { useCurrentUser } from '../../../hooks/useCurrentUser';
 
 const Inventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -20,10 +21,11 @@ const Inventory = () => {
   const [showPackage, setShowPackage] = useState(false);
   const [locationFilter, setLocationFilter] = useState(null);
   
-  // TODO HOUSEHOLD ID: hardcoded for now
-  const householdId = 1;
+  const { householdId } = useCurrentUser();
 
   useEffect(() => {
+    if (!householdId) return;
+    
     fetch(`http://localhost:5001/api/households/${householdId}/locations`)
       .then(res => res.json())
       .then(data => {
@@ -35,6 +37,11 @@ const Inventory = () => {
   }, [householdId]);
 
   useEffect(() => {
+    if (!householdId) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     const url = locationFilter === null
       ? `http://localhost:5001/api/transactions/inventory/${householdId}`
@@ -52,10 +59,6 @@ const Inventory = () => {
       });
   }, [householdId, locationFilter]);
 
-  const formatQuantity = (item) => {
-    return showPackage ? item.FormattedPackages : item.FormattedBaseUnits;
-  };
-
   if (loading) {
     return (
       <Box sx={{ p: 2, textAlign: 'center' }}>
@@ -63,10 +66,6 @@ const Inventory = () => {
       </Box>
     );
   }
-
-  const handleLocationChange = (event, newValue) => {
-    setLocationFilter(newValue === 'All' ? null : newValue);
-  };
 
   return (
     <Box sx={{ p: 2, width: '100%' }}>
@@ -84,7 +83,10 @@ const Inventory = () => {
       </Box>
       
       <Box sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs value={locationFilter ?? 'All'} onChange={handleLocationChange}>
+        <Tabs 
+          value={locationFilter ?? 'All'} 
+          onChange={(e, newValue) => setLocationFilter(newValue === 'All' ? null : newValue)}
+        >
           <Tab label="All" value="All" />
           {locations.map((location) => (
             <Tab key={location.LocationID} label={location.LocationName} value={location.LocationID} />
@@ -122,7 +124,7 @@ const Inventory = () => {
                       {item.FoodName}
                     </Typography>
                     <Typography variant='body1' sx={{ mb: 2, color: 'text.secondary' }}>
-                      {formatQuantity(item)}
+                      {showPackage ? item.FormattedPackages : item.FormattedBaseUnits}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 'auto' }}>
                       <IconButton size='small' color='primary'>
