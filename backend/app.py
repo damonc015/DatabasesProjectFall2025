@@ -3,7 +3,7 @@ from apiflask import APIFlask
 from flask import jsonify, send_from_directory
 from flask_cors import CORS
 from config import config
-from routes import food_items_bp, shopping_lists_bp, households_bp, transactions_bp
+from routes import food_items_bp, shopping_lists_bp, households_bp, auth_bp, transactions_bp
 
 
 def create_app(config_name='development'):
@@ -24,6 +24,7 @@ def create_app(config_name='development'):
     app.register_blueprint(food_items_bp)
     app.register_blueprint(shopping_lists_bp)
     app.register_blueprint(households_bp)
+    app.register_blueprint(auth_bp)
     app.register_blueprint(transactions_bp)
     
     if config_name == 'production':
@@ -36,7 +37,6 @@ def create_app(config_name='development'):
             return send_from_directory(app.static_folder, 'index.html')
     
     return app
-
 
 if __name__ == '__main__':
     config_name = os.getenv('FLASK_ENV', 'development')
