@@ -3,6 +3,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import Button from '@mui/material/Button';
 import { useNavigate } from '@tanstack/react-router';
 import StaticLogo from './StaticLogo';
+import { useNavigate } from '@tanstack/react-router';
 
 const Header = () => {
   const navigate = useNavigate();
