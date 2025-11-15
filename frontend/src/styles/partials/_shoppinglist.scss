@@ -1,0 +1,96 @@
+@use './variables';
+
+.modalContainer {
+  .box,
+  .alt-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    height: 90%;
+    border: 2px solid rgb(26, 26, 26, 0.7);
+    border-radius: 10px;
+    background-color: variables.$primary-color;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .button {
+    display: block;
+    margin: auto;
+    background-color: variables.$highlight-color-two;
+  }
+  .table-button {
+    background-color: variables.$highlight-color-two;
+    display: flex;
+    width: 80%;
+    margin: auto;
+    border-radius: 10px;
+  }
+}
+.box {
+  justify-content: space-between;
+}
+.alt-box {
+  justify-content: flex-start;
+}
+.shopping-list-container {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: start;
+  height: 88%;
+  overflow-y: scroll;
+  border-radius: 10px;
+}
+.shopping-list-header-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 1rem;
+  // border: variables.$form-border-width solid orange;
+  border-bottom: variables.$form-border-width solid variables.$form-border-color;
+  > :last-child {
+    padding: 0;
+    margin-right: 1.5rem;
+  }
+}
+.shopping-list-pre-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background-color: variables.$secondary-color;
+  // border: variables.$form-border-width solid red;
+  border-bottom: variables.$form-border-width solid variables.$form-border-color;
+  > * {
+    margin: .8rem 1.5rem;
+  }
+}
+.shopping-list-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: start;
+  gap: 1rem;
+  // border: variables.$form-border-width solid variables.$form-border-color;
+  > * {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: start;
+    padding: 0.5rem 0.5rem;
+    gap: 1rem;
+  }
+}
+
+.shopping-history-table-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+}
