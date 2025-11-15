@@ -6,7 +6,28 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  min-height: 100vh;
+}
+
+.mainContentContainer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding-left: 10rem;
+  padding-right: 10rem;
+}
+
+.inventoryContainer {
+  width: 100%;
+  min-width: 20rem;
+  
+  @media (min-width: 37.5rem) {
+    min-width: 30rem;
+  }
+  
+  @media (min-width: 60rem) {
+    min-width: 37.5rem;
+  }
 }
 
 .monitorsContainer {
@@ -35,7 +56,8 @@
   justify-content: space-between;
   width: 100%;
   padding: 1.5rem 0;
-  border: variables.$form-border-width solid variables.$form-border-color;
+  border-bottom: variables.$form-border-width solid variables.$form-border-color;
+  background-color: variables.$primary-color;
   > * {
     margin: 0 6rem;
   }
@@ -76,25 +98,15 @@
   }
 }
 
-// inventory
-.inventoryContainer {
-  padding: 1rem;
-  overflow-y: scroll;
-  background-color: variables.$secondary-color;
-}
-
 // transactions, expiring
 .transactionsContainer, .expiringContainer {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex-direction: column;
   width: 100%;
   padding: 1rem;
   .cardContainer {
     width: 100%;
   }
 }
-
-

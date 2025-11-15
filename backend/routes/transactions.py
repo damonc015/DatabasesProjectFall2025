@@ -125,3 +125,63 @@ def db_get_expiring_transactions(household_id):
             'page': page,
             'limit': limit
         }), 200
+
+@document_api_route(bp, 'get', '/inventory/<int:household_id>', 
+                        'Get current inventory totals',
+                        'Returns inventory totals for all food items in household')
+@handle_db_error
+def get_inventory_totals(household_id):
+    with db_cursor() as cursor:
+        cursor.callproc('GetHouseholdInventory', (household_id,))
+        results = []
+        for result in cursor.stored_results():
+            results = result.fetchall()
+            break
+        
+        for item in results:
+            total_qty = float(item['TotalQtyInBaseUnits'])
+            whole_packages = int(item['WholePackages']) if item['WholePackages'] else 0
+            remainder = float(item['Remainder']) if item['Remainder'] else 0
+            package_label = item['PackageLabel']
+            base_unit = item['BaseUnitAbbr']
+            
+            item['FormattedBaseUnits'] = f"{round(total_qty)}{base_unit}"
+            item['FormattedPackages'] = _format_packages(whole_packages, remainder, package_label, base_unit, total_qty)
+        
+        return jsonify(results), 200
+
+@document_api_route(bp, 'get', '/inventory/<int:household_id>/location/<int:location_id>', 
+                        'Get inventory by location', 
+                        'Returns food items filtered by location')
+@handle_db_error
+def get_inventory_by_location(household_id, location_id):
+    with db_cursor() as cursor:
+        cursor.callproc('GetInventoryByLocation', (household_id, location_id))
+        results = []
+        for result in cursor.stored_results():
+            results = result.fetchall()
+            break
+        
+        for item in results:
+            total_qty = float(item['TotalQtyInBaseUnits'])
+            whole_packages = int(item['WholePackages']) if item['WholePackages'] else 0
+            remainder = float(item['Remainder']) if item['Remainder'] else 0
+            package_label = item['PackageLabel']
+            base_unit = item['BaseUnitAbbr']
+            
+            item['FormattedBaseUnits'] = f"{round(total_qty)}{base_unit}"
+            item['FormattedPackages'] = _format_packages(whole_packages, remainder, package_label, base_unit, total_qty)
+        
+        return jsonify(results), 200
+
+
+def _format_packages(whole_packages, remainder, package_label, base_unit, total_qty):
+    # Format package: ie 2 Bags + 100g.
+    if whole_packages > 0 and remainder > 0:
+        plural = 's' if whole_packages > 1 else ''
+        return f"{whole_packages} {package_label}{plural} + {round(remainder)}{base_unit}"
+    elif whole_packages > 0:
+        plural = 's' if whole_packages > 1 else ''
+        return f"{whole_packages} {package_label}{plural}"
+    else:
+        return f"{round(total_qty)}{base_unit}"

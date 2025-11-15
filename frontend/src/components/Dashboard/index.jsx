@@ -14,22 +14,26 @@ const Dashboard = () => {
   return (
     <div className='dashboard'>
       <Header />
-      <Search />
-      <Inventory />
-      <div className='monitorsContainer'>
-        <Transactions />
-        <Expiring />
-        <Box className='actionButtonContainer'>
-          <Fab
-            className='actionButton'
-            color='primary'
-            aria-label='add shopping list'
-            onClick={openModal}
-          >
-            <AddShoppingCartIcon />
-          </Fab>
-        </Box>
-        <ShoppingList />
+      <div className='mainContentContainer'>
+        <Search />
+        <div className='inventoryContainer'>
+          <Inventory />
+        </div>
+        <div className='monitorsContainer'>
+          <Transactions />
+          <Expiring />
+          <Box className='actionButtonContainer'>
+            <Fab
+              className='actionButton'
+              color='primary'
+              aria-label='add shopping list'
+              onClick={openModal}
+            >
+              <AddShoppingCartIcon />
+            </Fab>
+          </Box>
+          <ShoppingList />
+        </div>
       </div>
     </div>
   );
