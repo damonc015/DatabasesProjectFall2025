@@ -23,16 +23,16 @@ const Dashboard = () => {
           <Transactions />
           <Expiring />
           <Box className='actionButtonContainer'>
-          <Fab
-            className='actionButton'
-            color='primary'
-            aria-label='add shopping list'
-            onClick={openModal}
-          >
-            <AddShoppingCartIcon />
-          </Fab>
+            <Fab
+              className='actionButton'
+              color='primary'
+              aria-label='add shopping list'
+              onClick={openModal}
+            >
+              <AddShoppingCartIcon />
+            </Fab>
           </Box>
-          <ModalContainer open={modalOpen} onClose={() => setModalOpen(false)} />
+          <ShoppingList />
         </div>
       </div>
     </div>
