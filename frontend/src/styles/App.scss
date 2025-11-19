@@ -41,6 +41,18 @@ body {
   color: variables.$highlight-color-two !important;
 }
 
+// number input
+input[inputmode="numeric"] {
+  background-color: variables.$primary-color;
+  border: 1px solid variables.$form-border-color;
+  border-radius: 2px;
+  margin-left: .25rem;
+}
+
+// .MuiTableCell-root{
+//   border-right: 1px solid variables.$form-border-color;
+// }
+
 .muiicon {
   cursor: pointer;
   &:hover {

@@ -56,21 +56,27 @@ export default function CreateShoppingListTable({ shoppingListId }) {
           {/* Items below threshold */}
           {suggestedRows.map((row) => (
             <TableRow key={row.name} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+              {/* item name */}
               <TableCell component='th' scope='row' align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 {row.FoodItemName}
               </TableCell>
+              {/* price per unit */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 {row.PricePerUnit}
               </TableCell>
+              {/* purchased quantity */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 <NumberController id={row.ShoppingListItemID} defaultValue={row.NeededQty} />
               </TableCell>
+              {/* total price */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                {row.TotalPrice ? `$${row.TotalPrice}` : '$0.00'}
+                <NumberController id={row.ShoppingListItemID} defaultValue={row.NeededQty} label={'totalprice'} />
               </TableCell>
+              {/* mark as purchased */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 <Checkbox />
               </TableCell>
+              {/* remove from list */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 <HighlightOffIcon className='muiicon' />
               </TableCell>
@@ -106,7 +112,7 @@ export default function CreateShoppingListTable({ shoppingListId }) {
                   position: 'sticky',
                   bottom: 0,
                   zIndex: 100,
-                  backgroundColor: 'white',
+                  backgroundColor: '#F3EFEA',
                 }}
               >
                 <TableCell
