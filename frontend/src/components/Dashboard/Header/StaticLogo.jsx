@@ -17,7 +17,7 @@ const StaticLogo = ({ householdName }) => {
         <span className='left-logo'>Sto</span>
         <span className='right-logo'>ker</span>
         <img className='db-logo' src={db_logo} alt='db_logo' />
-        <span style={{ position: 'absolute', right: '-9.5rem', top: '2.35rem' }}>{householdName}</span>
+        <span style={{ position: 'absolute', right: '-9.5rem', top: '2.65rem' }}>{householdName}</span>
       </div>
     </>
   );
