@@ -10,13 +10,18 @@ import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import TableFallback from '../TableFallback';
 import Button from '@mui/material/Button';
 import NumberController from '../NumberController/NumberController';
+import { useCreateShoppingList } from '../../../../hooks/useShoppingListMutations';
+import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { useShoppingListItems } from '../../../../hooks/useShoppingListItems';
 
-export default function CreateShoppingListTable({ shoppingListId }) {
-  const { data, error, isLoading } = useShoppingListItems(shoppingListId);
+export default function CreateShoppingListTable() {
+  const { householdId } = useCurrentUser();
+  const createShoppingListMutation = useCreateShoppingList();
+  const { data, error, isLoading } = useShoppingListItems(1);
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
   if (!data) return <div>No items found</div>;
+
   const tableHeaders = [
     { label: 'Item' },
     { label: 'Price Per Unit' },
@@ -74,7 +79,10 @@ export default function CreateShoppingListTable({ shoppingListId }) {
               </TableCell>
               {/* mark as purchased */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                <Checkbox />
+                <Checkbox
+                  checked={row.Status === 'inactive'}
+                  onChange={(e) => handleCheckboxChange(row.ShoppingListItemID, e.target.checked)}
+                />
               </TableCell>
               {/* remove from list */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
