@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 const useShoppingListStore = create((set) => ({
-  isModalOpen: true,
+  isModalOpen: false,
   // history, createlist, modifylist
   isListHistory: 'createlist',
   openModal: () => set({ isModalOpen: true }),
