@@ -167,12 +167,11 @@ def remove_shopping_list_item(shopping_list_id, item_id):
 def export_shopping_list(shopping_list_id):
     format_type = request.args.get('format', 'json').lower()
     
-    # Only support JSON and HTML
     if format_type not in ['json', 'html']:
         return jsonify({'error': f'Unsupported format: {format_type}. Supported formats: json, html'}), 400
     
     with db_cursor() as cursor:
-        # Get shopping list details in shopping list id
+        # sl attributes
         cursor.execute("""
             SELECT 
                 sl.ShoppingListID,
@@ -188,7 +187,7 @@ def export_shopping_list(shopping_list_id):
         if not list_info:
             return jsonify({'error': 'Shopping list not found'}), 404
         
-        # Get shopping list items details in shopping list id
+        # sli attributes
         cursor.execute("""
             SELECT 
                 sli.ShoppingListItemID,
