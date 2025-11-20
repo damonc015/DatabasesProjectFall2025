@@ -1,6 +1,7 @@
 import React from 'react';
 import { NumberField } from '@base-ui-components/react';
 import styles from './numfield.module.css';
+import TextField from '@mui/material/TextField';
 
 export default function NumberController({ id, defaultValue, label = null }) {
   function CursorGrowIcon(props) {
@@ -75,13 +76,7 @@ export default function NumberController({ id, defaultValue, label = null }) {
         </NumberField.ScrubAreaCursor>
       </NumberField.ScrubArea>
       <NumberField.Group className={styles.Group}>
-        <NumberField.Decrement className={styles.Decrement}>
-          <MinusIcon />
-        </NumberField.Decrement>
         <NumberField.Input className={styles.Input} />
-        <NumberField.Increment className={styles.Increment}>
-          <PlusIcon />
-        </NumberField.Increment>
       </NumberField.Group>
     </NumberField.Root>
   );
