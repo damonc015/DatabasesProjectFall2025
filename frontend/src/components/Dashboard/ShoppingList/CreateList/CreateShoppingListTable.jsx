@@ -35,6 +35,8 @@ export default function CreateShoppingListTable() {
     setTempCreateListAtThresholdItems,
   } = useShoppingListStore();
 
+  const [totalPrice, setTotalPrice] = useState(0);
+
   useEffect(() => {
     if (belowThresholdData) {
       const processedData = belowThresholdData.map((item) => ({
@@ -42,8 +44,8 @@ export default function CreateShoppingListTable() {
         FoodItemName: item.FoodItemName,
         PricePerUnit: item.PricePerUnit,
         PurchasedQty: item.PurchasedQty,
-        NeededQty: item.NeededQty,
-        TotalPrice: item.TotalPrice,
+        NeededQty: parseFloat(item.NeededQty),
+        TotalPrice: parseFloat(item.TotalPrice),
         Status: item.Status,
         CurrentStock: item.CurrentStock,
       }));
@@ -56,14 +58,19 @@ export default function CreateShoppingListTable() {
         FoodItemName: item.FoodItemName,
         PricePerUnit: item.PricePerUnit,
         PurchasedQty: item.PurchasedQty,
-        NeededQty: item.NeededQty,
-        TotalPrice: item.TotalPrice,
+        NeededQty: parseFloat(item.NeededQty),
+        TotalPrice: parseFloat(item.TotalPrice),
         Status: item.Status,
         CurrentStock: item.CurrentStock,
       }));
       setTempCreateListAtThresholdItems(processedData);
     }
   }, [belowThresholdData, atThresholdData, setTempCreateListBelowThresholdItems, setTempCreateListAtThresholdItems]);
+
+  useEffect(() => {
+    const total = tempCreateListBelowThresholdItems.reduce((acc, item) => acc + parseFloat(item.TotalPrice), 0) || 0;
+    setTotalPrice(total);
+  }, [tempCreateListBelowThresholdItems]);
 
   if (!householdId) {
     return <div>No household id found</div>;
@@ -78,7 +85,7 @@ export default function CreateShoppingListTable() {
   const tableHeaders = [
     { label: 'Item' },
     { label: 'Price Per Unit' },
-    { label: 'Purchased Quantity' },
+    { label: 'Purchase Amount' },
     { label: 'Total Price' },
     { label: 'Mark as Purchased' },
     { label: 'Remove from List' },
@@ -141,6 +148,7 @@ export default function CreateShoppingListTable() {
   console.log('tempCreateListAtThresholdItems', tempCreateListAtThresholdItems);
   console.log('belowThresholdData', belowThresholdData);
   console.log('atThresholdData', atThresholdData);
+  console.log('totalPrice', totalPrice);
   return (
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 650 }} aria-label='simple table'>
@@ -167,14 +175,14 @@ export default function CreateShoppingListTable() {
               </TableCell>
               {/* purchased quantity */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans', margin: 'auto', padding: 'auto' }}>
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                  <NumberController id={row.ShoppingListItemID} defaultValue={row.NeededQty} />{' '}
+                <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+                  <NumberController id={row.ShoppingListItemID} defaultValue={row.CurrentStock} />{' '}
                   <span style={{ marginLeft: '0.2rem' }}>{'/' + row.NeededQty}</span>
                 </div>
               </TableCell>
               {/* total price */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                <NumberController id={row.ShoppingListItemID} defaultValue={row.NeededQty} label={'totalprice'} />
+                <NumberController id={row.ShoppingListItemID} defaultValue={row.TotalPrice} label={'totalprice'} />
               </TableCell>
               {/* mark as purchased */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
@@ -199,7 +207,7 @@ export default function CreateShoppingListTable() {
                 align='center'
                 sx={{ fontFamily: 'Balsamiq Sans', color: 'gray' }}
               >
-                Add items that are at/above threshold
+                Add other items to list 
               </TableCell>
             </TableRow>
           )}
@@ -218,11 +226,19 @@ export default function CreateShoppingListTable() {
               </TableCell>
               {/* purchased quantity */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans', color: 'gray' }}>
-                <NumberController id={row.ShoppingListItemID} defaultValue={row.NeededQty} />
+                <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+                  <NumberController id={row.ShoppingListItemID} defaultValue={row.CurrentStock} disabled={true} />{' '}
+                  <span style={{ marginLeft: '0.2rem' }}>{'/' + row.NeededQty}</span>
+                </div>{' '}
               </TableCell>
               {/* total price */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans', color: 'gray' }}>
-                <NumberController id={row.ShoppingListItemID} defaultValue={row.NeededQty} label={'totalprice'} />
+                <NumberController
+                  id={row.ShoppingListItemID}
+                  defaultValue={row.TotalPrice}
+                  label={'totalprice'}
+                  disabled={true}
+                />
               </TableCell>
               <TableCell colSpan={2} component='th' scope='row' align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 <Button
@@ -264,7 +280,7 @@ export default function CreateShoppingListTable() {
                   fontFamily: 'Balsamiq Sans',
                 }}
               >
-                Total Price: <span style={{ marginLeft: '1rem' }}>$0.00</span>
+                Total Price: <span style={{ marginLeft: '1rem' }}>${totalPrice.toFixed(2)}</span>
               </TableCell>
             </TableRow>
           )}
