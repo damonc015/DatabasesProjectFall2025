@@ -2,7 +2,7 @@ import React from 'react';
 import { NumberField } from '@base-ui-components/react';
 import styles from './numfield.module.css';
 
-export default function NumberController({ id, defaultValue }) {
+export default function NumberController({ id, defaultValue, label = null }) {
   function CursorGrowIcon(props) {
     return (
       <svg
@@ -51,6 +51,20 @@ export default function NumberController({ id, defaultValue }) {
       >
         <path d='M0 5H10' />
       </svg>
+    );
+  }
+  if (label === "totalprice") {
+    return (
+      <NumberField.Root id={id} defaultValue={defaultValue} className={styles.Field}>
+        <NumberField.ScrubArea className={styles.ScrubArea}>
+          <NumberField.ScrubAreaCursor className={styles.ScrubAreaCursor}>
+            <CursorGrowIcon />
+          </NumberField.ScrubAreaCursor>
+        </NumberField.ScrubArea>
+        <NumberField.Group className={styles.Group}>
+          <span style={{ margin: 'auto', padding: 'auto' }}>{'$'}</span> <NumberField.Input className={styles.Input} />
+        </NumberField.Group>
+      </NumberField.Root>
     );
   }
   return (

@@ -10,13 +10,18 @@ import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import TableFallback from '../TableFallback';
 import Button from '@mui/material/Button';
 import NumberController from '../NumberController/NumberController';
+import { useCreateShoppingList } from '../../../../hooks/useShoppingListMutations';
+import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { useShoppingListItems } from '../../../../hooks/useShoppingListItems';
 
-export default function CreateShoppingListTable({ shoppingListId }) {
-  const { data, error, isLoading } = useShoppingListItems(shoppingListId);
+export default function CreateShoppingListTable() {
+  const { householdId } = useCurrentUser();
+  const createShoppingListMutation = useCreateShoppingList();
+  const { data, error, isLoading } = useShoppingListItems(1);
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
   if (!data) return <div>No items found</div>;
+
   const tableHeaders = [
     { label: 'Item' },
     { label: 'Price Per Unit' },
@@ -56,21 +61,30 @@ export default function CreateShoppingListTable({ shoppingListId }) {
           {/* Items below threshold */}
           {suggestedRows.map((row) => (
             <TableRow key={row.name} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+              {/* item name */}
               <TableCell component='th' scope='row' align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 {row.FoodItemName}
               </TableCell>
+              {/* price per unit */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 {row.PricePerUnit}
               </TableCell>
+              {/* purchased quantity */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 <NumberController id={row.ShoppingListItemID} defaultValue={row.NeededQty} />
               </TableCell>
+              {/* total price */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                {row.TotalPrice ? `$${row.TotalPrice}` : '$0.00'}
+                <NumberController id={row.ShoppingListItemID} defaultValue={row.NeededQty} label={'totalprice'} />
               </TableCell>
+              {/* mark as purchased */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                <Checkbox />
+                <Checkbox
+                  checked={row.Status === 'inactive'}
+                  onChange={(e) => handleCheckboxChange(row.ShoppingListItemID, e.target.checked)}
+                />
               </TableCell>
+              {/* remove from list */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 <HighlightOffIcon className='muiicon' />
               </TableCell>
@@ -106,7 +120,7 @@ export default function CreateShoppingListTable({ shoppingListId }) {
                   position: 'sticky',
                   bottom: 0,
                   zIndex: 100,
-                  backgroundColor: 'white',
+                  backgroundColor: '#F3EFEA',
                 }}
               >
                 <TableCell

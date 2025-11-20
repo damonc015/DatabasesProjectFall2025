@@ -9,8 +9,8 @@ export default function ShoppingHistoryHeader() {
   return (
     <div className='shopping-list-header-container'>
       <div className='shopping-list-header'>
-        <ArrowBackIcon className='muiicon' onClick={() => setIsListHistory('createlist')} />
         <h2>
+          <ArrowBackIcon className='muiicon' onClick={() => setIsListHistory('createlist')} />
           Shopping List Log <ListIcon />
         </h2>
       </div>

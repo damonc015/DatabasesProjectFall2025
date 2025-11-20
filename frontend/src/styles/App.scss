@@ -9,6 +9,21 @@ body {
   font-family: variables.$font-family;
 }
 
+#root {
+  margin: 0 auto;
+  padding: 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  background-color: variables.$secondary-color;
+}
+
 // MUI overrides
 // input labels
 .MuiInputLabel-root.Mui-focused {
@@ -25,6 +40,18 @@ body {
 .MuiCheckbox-root.Mui-checked {
   color: variables.$highlight-color-two !important;
 }
+
+// number input
+input[inputmode="numeric"] {
+  background-color: variables.$primary-color;
+  border: 1px solid variables.$form-border-color;
+  border-radius: 2px;
+  margin-left: .25rem;
+}
+
+// .MuiTableCell-root{
+//   border-right: 1px solid variables.$form-border-color;
+// }
 
 .muiicon {
   cursor: pointer;

@@ -16,8 +16,8 @@ export default function ModifyShoppingListHeader() {
       </div>
       <div className='shopping-list-header-container'>
         <div className='shopping-list-header'>
-          <ArrowBackIcon className='muiicon' onClick={() => setIsListHistory('history')} />
           <h2>
+            <ArrowBackIcon className='muiicon' onClick={() => setIsListHistory('history')} />
             Shopping List <ShoppingCartIcon /> Created on: {lastUpdatedDate}
           </h2>
         </div>

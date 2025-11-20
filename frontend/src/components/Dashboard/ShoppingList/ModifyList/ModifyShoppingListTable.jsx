@@ -10,38 +10,37 @@ import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import TableFallback from '../TableFallback';
 import NumberController from '../NumberController/NumberController';
 
-function createData(name, calories, fat, carbs, protein) {
-  return { name, calories, fat, carbs, protein };
-}
+export default function ModifyShoppingListTable({ shoppingListId }) {
+  const { data, error, isLoading } = useShoppingListItems(shoppingListId);
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  if (!data) return <div>No items found</div>;
+  const markItemMutation = useMarkShoppingListItem();
 
-const tableHeaders = [
-  { label: 'Item', align: 'left' },
-  { label: 'Price Per Unit', align: 'left' },
-  { label: 'Purchased Quantity', align: 'left' },
-  { label: 'Total Price', align: 'left' },
-  { label: 'Mark as Purchased', align: 'left' },
-  { label: 'Remove from List', align: 'left' },
-];
-const suggestedRows = [
-  { name: 'Frozen yoghurt', calories: 159, fat: 6.0, carbs: 24, protein: 4.0 },
-  { name: 'Ice cream sandwich', calories: 237, fat: 9.0, carbs: 37, protein: 4.3 },
-  { name: 'Eclair', calories: 262, fat: 16.0, carbs: 24, protein: 6.0 },
-  { name: 'Cupcake', calories: 305, fat: 3.7, carbs: 67, protein: 4.3 },
-  { name: 'Gingerbread', calories: 356, fat: 16.0, carbs: 49, protein: 3.9 },
-];
-const rows = [
-  // createData('Frozen yoghurt', 159, 6.0, 24, 4.0),
-  // createData('Ice cream sandwich', 237, 9.0, 37, 4.3),
-  // createData('Eclair', 262, 16.0, 24, 6.0),
-  // createData('Cupcake', 305, 3.7, 67, 4.3),
-  // createData('Gingerbread', 356, 16.0, 49, 3.9),
-  // createData('Frozen yoghurt', 159, 6.0, 24, 4.0),
-  // createData('Ice cream sandwich', 237, 9.0, 37, 4.3),
-  // createData('Eclair', 262, 16.0, 24, 6.0),
-  // createData('Cupcake', 305, 3.7, 67, 4.3),
-  // createData('Gingerbread', 356, 16.0, 49, 3.9),
-];
-export default function ModifyShoppingListTable() {
+  const handleCheckboxChange = (itemId, isChecked) => {
+    markItemMutation.mutate({
+      listId: shoppingListId,
+      itemId: itemId,
+      status: isChecked ? 'inactive' : 'active',
+    });
+  };
+  const tableHeaders = [
+    { label: 'Item', align: 'left' },
+    { label: 'Price Per Unit', align: 'left' },
+    { label: 'Purchased Quantity', align: 'left' },
+    { label: 'Total Price', align: 'left' },
+    { label: 'Mark as Purchased', align: 'left' },
+    { label: 'Remove from List', align: 'left' },
+  ];
+  const suggestedRows = [
+    { name: 'Frozen yoghurt', calories: 159, fat: 6.0, carbs: 24, protein: 4.0 },
+    { name: 'Ice cream sandwich', calories: 237, fat: 9.0, carbs: 37, protein: 4.3 },
+    { name: 'Eclair', calories: 262, fat: 16.0, carbs: 24, protein: 6.0 },
+    { name: 'Cupcake', calories: 305, fat: 3.7, carbs: 67, protein: 4.3 },
+    { name: 'Gingerbread', calories: 356, fat: 16.0, carbs: 49, protein: 3.9 },
+  ];
+  const rows = [];
+
   return (
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 650 }} aria-label='simple table'>
@@ -70,7 +69,10 @@ export default function ModifyShoppingListTable() {
                 {row.carbs}
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                <Checkbox />
+                <Checkbox
+                  checked={row.Status === 'inactive'}
+                  onChange={(e) => handleCheckboxChange(row.ShoppingListItemID, e.target.checked)}
+                />
               </TableCell>
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 <HighlightOffIcon className='muiicon' />
