@@ -1,5 +1,5 @@
 from flask import jsonify, request, Response, render_template
-from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error
+from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error, get_db
 import json
 
 bp = create_api_blueprint('shopping_lists', '/api/shopping-lists')
@@ -15,11 +15,33 @@ def create_shopping_list():
     if not household_id:
         return jsonify({'error': 'household_id is required'}), 400
     
-    with db_cursor() as cursor:
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
         cursor.callproc('createShoppingList', [household_id])
-        cursor.execute("SELECT LAST_INSERT_ID() as shopping_list_id")
+        
+        for result in cursor.stored_results():
+            result.fetchall()
+        
+        conn.commit()
+        
+        cursor.execute("""
+            SELECT ShoppingListID as shopping_list_id 
+            FROM ShoppingList 
+            WHERE HouseholdID = %s 
+            ORDER BY ShoppingListID DESC 
+            LIMIT 1
+        """, (household_id,))
         result = cursor.fetchone()
+        
+        if not result:
+            return jsonify({'error': 'Failed to create shopping list'}), 500
+        
         return jsonify(result), 201
+    finally:
+        cursor.close()
+        conn.close()
 
 #TODO: 1.2 - needs to filter out household id
 @document_api_route(bp, 'get', '/', 'Get shopping lists', 'Get paginated shopping lists with sorting')
