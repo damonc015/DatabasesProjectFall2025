@@ -4,6 +4,7 @@ import Modal from '@mui/material/Modal';
 import useShoppingListStore from '../../../stores/useShoppingListStore';
 import CreateShoppingListHeader from './CreateList/CreateShoppingListHeader';
 import CreateShoppingListTable from './CreateList/CreateShoppingListTable';
+import CreateShoppingListButton from './CreateList/CreateShoppingListButton';
 import ModifyShoppingListHeader from './ModifyList/ModifyShoppingListHeader';
 import ModifyShoppingListTable from './ModifyList/ModifyShoppingListTable';
 import ShoppingHistoryHeader from './ShopHistory/ShoppingHistoryHeader';
@@ -27,9 +28,7 @@ export default function ModalContainer() {
               <CreateShoppingListHeader />
               <CreateShoppingListTable />
             </div>
-            <Button className='button' variant='contained' color='primary' onClick={closeModal}>
-              Create New List
-            </Button>
+            <CreateShoppingListButton />
           </Box>
         );
       case 'modifylist':

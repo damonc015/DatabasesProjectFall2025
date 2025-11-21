@@ -1,9 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NumberField } from '@base-ui-components/react';
 import styles from './numfield.module.css';
-import TextField from '@mui/material/TextField';
 
-export default function NumberController({ id, defaultValue, label = null, disabled = false }) {
+export default function NumberController({
+  id,
+  value: controlledValue,
+  defaultValue,
+  label = null,
+  disabled = false,
+  onBlur = (value) => {
+    console.log('onBlur', value);
+  },
+}) {
+  const initialValue = controlledValue !== undefined ? controlledValue : defaultValue;
+  const [localValue, setLocalValue] = useState(initialValue);
+
+  useEffect(() => {
+    if (controlledValue !== undefined) {
+      setLocalValue(controlledValue);
+    }
+  }, [controlledValue]);
+
+  const handleValueChange = (newValue) => {
+    setLocalValue(newValue);
+  };
+
+  const handleBlur = () => {
+    const numValue = parseFloat(localValue) || 0;
+    onBlur(numValue);
+  };
   function CursorGrowIcon(props) {
     return (
       <svg
@@ -56,7 +81,13 @@ export default function NumberController({ id, defaultValue, label = null, disab
   }
   if (label === 'totalprice') {
     return (
-      <NumberField.Root id={id} defaultValue={defaultValue} className={styles.Field} disabled={disabled}>
+      <NumberField.Root
+        id={id}
+        value={localValue}
+        onValueChange={handleValueChange}
+        className={styles.Field}
+        disabled={disabled}
+      >
         <NumberField.ScrubArea className={styles.ScrubArea}>
           <NumberField.ScrubAreaCursor className={styles.ScrubAreaCursor}>
             <CursorGrowIcon />
@@ -64,20 +95,26 @@ export default function NumberController({ id, defaultValue, label = null, disab
         </NumberField.ScrubArea>
         <NumberField.Group className={styles.Group}>
           <span style={{ margin: 'auto', padding: 'auto' }}>{'$'}</span>{' '}
-          <NumberField.Input className={styles.Input} disabled={disabled} />
+          <NumberField.Input className={styles.Input} disabled={disabled} onBlur={handleBlur} />
         </NumberField.Group>
       </NumberField.Root>
     );
   }
   return (
-    <NumberField.Root id={id} defaultValue={defaultValue} className={styles.Field} disabled={disabled}>
+    <NumberField.Root
+      id={id}
+      value={localValue}
+      onValueChange={handleValueChange}
+      className={styles.Field}
+      disabled={disabled}
+    >
       <NumberField.ScrubArea className={styles.ScrubArea}>
         <NumberField.ScrubAreaCursor className={styles.ScrubAreaCursor}>
           <CursorGrowIcon />
         </NumberField.ScrubAreaCursor>
       </NumberField.ScrubArea>
       <NumberField.Group className={styles.Group}>
-        <NumberField.Input className={styles.Input} disabled={disabled} />
+        <NumberField.Input className={styles.Input} disabled={disabled} onBlur={handleBlur} />
       </NumberField.Group>
     </NumberField.Root>
   );
