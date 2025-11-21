@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Header from './Header';
 import Inventory from './Inventory';
 import Search from './Search';
@@ -11,17 +12,19 @@ import useShoppingListStore from '../../stores/useShoppingListStore';
 
 const Dashboard = () => {
   const { openModal } = useShoppingListStore();
+  const [showPackage, setShowPackage] = useState(false);
+
   return (
     <div className='dashboard'>
       <Header />
       <div className='mainContentContainer'>
         <Search />
         <div className='inventoryContainer'>
-          <Inventory />
+          <Inventory showPackage={showPackage} setShowPackage={setShowPackage} />
         </div>
         <div className='monitorsContainer'>
-          <Transactions />
-          <Expiring />
+          <Transactions showPackage={showPackage} />
+          <Expiring showPackage={showPackage} />
           <Box className='actionButtonContainer'>
             <Fab
               className='actionButton'

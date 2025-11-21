@@ -9,19 +9,16 @@ import {
   Divider,
   Box,
   IconButton,
-  FormControlLabel,
-  Switch
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 
-const Expiring = () => {
+const Expiring = ({ showPackage }) => {
   const [expiring, setExpiring] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [rowsPerPage] = useState(5);
   const [total, setTotal] = useState(0);
-  const [showPackage, setShowPackage] = useState(false);
 
   const user = useCurrentUser();
 
@@ -57,17 +54,6 @@ const Expiring = () => {
     }
   };
 
-  const displayQty = (QtyInTotal,QtyPerPackage,PackageLabel,BaseUnitAbbr) => {
-    if(showPackage){
-      if(QtyInTotal % QtyPerPackage === 0)
-        return `${Math.round(QtyInTotal / QtyPerPackage)} ${PackageLabel}${QtyInTotal / QtyPerPackage > 1 ? "s":""}`
-      else return `${Math.round(QtyInTotal)}/${Math.round(QtyPerPackage)} ${PackageLabel}`
-    }
-    else{
-      return `${Math.round(QtyInTotal)}${BaseUnitAbbr}`
-    }
-  }
-
   const computeDateDiff = (targetDate) => {
     const diffMs = new Date(targetDate) - new Date();
     if (diffMs <= 0) return "expired";
@@ -100,7 +86,7 @@ const Expiring = () => {
                     <ListItem sx={{ py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '40px' }}>
                       {tx ? (
                         <Typography variant="body2" fontWeight="bold" sx={{ flex: 1, whiteSpace: 'nowrap' }}>
-                          {displayQty(tx.QtyInTotal,tx.QtyPerPackage,tx.PackageLabel,tx.BaseUnitAbbr)} of {tx.FoodName} at {tx.LocationName} will expire in {computeDateDiff(tx.ExpirationDate)}
+                          {showPackage ? tx.FormattedPackages : `${Math.round(tx.QtyInTotal)}${tx.BaseUnitAbbr}`} of {tx.FoodName} at {tx.LocationName} will expire in {computeDateDiff(tx.ExpirationDate)}
                         </Typography>
                       ) : (
                         index === 0 && expiring.length === 0 && !loading ? (
@@ -118,18 +104,7 @@ const Expiring = () => {
               })}
             </List>
           </Box>
-          <Box display="flex" justifyContent="space-between" alignItems="center" pt={1} sx={{ borderTop: 1, borderColor: 'divider' }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={showPackage}
-                  onChange={(e) => setShowPackage(e.target.checked)}
-                  size="small"
-                />
-              }
-              label={<Typography variant="caption">Show in Package</Typography>}
-              sx={{ ml: 1 }}
-            />
+          <Box display="flex" justifyContent="center" alignItems="center" pt={1} sx={{ borderTop: 1, borderColor: 'divider' }}>
             <Pagination
               count={Math.ceil(total / rowsPerPage)}
               page={page}

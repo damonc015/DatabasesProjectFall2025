@@ -54,6 +54,21 @@ def db_get_transactions_paged(household_id):
             if isinstance(row['CreatedAt'], datetime):
                 local_time = row['CreatedAt'].astimezone(tz)
                 row['CreatedAt'] = local_time.strftime("%a, %d %b %Y %H:%M:%S GMT%z")
+            
+            # Format packages
+            total_qty = float(row['QtyInTotal'])
+            qty_per_package = float(row['QtyPerPackage']) if row['QtyPerPackage'] else 0
+            package_label = row['PackageLabel']
+            base_unit = row['BaseUnitAbbr']
+            
+            whole_packages = 0
+            remainder = 0
+            
+            if qty_per_package > 0:
+                whole_packages = int(total_qty // qty_per_package)
+                remainder = total_qty % qty_per_package
+            
+            row['FormattedPackages'] = _format_packages(whole_packages, remainder, package_label, base_unit, total_qty)
 
         return jsonify({
             'data': results,
@@ -118,6 +133,21 @@ def db_get_expiring_transactions(household_id):
                     exp_date = datetime.combine(exp_date, time.min)
                 local_time = exp_date.astimezone(tz) 
                 row["ExpirationDate"] = local_time.strftime("%a, %d %b %Y %H:%M:%S GMT%z")
+
+            # Format packages
+            total_qty = float(row['QtyInTotal'])
+            qty_per_package = float(row['QtyPerPackage']) if row['QtyPerPackage'] else 0
+            package_label = row['PackageLabel']
+            base_unit = row['BaseUnitAbbr']
+            
+            whole_packages = 0
+            remainder = 0
+            
+            if qty_per_package > 0:
+                whole_packages = int(total_qty // qty_per_package)
+                remainder = total_qty % qty_per_package
+            
+            row['FormattedPackages'] = _format_packages(whole_packages, remainder, package_label, base_unit, total_qty)
 
         return jsonify({
             'data': results,
