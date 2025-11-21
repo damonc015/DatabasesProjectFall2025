@@ -21,7 +21,6 @@ const Expiring = ({ showPackage }) => {
   const user = useCurrentUser();
 
   const fetchExpiring = () => {
-    setLoading(true);
     fetch(`/api/transactions/expiring/${user.householdId}?page=${page - 1}&limit=${rowsPerPage}`)
       .then(res => res.json())
       .then(result => {

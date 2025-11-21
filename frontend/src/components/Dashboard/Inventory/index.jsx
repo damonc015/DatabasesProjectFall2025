@@ -9,7 +9,7 @@ import Tab from '@mui/material/Tab';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import FoodCard from './FoodCard';
 
-const Inventory = ({ showPackage, setShowPackage, searchQuery }) => {
+const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory }) => {
   const [inventory, setInventory] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,9 +17,11 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery }) => {
 
   const { householdId } = useCurrentUser();
 
-  const filteredInventory = inventory.filter(item =>
-    item.FoodName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredInventory = inventory.filter(item => {
+    const matchesSearch = item.FoodName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory.length > 0 ? selectedCategory.includes(item.Category) : true;
+    return matchesSearch && matchesCategory;
+  });
 
   useEffect(() => {
     if (!householdId) return;
