@@ -1,14 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 
 // get shopping lists
-export const useShoppingLists = ({ param = 0, order = 'desc', page = 1 } = {}) => {
+export const useShoppingLists = ({ param = 0, order = 'asc' } = {}) => {
   return useQuery({
-    queryKey: ['shoppingLists', { param, order, page }],
+    queryKey: ['shoppingLists', { param, order }],
     queryFn: async () => {
       const queryParams = new URLSearchParams({
         param: param.toString(),
-        order,
-        page: page.toString(),
+        order
       });
 
       const res = await fetch(`/api/shopping-lists?${queryParams}`);

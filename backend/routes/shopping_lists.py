@@ -1,5 +1,6 @@
-from flask import jsonify, request
+from flask import jsonify, request, Response, render_template
 from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error
+import json
 
 bp = create_api_blueprint('shopping_lists', '/api/shopping-lists')
 
@@ -27,10 +28,9 @@ def get_shopping_lists():
     param = int(request.args.get('param', 0))
     order = request.args.get('order', 'asc')
     order_bool = 1 if order == 'asc' else 0
-    page = int(request.args.get('page', 1))
     
     with db_cursor() as cursor:
-        cursor.callproc('getShoppingListByParam', [param, order_bool, page])
+        cursor.callproc('getShoppingListByParam', [param, order_bool])
         results = []
         for result in cursor.stored_results():
             results = result.fetchall()
@@ -159,3 +159,74 @@ def remove_shopping_list_item(shopping_list_id, item_id):
             'shopping_list_id': shopping_list_id,
             'item_id': item_id
         }), 200
+
+
+# Export shopping list
+@document_api_route(bp, 'get', '/<int:shopping_list_id>/export', 'Export shopping list', 'Export shopping list data in JSON or HTML format')
+@handle_db_error
+def export_shopping_list(shopping_list_id):
+    format_type = request.args.get('format', 'json').lower()
+    
+    if format_type not in ['json', 'html']:
+        return jsonify({'error': f'Unsupported format: {format_type}. Supported formats: json, html'}), 400
+    
+    with db_cursor() as cursor:
+        # sl attributes
+        cursor.execute("""
+            SELECT 
+                sl.ShoppingListID,
+                sl.HouseholdID,
+                sl.LastUpdated,
+                sl.Status,
+                sl.TotalCost
+            FROM ShoppingList sl
+            WHERE sl.ShoppingListID = %s
+        """, (shopping_list_id,))
+        list_info = cursor.fetchone()
+        
+        if not list_info:
+            return jsonify({'error': 'Shopping list not found'}), 404
+        
+        # sli attributes
+        cursor.execute("""
+            SELECT 
+                sli.ShoppingListItemID,
+                fi.Name AS FoodItemName,
+                sli.NeededQty,
+                sli.PurchasedQty,
+                sli.TotalPrice,
+                sli.Status,
+                l.LocationName,
+                p.Label AS PackageLabel
+            FROM ShoppingListItem sli
+            JOIN FoodItem fi ON sli.FoodItemID = fi.FoodItemID
+            LEFT JOIN Location l ON sli.LocationID = l.LocationID
+            LEFT JOIN Package p ON sli.PackageID = p.PackageID
+            WHERE sli.ShoppingListID = %s
+        """, (shopping_list_id,))
+        items = cursor.fetchall()
+        
+        # JSON export
+        if format_type == 'json':
+            data = {
+                'shopping_list': list_info,
+                'items': items
+            }
+            return Response(
+                json.dumps(data, indent=2, default=str),
+                mimetype='application/json',
+                headers={'Content-Disposition': f'attachment; filename=shopping_list_{shopping_list_id}.json'}
+            )
+        
+        # Html export
+        elif format_type == 'html':
+            html = render_template(
+                'shopping_list_export.html',
+                list_info=list_info,
+                items=items
+            )
+            return Response(
+                html,
+                mimetype='text/html',
+                headers={'Content-Disposition': f'attachment; filename=shopping_list_{shopping_list_id}.html'}
+            )
