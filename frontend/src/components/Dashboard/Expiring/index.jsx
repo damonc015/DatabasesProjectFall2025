@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import { 
-  Typography, 
+import {
+  Typography,
   List,
   ListItem,
   Pagination,
@@ -13,6 +13,7 @@ import {
   Switch
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { useCurrentUser } from '../../../hooks/useCurrentUser';
 
 const Expiring = () => {
   const [expiring, setExpiring] = useState([]);
@@ -22,11 +23,11 @@ const Expiring = () => {
   const [total, setTotal] = useState(0);
   const [showPackage, setShowPackage] = useState(false);
 
-  const householdId = 1; // TODO: get household id from context
+  const user = useCurrentUser();
 
   const fetchExpiring = () => {
     setLoading(true);
-    fetch(`/api/transactions/expiring/${householdId}?page=${page - 1}&limit=${rowsPerPage}`)
+    fetch(`/api/transactions/expiring/${user.householdId}?page=${page - 1}&limit=${rowsPerPage}`)
       .then(res => res.json())
       .then(result => {
         setExpiring(result.data);
@@ -41,7 +42,7 @@ const Expiring = () => {
 
   useEffect(() => {
     fetchExpiring();
-  }, [page, rowsPerPage, householdId]);
+  }, [page, rowsPerPage, user.householdId]);
 
   const handleChangePage = (event, value) => {
     setPage(value);
@@ -61,7 +62,7 @@ const Expiring = () => {
       if(QtyInTotal % QtyPerPackage === 0)
         return `${Math.round(QtyInTotal / QtyPerPackage)} ${PackageLabel}${QtyInTotal / QtyPerPackage > 1 ? "s":""}`
       else return `${Math.round(QtyInTotal)}/${Math.round(QtyPerPackage)} ${PackageLabel}`
-    } 
+    }
     else{
       return `${Math.round(QtyInTotal)}${BaseUnitAbbr}`
     }
@@ -89,34 +90,49 @@ const Expiring = () => {
         </IconButton>
       </Box>
       <Card className='cardContainer' variant='outlined'>
-        <CardContent sx={{ maxHeight: '50vh', overflow: 'auto', p: 0.5 }}>
-          <List dense disablePadding>
-            {expiring.map((tx, index) => (
-              <React.Fragment key={index}>
-                <ListItem sx={{ py: 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body" fontWeight="bold" sx={{ flex: 1 }}>
-                    {displayQty(tx.QtyInTotal,tx.QtyPerPackage,tx.PackageLabel,tx.BaseUnitAbbr)} of {tx.FoodName} at {tx.LocationName} will expire in {computeDateDiff(tx.ExpirationDate)}
-                  </Typography>
-                </ListItem>
-                {index < expiring.length - 1 && <Divider />}
-              </React.Fragment>
-            ))}
-          </List>
-          <Box display="flex" justifyContent="space-between" mt={0} pt={1} sx={{maxHeight: '8px', borderTop: 1, borderColor: 'divider'}}>
-            <FormControlLabel 
+        <CardContent sx={{ display: 'flex', flexDirection: 'column', p: 1 }}>
+          <Box sx={{ flex: 1 }}>
+            <List dense disablePadding>
+              {[...Array(rowsPerPage)].map((_, index) => {
+                const tx = expiring[index];
+                return (
+                  <React.Fragment key={index}>
+                    <ListItem sx={{ py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '40px' }}>
+                      {tx ? (
+                        <Typography variant="body2" fontWeight="bold" sx={{ flex: 1, whiteSpace: 'nowrap' }}>
+                          {displayQty(tx.QtyInTotal,tx.QtyPerPackage,tx.PackageLabel,tx.BaseUnitAbbr)} of {tx.FoodName} at {tx.LocationName} will expire in {computeDateDiff(tx.ExpirationDate)}
+                        </Typography>
+                      ) : (
+                        index === 0 && expiring.length === 0 && !loading ? (
+                          <Typography variant="body2" color="text.secondary">
+                            No expiring items
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2" sx={{ visibility: 'hidden' }}>-</Typography>
+                        )
+                      )}
+                    </ListItem>
+                    {index < rowsPerPage - 1 && <Divider />}
+                  </React.Fragment>
+                );
+              })}
+            </List>
+          </Box>
+          <Box display="flex" justifyContent="space-between" alignItems="center" pt={1} sx={{ borderTop: 1, borderColor: 'divider' }}>
+            <FormControlLabel
               control={
-                <Switch 
-                  checked={showPackage} 
+                <Switch
+                  checked={showPackage}
                   onChange={(e) => setShowPackage(e.target.checked)}
                   size="small"
                 />
               }
               label={<Typography variant="caption">Show in Package</Typography>}
-              sx={{ ml: 1, mt: 0.5, pt: 1 }}
+              sx={{ ml: 1 }}
             />
-            <Pagination 
-              count={Math.ceil(total / rowsPerPage)} 
-              page={page} 
+            <Pagination
+              count={Math.ceil(total / rowsPerPage)}
+              page={page}
               onChange={handleChangePage}
               color="primary"
               size="small"
