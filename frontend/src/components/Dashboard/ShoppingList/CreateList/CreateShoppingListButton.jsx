@@ -20,7 +20,7 @@ const CreateShoppingListButton = () => {
     error: atThresholdError,
     isLoading: atThresholdLoading,
   } = useItemsAtOrAboveTarget(householdId);
-  
+
   if (belowThresholdLoading || atThresholdLoading) return <div>Loading...</div>;
   if (belowThresholdError || atThresholdError)
     return <div>Error: {belowThresholdError.message || atThresholdError.message}</div>;
@@ -32,9 +32,21 @@ const CreateShoppingListButton = () => {
       const result = await createShoppingListMutation.mutateAsync({ household_id: householdId });
       // add items after creating list
       if (result && result.shopping_list_id && tempCreateListBelowThresholdItems.length > 0) {
+        // Clean and validate the items before sending
+        const cleanedItems = tempCreateListBelowThresholdItems.map((item) => ({
+          FoodItemID: item.FoodItemID,
+          LocationID: item.LocationID || null,
+          PackageID: item.PackageID || null,
+          NeededQty: parseFloat(item.NeededQty) || 0,
+          PurchasedQty: parseInt(item.PurchasedQty, 10) || 0, 
+          TotalPrice: parseFloat(item.TotalPrice) || 0,
+        }));
+
+        console.log('Sending items:', cleanedItems); 
+
         await addItemsMutation.mutateAsync({
           shoppingListId: result.shopping_list_id,
-          items: tempCreateListBelowThresholdItems,
+          items: cleanedItems,
         });
       }
       console.log('list created successfully');
