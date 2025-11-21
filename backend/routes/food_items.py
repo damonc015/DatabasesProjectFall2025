@@ -72,7 +72,9 @@ def get_items_below_target():
                 (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) AS NeededQty,
                 (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) * IFNULL(pl.PriceTotal, 0) AS TotalPrice,
                 'active' AS Status,
-                getCurrentStock(fi.FoodItemID) AS CurrentStock
+                getCurrentStock(fi.FoodItemID) AS CurrentStock,
+                loc.LocationID AS LocationID,
+                pp.PackageID AS PackageID
             FROM StockLevel sl
             JOIN FoodItem fi ON sl.FoodItemID = fi.FoodItemID
             LEFT JOIN Package pp ON fi.PreferredPackageID = pp.PackageID
@@ -85,6 +87,15 @@ def get_items_below_target():
                     GROUP BY PackageID
                 ) pl2 ON pl1.PackageID = pl2.PackageID AND pl1.CreatedAt = pl2.MaxCreatedAt
             ) pl ON pp.PackageID = pl.PackageID
+            LEFT JOIN (
+                SELECT l1.LocationID, l1.HouseholdID
+                FROM Location l1
+                INNER JOIN (
+                    SELECT HouseholdID, MIN(LocationID) AS MinLocationID
+                    FROM Location
+                    GROUP BY HouseholdID
+                ) l2 ON l1.HouseholdID = l2.HouseholdID AND l1.LocationID = l2.MinLocationID
+            ) loc ON fi.HouseholdID = loc.HouseholdID
             WHERE fi.HouseholdID = %s
                 AND getCurrentStock(fi.FoodItemID) < sl.TargetLevel
             ORDER BY (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) DESC
@@ -114,7 +125,9 @@ def get_items_at_or_above_target():
                 0 AS NeededQty,
                 0 AS TotalPrice,
                 'active' AS Status,
-                getCurrentStock(fi.FoodItemID) AS CurrentStock
+                getCurrentStock(fi.FoodItemID) AS CurrentStock,
+                loc.LocationID AS LocationID,
+                pp.PackageID AS PackageID
             FROM StockLevel sl
             JOIN FoodItem fi ON sl.FoodItemID = fi.FoodItemID
             LEFT JOIN Package pp ON fi.PreferredPackageID = pp.PackageID
@@ -127,6 +140,15 @@ def get_items_at_or_above_target():
                     GROUP BY PackageID
                 ) pl2 ON pl1.PackageID = pl2.PackageID AND pl1.CreatedAt = pl2.MaxCreatedAt
             ) pl ON pp.PackageID = pl.PackageID
+            LEFT JOIN (
+                SELECT l1.LocationID, l1.HouseholdID
+                FROM Location l1
+                INNER JOIN (
+                    SELECT HouseholdID, MIN(LocationID) AS MinLocationID
+                    FROM Location
+                    GROUP BY HouseholdID
+                ) l2 ON l1.HouseholdID = l2.HouseholdID AND l1.LocationID = l2.MinLocationID
+            ) loc ON fi.HouseholdID = loc.HouseholdID
             WHERE fi.HouseholdID = %s
                 AND getCurrentStock(fi.FoodItemID) >= sl.TargetLevel
             ORDER BY fi.Name
