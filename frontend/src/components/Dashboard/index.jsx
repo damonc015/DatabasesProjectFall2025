@@ -13,14 +13,15 @@ import useShoppingListStore from '../../stores/useShoppingListStore';
 const Dashboard = () => {
   const { openModal } = useShoppingListStore();
   const [showPackage, setShowPackage] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   return (
     <div className='dashboard'>
       <Header />
       <div className='mainContentContainer'>
-        <Search />
+        <Search searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
         <div className='inventoryContainer'>
-          <Inventory showPackage={showPackage} setShowPackage={setShowPackage} />
+          <Inventory showPackage={showPackage} setShowPackage={setShowPackage} searchQuery={searchQuery} />
         </div>
         <div className='monitorsContainer'>
           <Transactions showPackage={showPackage} />

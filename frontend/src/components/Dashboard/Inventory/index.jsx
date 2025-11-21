@@ -9,13 +9,17 @@ import Tab from '@mui/material/Tab';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import FoodCard from './FoodCard';
 
-const Inventory = ({ showPackage, setShowPackage }) => {
+const Inventory = ({ showPackage, setShowPackage, searchQuery }) => {
   const [inventory, setInventory] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [locationFilter, setLocationFilter] = useState(null);
 
   const { householdId } = useCurrentUser();
+
+  const filteredInventory = inventory.filter(item =>
+    item.FoodName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
     if (!householdId) return;
@@ -101,14 +105,14 @@ const Inventory = ({ showPackage, setShowPackage }) => {
         }}
       >
         <Grid container spacing={2}>
-          {inventory.length === 0 ? (
+          {filteredInventory.length === 0 ? (
             <Grid item xs={12}>
               <Typography variant='body2' color='text.secondary'>
-                No items in inventory.
+                {inventory.length === 0 ? 'No items in inventory.' : 'No items match your search.'}
               </Typography>
             </Grid>
           ) : (
-            inventory.map((item) => (
+            filteredInventory.map((item) => (
               <Grid
                 item
                 xs={12}
