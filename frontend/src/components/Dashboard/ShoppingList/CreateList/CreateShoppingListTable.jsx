@@ -48,6 +48,8 @@ export default function CreateShoppingListTable() {
         TotalPrice: parseFloat(item.TotalPrice),
         Status: item.Status,
         CurrentStock: item.CurrentStock,
+        LocationID: item.LocationID,
+        PackageID: item.PackageID,
       }));
       setTempCreateListBelowThresholdItems(processedData);
     }

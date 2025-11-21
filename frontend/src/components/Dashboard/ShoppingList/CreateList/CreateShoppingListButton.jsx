@@ -37,6 +37,7 @@ const CreateShoppingListButton = () => {
           items: tempCreateListBelowThresholdItems,
         });
       }
+      console.log('list created successfully');
     } catch (error) {
       console.error('Error creating shopping list:', error);
     } finally {
