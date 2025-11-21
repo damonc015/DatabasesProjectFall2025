@@ -65,31 +65,26 @@ def get_items_below_target():
     with db_cursor() as cursor:
         query = """
             SELECT 
-                fi.FoodItemID AS ShoppingListItemID,
+                fi.FoodItemID AS FoodItemID,
                 fi.Name AS FoodItemName,
-                COALESCE(
-                    (SELECT pl.PriceTotal 
-                     FROM PriceLog pl 
-                     WHERE pl.PackageID = pp.PackageID 
-                     ORDER BY pl.CreatedAt DESC 
-                     LIMIT 1), 
-                    0
-                ) AS PricePerUnit,
+                IFNULL(pl.PriceTotal, 0) AS PricePerUnit,
                 0 AS PurchasedQty,
                 (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) AS NeededQty,
-                (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) * COALESCE(
-                    (SELECT pl.PriceTotal 
-                     FROM PriceLog pl 
-                     WHERE pl.PackageID = pp.PackageID 
-                     ORDER BY pl.CreatedAt DESC 
-                     LIMIT 1), 
-                    0
-                ) AS TotalPrice,
+                (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) * IFNULL(pl.PriceTotal, 0) AS TotalPrice,
                 'active' AS Status,
                 getCurrentStock(fi.FoodItemID) AS CurrentStock
             FROM StockLevel sl
             JOIN FoodItem fi ON sl.FoodItemID = fi.FoodItemID
             LEFT JOIN Package pp ON fi.PreferredPackageID = pp.PackageID
+            LEFT JOIN (
+                SELECT pl1.PackageID, pl1.PriceTotal
+                FROM PriceLog pl1
+                INNER JOIN (
+                    SELECT PackageID, MAX(CreatedAt) AS MaxCreatedAt
+                    FROM PriceLog
+                    GROUP BY PackageID
+                ) pl2 ON pl1.PackageID = pl2.PackageID AND pl1.CreatedAt = pl2.MaxCreatedAt
+            ) pl ON pp.PackageID = pl.PackageID
             WHERE fi.HouseholdID = %s
                 AND getCurrentStock(fi.FoodItemID) < sl.TargetLevel
             ORDER BY (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) DESC
@@ -112,16 +107,9 @@ def get_items_at_or_above_target():
     with db_cursor() as cursor:
         query = """
             SELECT 
-                fi.FoodItemID AS ShoppingListItemID,
+                fi.FoodItemID AS FoodItemID,
                 fi.Name AS FoodItemName,
-                COALESCE(
-                    (SELECT pl.PriceTotal 
-                     FROM PriceLog pl 
-                     WHERE pl.PackageID = pp.PackageID 
-                     ORDER BY pl.CreatedAt DESC 
-                     LIMIT 1), 
-                    0
-                ) AS PricePerUnit,
+                IFNULL(pl.PriceTotal, 0) AS PricePerUnit,
                 0 AS PurchasedQty,
                 0 AS NeededQty,
                 0 AS TotalPrice,
@@ -130,6 +118,15 @@ def get_items_at_or_above_target():
             FROM StockLevel sl
             JOIN FoodItem fi ON sl.FoodItemID = fi.FoodItemID
             LEFT JOIN Package pp ON fi.PreferredPackageID = pp.PackageID
+            LEFT JOIN (
+                SELECT pl1.PackageID, pl1.PriceTotal
+                FROM PriceLog pl1
+                INNER JOIN (
+                    SELECT PackageID, MAX(CreatedAt) AS MaxCreatedAt
+                    FROM PriceLog
+                    GROUP BY PackageID
+                ) pl2 ON pl1.PackageID = pl2.PackageID AND pl1.CreatedAt = pl2.MaxCreatedAt
+            ) pl ON pp.PackageID = pl.PackageID
             WHERE fi.HouseholdID = %s
                 AND getCurrentStock(fi.FoodItemID) >= sl.TargetLevel
             ORDER BY fi.Name
