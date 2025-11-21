@@ -8,9 +8,7 @@ import {
   Pagination,
   Divider,
   Box,
-  IconButton,
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 
 const Expiring = ({ showPackage }) => {
@@ -39,19 +37,17 @@ const Expiring = ({ showPackage }) => {
 
   useEffect(() => {
     fetchExpiring();
+
+    // Set up interval to refresh data every 3 seconds
+    const intervalId = setInterval(() => {
+      fetchExpiring();
+    }, 3000);
+
+    return () => clearInterval(intervalId);
   }, [page, rowsPerPage, user.householdId]);
 
   const handleChangePage = (event, value) => {
     setPage(value);
-  };
-
-  const handleRefresh = () => {
-    if (page === 1) {
-      fetchExpiring();
-    }
-    else {
-      setPage(1);
-    }
   };
 
   const computeDateDiff = (targetDate) => {
@@ -71,9 +67,6 @@ const Expiring = ({ showPackage }) => {
     <div className='expiringContainer'>
       <Box display="flex" alignItems="center" gap={1} maxHeight='5vh'>
         <h1>Expiring</h1>
-        <IconButton onClick={handleRefresh} disabled={loading} color="primary">
-          <RefreshIcon />
-        </IconButton>
       </Box>
       <Card className='cardContainer' variant='outlined'>
         <CardContent sx={{ display: 'flex', flexDirection: 'column', p: 1 }}>
@@ -104,14 +97,14 @@ const Expiring = ({ showPackage }) => {
               })}
             </List>
           </Box>
-          <Box display="flex" justifyContent="center" alignItems="center" pt={1} sx={{ borderTop: 1, borderColor: 'divider' }}>
+          <Box display="flex" justifyContent="center" alignItems="center" pt={3} sx={{ maxHeight: '2vh', borderTop: 1, borderColor: 'divider' }}>
             <Pagination
               count={Math.ceil(total / rowsPerPage)}
               page={page}
               onChange={handleChangePage}
               color="primary"
               size="small"
-              disabled={loading}
+              //disabled={loading}
             />
           </Box>
         </CardContent>
