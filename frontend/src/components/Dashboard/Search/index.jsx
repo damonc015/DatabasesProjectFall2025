@@ -16,7 +16,12 @@ const Search = ({ searchQuery, setSearchQuery }) => {
   };
 
   const handleChange = (e) => {
-    setInputValue(e.target.value);
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    
+    if (newValue.trim() === '') {
+      setSearchQuery('');
+    }
   };
 
   return (
