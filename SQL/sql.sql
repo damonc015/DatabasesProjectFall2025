@@ -10,7 +10,7 @@ BEGIN
     SELECT SUM(
       CASE
         WHEN TransactionType IN ('add','purchase','transfer_in') THEN QtyInBaseUnits
-        WHEN TransactionType IN ('consume','expire','transfer_out') THEN -QtyInBaseUnits
+        WHEN TransactionType IN ('remove','expire','transfer_out') THEN -QtyInBaseUnits
         ELSE 0
       END
     )
@@ -69,7 +69,7 @@ BEGIN
         SUM(
             CASE 
                 WHEN i.TransactionType IN ('add', 'purchase', 'transfer_in') THEN i.QtyInBaseUnits
-                WHEN i.TransactionType IN ('consume', 'expire', 'transfer_out') THEN -i.QtyInBaseUnits
+                WHEN i.TransactionType IN ('remove', 'expire', 'transfer_out') THEN -i.QtyInBaseUnits
                 ELSE 0
             END
         ) AS CurrentQty,
@@ -78,7 +78,7 @@ BEGIN
                 SUM(
                     CASE 
                         WHEN i.TransactionType IN ('add', 'purchase', 'transfer_in') THEN i.QtyInBaseUnits
-                        WHEN i.TransactionType IN ('consume', 'expire', 'transfer_out') THEN -i.QtyInBaseUnits
+                        WHEN i.TransactionType IN ('remove', 'expire', 'transfer_out') THEN -i.QtyInBaseUnits
                         ELSE 0
                     END
                 ) / p.BaseUnitAmt, 2
@@ -107,7 +107,7 @@ BEGIN
         SUM(
             CASE 
                 WHEN i.TransactionType IN ('add', 'purchase', 'transfer_in') THEN i.QtyInBaseUnits
-                WHEN i.TransactionType IN ('consume', 'expire', 'transfer_out') THEN -i.QtyInBaseUnits
+                WHEN i.TransactionType IN ('remove', 'expire', 'transfer_out') THEN -i.QtyInBaseUnits
                 ELSE 0
             END
         ) AS TotalQtyInBaseUnits,
@@ -116,7 +116,7 @@ BEGIN
             SUM(
                 CASE 
                     WHEN i.TransactionType IN ('add', 'purchase', 'transfer_in') THEN i.QtyInBaseUnits
-                    WHEN i.TransactionType IN ('consume', 'expire', 'transfer_out') THEN -i.QtyInBaseUnits
+                    WHEN i.TransactionType IN ('remove', 'expire', 'transfer_out') THEN -i.QtyInBaseUnits
                     ELSE 0
                 END
             ) / p.BaseUnitAmt
@@ -125,7 +125,7 @@ BEGIN
             SUM(
                 CASE 
                     WHEN i.TransactionType IN ('add', 'purchase', 'transfer_in') THEN i.QtyInBaseUnits
-                    WHEN i.TransactionType IN ('consume', 'expire', 'transfer_out') THEN -i.QtyInBaseUnits
+                    WHEN i.TransactionType IN ('remove', 'expire', 'transfer_out') THEN -i.QtyInBaseUnits
                     ELSE 0
                 END
             ), 

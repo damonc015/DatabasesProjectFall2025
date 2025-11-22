@@ -77,7 +77,7 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
   const handleRemove = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    handleTransaction('consume');
+    handleTransaction('remove');
   };
 
   return (
