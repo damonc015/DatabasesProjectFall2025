@@ -36,13 +36,6 @@ const Expiring = ({ showPackage }) => {
 
   useEffect(() => {
     fetchExpiring();
-
-    // Set up interval to refresh data every 3 seconds
-    const intervalId = setInterval(() => {
-      fetchExpiring();
-    }, 3000);
-
-    return () => clearInterval(intervalId);
   }, [page, rowsPerPage, user.householdId]);
 
   const handleChangePage = (event, value) => {
