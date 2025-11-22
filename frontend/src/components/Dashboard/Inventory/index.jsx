@@ -23,8 +23,11 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
   const userId = user?.id;
 
   const filteredInventory = inventory.filter(item => {
-    const matchesCategory = selectedCategory.length > 0 ? selectedCategory.includes(item.Category) : true;
-    return matchesCategory;
+    if (selectedCategory.length === 0) return true;
+    const itemCategory = item.Category ? item.Category.trim() : '';
+    return selectedCategory.some(cat => 
+      cat.toLowerCase() === itemCategory.toLowerCase()
+    );
   });
 
   useEffect(() => {
