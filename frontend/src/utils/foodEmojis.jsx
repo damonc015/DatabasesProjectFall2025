@@ -16,7 +16,11 @@ export const CATEGORY_EMOJI = {
 };
 
 export function FoodIcon({ category }) {
-  const emoji = CATEGORY_EMOJI[category] ?? '🍽️';
+  if (!category) return <span style={{ fontSize: '3rem' }}>🍽️</span>;
+  
+  // Capitalize first letter to match CATEGORY_EMOJI keys
+  const capitalizedCategory = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+  const emoji = CATEGORY_EMOJI[capitalizedCategory] ?? '🍽️';
   return <span style={{ fontSize: '3rem' }}>{emoji}</span>;
 }
 

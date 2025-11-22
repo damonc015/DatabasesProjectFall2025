@@ -11,6 +11,13 @@ import {
 } from '@mui/material';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 
+const capitalize = (str) => {
+  if (!str) return '';
+  return str.split(' ').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  ).join(' ');
+};
+
 const Transactions = ({ showPackage }) => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +75,7 @@ const Transactions = ({ showPackage }) => {
                         <>
                           <Typography variant="body2" fontWeight="bold" sx={{ flex: 1, whiteSpace: 'nowrap' }}>
                             {tx.UserName} {tx.TransactionType}{tx.TransactionType === 'add' ? 'ed':'d'}{" "}
-                            {showPackage ? tx.FormattedPackages : `${Math.round(tx.QtyInTotal)}${tx.BaseUnitAbbr}`} of {tx.FoodName} at {tx.LocationName}
+                            {showPackage ? tx.FormattedPackages : `${Math.round(tx.QtyInTotal)}${tx.BaseUnitAbbr}`} of {capitalize(tx.FoodName)} at {capitalize(tx.LocationName)}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', ml: 2 }}>
                             {new Date(tx.CreatedAt).toLocaleString()}
