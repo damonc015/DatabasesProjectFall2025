@@ -62,6 +62,8 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
       const result = await response.json();
       console.log('Transaction created:', result);
 
+      window.dispatchEvent(new CustomEvent('transactionCompleted'));
+
       if (onTransactionComplete) {
         setTimeout(() => {
           onTransactionComplete();

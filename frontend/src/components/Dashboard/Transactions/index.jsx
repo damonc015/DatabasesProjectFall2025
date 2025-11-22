@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import {
@@ -27,7 +27,9 @@ const Transactions = ({ showPackage }) => {
 
   const user = useCurrentUser();
 
-  const fetchTransactions = () => {
+  const fetchTransactions = useCallback(() => {
+    if (!user.householdId) return;
+
     setLoading(true);
     fetch(`/api/transactions/${user.householdId}?page=${page - 1}&limit=${rowsPerPage}`)
       .then(res => res.json())
@@ -40,11 +42,23 @@ const Transactions = ({ showPackage }) => {
         console.error('Error:', error);
         setLoading(false);
       });
-  };
+  }, [page, rowsPerPage, user.householdId]);
 
   useEffect(() => {
     fetchTransactions();
-  }, [page, rowsPerPage, user.householdId]);
+  }, [fetchTransactions]);
+
+  useEffect(() => {
+    const handleTransactionCompleted = () => {
+      fetchTransactions();
+    };
+
+    window.addEventListener('transactionCompleted', handleTransactionCompleted);
+
+    return () => {
+      window.removeEventListener('transactionCompleted', handleTransactionCompleted);
+    };
+  }, [fetchTransactions]);
 
   const handleChangePage = (event, value) => {
     setPage(value);

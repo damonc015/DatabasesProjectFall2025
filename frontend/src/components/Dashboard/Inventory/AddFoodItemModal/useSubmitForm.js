@@ -40,6 +40,8 @@ export const useSubmitForm = (householdId, userId, onItemAdded, onClose) => {
         throw new Error(errorData.error || 'Couldn\'t add item.');
       }
 
+      window.dispatchEvent(new CustomEvent('transactionCompleted'));
+
       if (onItemAdded) {
         onItemAdded();
       }
