@@ -25,8 +25,6 @@ BEGIN
   RETURN current_qty;
 END;
 
-
-
 DROP PROCEDURE IF EXISTS GetHouseholdInventory;
 CREATE PROCEDURE GetHouseholdInventory(IN p_HouseholdID INT, IN p_SearchQuery VARCHAR(255))
 BEGIN
