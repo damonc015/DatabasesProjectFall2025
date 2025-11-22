@@ -18,9 +18,8 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
   const { householdId } = useCurrentUser();
 
   const filteredInventory = inventory.filter(item => {
-    const matchesSearch = item.FoodName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory.length > 0 ? selectedCategory.includes(item.Category) : true;
-    return matchesSearch && matchesCategory;
+    return matchesCategory;
   });
 
   useEffect(() => {
@@ -43,9 +42,13 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
     }
 
     setLoading(true);
-    const url = locationFilter === null
+    const baseUrl = locationFilter === null
       ? `http://localhost:5001/api/transactions/inventory/${householdId}`
       : `http://localhost:5001/api/transactions/inventory/${householdId}/location/${locationFilter}`;
+    
+    const url = searchQuery && searchQuery.trim() !== ''
+      ? `${baseUrl}?search=${encodeURIComponent(searchQuery.trim())}`
+      : baseUrl;
 
     fetch(url)
       .then(res => res.json())
@@ -57,7 +60,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
         console.error('Error fetching inventory:', error);
         setLoading(false);
       });
-  }, [householdId, locationFilter]);
+  }, [householdId, locationFilter, searchQuery]);
 
   if (loading) {
     return (
@@ -66,6 +69,12 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
       </Box>
     );
   }
+  const noItemsMessage = (() => {
+    if (inventory.length === 0) {
+      return searchQuery?.trim() ? 'No items match your search.' : 'No items in inventory.';
+    }
+    return 'No items match your category filter.';
+  })();
 
   return (
     <Box>
@@ -110,7 +119,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           {filteredInventory.length === 0 ? (
             <Grid item xs={12}>
               <Typography variant='body2' color='text.secondary'>
-                {inventory.length === 0 ? 'No items in inventory.' : 'No items match your search.'}
+                {noItemsMessage}
               </Typography>
             </Grid>
           ) : (

@@ -161,8 +161,13 @@ def db_get_expiring_transactions(household_id):
                         'Returns inventory totals for all food items in household')
 @handle_db_error
 def get_inventory_totals(household_id):
+    search_query = request.args.get('search', None)
+
+    if search_query == '':
+        search_query = None
+    
     with db_cursor() as cursor:
-        cursor.callproc('GetHouseholdInventory', (household_id,))
+        cursor.callproc('GetHouseholdInventory', (household_id, search_query))
         results = []
         for result in cursor.stored_results():
             results = result.fetchall()
@@ -185,8 +190,13 @@ def get_inventory_totals(household_id):
                         'Returns food items filtered by location')
 @handle_db_error
 def get_inventory_by_location(household_id, location_id):
+    search_query = request.args.get('search', None)
+
+    if search_query == '':
+        search_query = None
+    
     with db_cursor() as cursor:
-        cursor.callproc('GetInventoryByLocation', (household_id, location_id))
+        cursor.callproc('GetInventoryByLocation', (household_id, location_id, search_query))
         results = []
         for result in cursor.stored_results():
             results = result.fetchall()
@@ -206,7 +216,7 @@ def get_inventory_by_location(household_id, location_id):
 
 
 def _format_packages(whole_packages, remainder, package_label, base_unit, total_qty):
-    # Format package: ie 2 Bags + 100g.
+    # Formats package: ie 2 Bags + 100g.
     if whole_packages > 0 and remainder > 0:
         plural = 's' if whole_packages > 1 else ''
         return f"{whole_packages} {package_label}{plural} + {round(remainder)}{base_unit}"
