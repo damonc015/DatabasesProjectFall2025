@@ -121,10 +121,17 @@ def add_shopping_list_items(shopping_list_id):
     if not items:
         return jsonify({'error': 'items array is required'}), 400
     
-    with db_cursor() as cursor:
-        import json
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
         items_json = json.dumps(items)
         cursor.callproc('AddShoppingListItemsJSON', [shopping_list_id, items_json])
+        
+        for result in cursor.stored_results():
+            result.fetchall()
+        
+        conn.commit()
         
         cursor.execute("""
             SELECT TotalCost 
@@ -138,6 +145,9 @@ def add_shopping_list_items(shopping_list_id):
             'shopping_list_id': shopping_list_id,
             'total_cost': result['TotalCost']
         }), 201
+    finally:
+        cursor.close()
+        conn.close()
 
 #TODO: 2.2
 @document_api_route(bp, 'patch', '/<int:shopping_list_id>/items/<int:item_id>', 'Mark item status', 'Updates the status of a shopping list item')

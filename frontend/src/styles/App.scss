@@ -41,6 +41,10 @@ body {
   color: variables.$highlight-color-two !important;
 }
 
+// .MuiCardContent-root:last-child {
+//   overflow: hidden;
+// }
+
 // number input
 input[inputmode="numeric"] {
   background-color: variables.$primary-color;
