@@ -10,6 +10,7 @@ import {
   Box,
 } from '@mui/material';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
+import { io } from 'socket.io-client';
 
 const Transactions = ({ showPackage }) => {
   const [transactions, setTransactions] = useState([]);
@@ -21,8 +22,7 @@ const Transactions = ({ showPackage }) => {
   const user = useCurrentUser();
 
   const fetchTransactions = () => {
-    setLoading(true);
-    fetch(`/api/transactions/${user.householdId}?page=${page - 1}&limit=${rowsPerPage}`)
+    fetch(`/api/transactions/${user?.householdId}?page=${page - 1}&limit=${rowsPerPage}`)
       .then(res => res.json())
       .then(result => {
         setTransactions(result.data);
@@ -38,13 +38,15 @@ const Transactions = ({ showPackage }) => {
   useEffect(() => {
     fetchTransactions();
 
-    // Set up interval to refresh data every 3 seconds
-    const intervalId = setInterval(() => {
+    const socket = io('http://localhost:5001');
+    socket.on('transaction_update', () => {
       fetchTransactions();
-    }, 3000);
+    });
 
-    return () => clearInterval(intervalId);
-  }, [page, rowsPerPage, user.householdId]);
+    return () => {
+      socket.disconnect();
+    };
+  }, [page, rowsPerPage, user?.householdId]);
 
   const handleChangePage = (event, value) => {
     setPage(value);

@@ -2,8 +2,10 @@ from contextlib import contextmanager
 from functools import wraps
 import mysql.connector
 from flask import current_app, jsonify
+from flask_socketio import SocketIO
 from apiflask import APIBlueprint
 
+socketio = SocketIO(cors_allowed_origins="*")
 
 def get_db():
     conn = mysql.connector.connect(
@@ -15,19 +17,65 @@ def get_db():
     )
     return conn
 
+# A simple SQL sniffer to detect inventorytransaction modifications
+class SqlSniffer:
+    def __init__(self, cursor):
+        self.cursor = cursor
+        self.is_transaction_modified = False
+
+    def execute(self, operation, params=None, multi=False):
+        res = self.cursor.execute(operation, params, multi)
+        try:
+            sql = operation.lower().strip()
+            
+            if 'inventorytransaction' in sql and \
+                any(action in sql for action in ['insert ', 'update ', 'delete ']):
+                    self.is_transaction_modified = True
+        except Exception:
+            pass # Ignore sniffer errors
+            
+        return res
+
+    def callproc(self, procname, args=()):
+        res = self.cursor.callproc(procname, args)
+        try:
+            target_procedures = ['add_new_food_item', 'addremoveexistingfooditem']
+            if procname.lower() in target_procedures:
+                self.is_transaction_modified = True
+        except Exception:
+            pass
+        
+        return res
+
+    def __getattr__(self, attr):
+        return getattr(self.cursor, attr)
+    
+    def __iter__(self):
+        return iter(self.cursor)
+
 
 @contextmanager
 def db_cursor():
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
-        yield cursor
+        sniffer_cursor = SqlSniffer(cursor)
+        yield sniffer_cursor
+        conn.commit()
+        # Emit socket event if inventorytransaction was modified
+        if sniffer_cursor.is_transaction_modified:
+            socketio.emit('transaction_update', {
+                'table': 'inventorytransaction',
+                'action': 'modified'
+            })
     except Exception as e:
+        if conn:
+            conn.rollback()
         raise Exception(f'Database connection failed: {str(e)}')
     finally:
-        if 'cursor' in locals():
+        if cursor:
             cursor.close()
-        if 'conn' in locals():
+        if conn:
             conn.close()
 
 

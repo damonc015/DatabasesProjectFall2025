@@ -234,10 +234,7 @@ def create_inventory_transaction():
     quantity = float(data['quantity'])
     expiration_date = data.get('expiration_date')
     
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    
-    try:
+    with db_cursor() as cursor:
         cursor.callproc('AddRemoveExistingFoodItem', (
             food_item_id,
             location_id,
@@ -246,8 +243,6 @@ def create_inventory_transaction():
             quantity,
             expiration_date
         ))
-        cursor.fetchall() 
-        conn.commit()
         
         return jsonify({
             'message': 'Transaction created successfully',
@@ -255,9 +250,6 @@ def create_inventory_transaction():
             'transaction_type': transaction_type,
             'quantity': quantity
         }), 201
-    finally:
-        cursor.close()
-        conn.close()
 
 
 def _format_packages(whole_packages, remainder, package_label, base_unit, total_qty):

@@ -10,6 +10,7 @@ import {
   Box,
 } from '@mui/material';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
+import { io } from 'socket.io-client';
 
 const Expiring = ({ showPackage }) => {
   const [expiring, setExpiring] = useState([]);
@@ -21,7 +22,7 @@ const Expiring = ({ showPackage }) => {
   const user = useCurrentUser();
 
   const fetchExpiring = () => {
-    fetch(`/api/transactions/expiring/${user.householdId}?page=${page - 1}&limit=${rowsPerPage}`)
+    fetch(`/api/transactions/expiring/${user?.householdId}?page=${page - 1}&limit=${rowsPerPage}`)
       .then(res => res.json())
       .then(result => {
         setExpiring(result.data);
@@ -37,13 +38,17 @@ const Expiring = ({ showPackage }) => {
   useEffect(() => {
     fetchExpiring();
 
-    // Set up interval to refresh data every 3 seconds
-    const intervalId = setInterval(() => {
+    const socket = io('http://localhost:5001');
+    socket.on('transaction_update', () => {
       fetchExpiring();
-    }, 3000);
+    });
 
-    return () => clearInterval(intervalId);
-  }, [page, rowsPerPage, user.householdId]);
+    return () => {
+      socket.disconnect();
+    };
+  }, [page, rowsPerPage, user?.householdId]);
+
+
 
   const handleChangePage = (event, value) => {
     setPage(value);

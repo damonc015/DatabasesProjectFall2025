@@ -4,6 +4,7 @@ from flask import jsonify, send_from_directory
 from flask_cors import CORS
 from config import config
 from routes import food_items_bp, shopping_lists_bp, households_bp, auth_bp, transactions_bp
+from extensions import socketio
 
 
 def create_app(config_name='development'):
@@ -35,10 +36,12 @@ def create_app(config_name='development'):
             if path and os.path.isfile(file_path):
                 return send_from_directory(app.static_folder, path)
             return send_from_directory(app.static_folder, 'index.html')
+        
+    socketio.init_app(app)
     
     return app
 
 if __name__ == '__main__':
     config_name = os.getenv('FLASK_ENV', 'development')
     app = create_app(config_name)
-    app.run(debug=(config_name == 'development'), port=5001)
+    socketio.run(app, debug=(config_name == 'development'), port=5001)
