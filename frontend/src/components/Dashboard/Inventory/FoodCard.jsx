@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -7,7 +8,78 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import { FoodIcon } from '../../../utils/foodEmojis';
 
-const FoodCard = ({ item, showPackage }) => {
+const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete }) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleTransaction = async (transactionType) => {
+    if (!userId) {
+      alert('Error: User ID is missing. Please log in again.');
+      console.error('Missing userId');
+      return;
+    }
+    
+    if (!locationId) {
+      alert('Error: Location ID is missing. Please select a location.');
+      console.error('Missing locationId');
+      return;
+    }
+
+    setIsLoading(true);
+    
+    // The quick add/remove uses the package amount to increase/decrease.
+    const quantity = item.QtyPerPackage && item.QtyPerPackage > 0 
+      ? item.QtyPerPackage 
+      : 1;
+
+    try {
+      const response = await fetch('http://localhost:5001/api/transactions/inventory/transaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          food_item_id: item.FoodItemID,
+          location_id: locationId,
+          user_id: userId,
+          transaction_type: transactionType,
+          quantity: quantity,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('API Error:', error);
+        throw new Error(error.error || 'Failed to create transaction');
+      }
+
+      const result = await response.json();
+      console.log('Transaction created:', result);
+
+      if (onTransactionComplete) {
+        setTimeout(() => {
+          onTransactionComplete();
+        }, 0);
+      }
+    } catch (error) {
+      console.error('Error creating transaction:', error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleTransaction('add');
+  };
+
+  const handleRemove = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleTransaction('consume');
+  };
+
   return (
     <Card 
       variant='outlined' 
@@ -30,7 +102,7 @@ const FoodCard = ({ item, showPackage }) => {
           flexDirection: 'column', 
           alignItems: 'center', 
           textAlign: 'center', 
-          overflowY: 'auto' 
+          overflow: 'hidden'
         }}
       >
         <FoodIcon category={item.Category} />
@@ -41,10 +113,20 @@ const FoodCard = ({ item, showPackage }) => {
           {showPackage ? item.FormattedPackages : item.FormattedBaseUnits}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 'auto' }}>
-          <IconButton size='small' color='primary'>
+          <IconButton 
+            size='small' 
+            color='primary' 
+            onClick={handleRemove}
+            disabled={isLoading}
+          >
             <RemoveIcon />
           </IconButton>
-          <IconButton size='small' color='primary'>
+          <IconButton 
+            size='small' 
+            color='primary' 
+            onClick={handleAdd}
+            disabled={isLoading}
+          >
             <AddIcon />
           </IconButton>
         </Box>

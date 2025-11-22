@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
@@ -14,8 +14,10 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [locationFilter, setLocationFilter] = useState(null);
-
-  const { householdId } = useCurrentUser();
+  
+  const { householdId, user } = useCurrentUser();
+  
+  const userId = user?.id;
 
   const filteredInventory = inventory.filter(item => {
     const matchesCategory = selectedCategory.length > 0 ? selectedCategory.includes(item.Category) : true;
@@ -35,7 +37,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
       });
   }, [householdId]);
 
-  useEffect(() => {
+  const fetchInventory = useCallback(() => {
     if (!householdId) {
       setLoading(false);
       return;
@@ -62,13 +64,9 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
       });
   }, [householdId, locationFilter, searchQuery]);
 
-  if (loading) {
-    return (
-      <Box sx={{ p: 2, textAlign: 'center' }}>
-        <Typography>Loading...</Typography>
-      </Box>
-    );
-  }
+  useEffect(() => {
+    fetchInventory();
+  }, [fetchInventory]);
   const noItemsMessage = (() => {
     if (inventory.length === 0) {
       return searchQuery?.trim() ? 'No items match your search.' : 'No items in inventory.';
@@ -108,8 +106,8 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           backgroundColor: 'background.paper',
           borderRadius: 2,
           p: 3,
-          minHeight: '20rem',
-          maxHeight: '50vh',
+          minHeight: '30rem',
+          maxHeight: '70vh',
           overflowY: 'auto',
           border: 2,
           borderColor: 'divider'
@@ -140,7 +138,13 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
                   }
                 }}
               >
-                <FoodCard item={item} showPackage={showPackage} />
+                <FoodCard 
+                  item={item} 
+                  showPackage={showPackage}
+                  userId={userId}
+                  locationId={item.LocationID}
+                  onTransactionComplete={fetchInventory}
+                />
               </Grid>
             ))
           )}

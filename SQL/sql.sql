@@ -40,7 +40,12 @@ BEGIN
         GetCurrentStock(f.FoodItemID) AS TotalQtyInBaseUnits,
         bu.Abbreviation AS BaseUnitAbbr,
         FLOOR(GetCurrentStock(f.FoodItemID) / p.BaseUnitAmt) AS WholePackages,
-        MOD(GetCurrentStock(f.FoodItemID), p.BaseUnitAmt) AS Remainder
+        MOD(GetCurrentStock(f.FoodItemID), p.BaseUnitAmt) AS Remainder,
+        (SELECT i.LocationID 
+         FROM InventoryTransaction i 
+         WHERE i.FoodItemID = f.FoodItemID 
+         ORDER BY i.CreatedAt DESC 
+         LIMIT 1) AS LocationID
     FROM FoodItem f
     JOIN Package p 
         ON f.PreferredPackageID = p.PackageID
@@ -125,7 +130,8 @@ BEGIN
                 END
             ), 
             p.BaseUnitAmt
-        ) AS Remainder
+        ) AS Remainder,
+        p_LocationID AS LocationID
     FROM FoodItem f
     JOIN Package p ON f.PreferredPackageID = p.PackageID
     JOIN BaseUnit bu ON f.BaseUnitID = bu.UnitID
@@ -137,7 +143,6 @@ BEGIN
     GROUP BY f.FoodItemID, f.Name, f.Type, f.Category, p.Label, p.BaseUnitAmt, bu.Abbreviation
     HAVING TotalQtyInBaseUnits > 0;
 END;
-
 DROP PROCEDURE IF EXISTS AddRemoveExistingFoodItem;
 CREATE PROCEDURE AddRemoveExistingFoodItem(
     IN f_FoodItemID INT,
