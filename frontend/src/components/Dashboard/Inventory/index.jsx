@@ -9,18 +9,23 @@ import Tab from '@mui/material/Tab';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import FoodCard from './FoodCard';
 
-const Inventory = () => {
+const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory }) => {
   const [inventory, setInventory] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showPackage, setShowPackage] = useState(false);
   const [locationFilter, setLocationFilter] = useState(null);
-  
+
   const { householdId } = useCurrentUser();
+
+  const filteredInventory = inventory.filter(item => {
+    const matchesSearch = item.FoodName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory.length > 0 ? selectedCategory.includes(item.Category) : true;
+    return matchesSearch && matchesCategory;
+  });
 
   useEffect(() => {
     if (!householdId) return;
-    
+
     fetch(`http://localhost:5001/api/households/${householdId}/locations`)
       .then(res => res.json())
       .then(data => {
@@ -36,12 +41,12 @@ const Inventory = () => {
       setLoading(false);
       return;
     }
-    
+
     setLoading(true);
     const url = locationFilter === null
       ? `http://localhost:5001/api/transactions/inventory/${householdId}`
       : `http://localhost:5001/api/transactions/inventory/${householdId}/location/${locationFilter}`;
-    
+
     fetch(url)
       .then(res => res.json())
       .then(data => {
@@ -68,18 +73,18 @@ const Inventory = () => {
         <Typography variant='h6'>Inventory</Typography>
         <FormControlLabel
           control={
-            <Switch 
-              checked={showPackage} 
+            <Switch
+              checked={showPackage}
               onChange={(e) => setShowPackage(e.target.checked)}
             />
           }
           label={<Typography variant="caption">Show in Package</Typography>}
         />
       </Box>
-      
+
       <Box sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs 
-          value={locationFilter ?? 'All'} 
+        <Tabs
+          value={locationFilter ?? 'All'}
           onChange={(e, newValue) => setLocationFilter(newValue === 'All' ? null : newValue)}
         >
           <Tab label="All" value="All" />
@@ -89,8 +94,8 @@ const Inventory = () => {
         </Tabs>
       </Box>
 
-      <Box 
-        sx={{ 
+      <Box
+        sx={{
           backgroundColor: 'background.paper',
           borderRadius: 2,
           p: 3,
@@ -102,19 +107,19 @@ const Inventory = () => {
         }}
       >
         <Grid container spacing={2}>
-          {inventory.length === 0 ? (
+          {filteredInventory.length === 0 ? (
             <Grid item xs={12}>
               <Typography variant='body2' color='text.secondary'>
-                No items in inventory.
+                {inventory.length === 0 ? 'No items in inventory.' : 'No items match your search.'}
               </Typography>
             </Grid>
           ) : (
-            inventory.map((item) => (
-              <Grid 
-                item 
-                xs={12} 
-                sm={6} 
-                md={4} 
+            filteredInventory.map((item) => (
+              <Grid
+                item
+                xs={12}
+                sm={6}
+                md={4}
                 lg={2}
                 xl={2}
                 key={item.FoodItemID}

@@ -1,7 +1,7 @@
 // TODO ? use SVGs instead of emojis?
 
 export const CATEGORY_EMOJI = {
-  Produce: '🍎',
+  Produce: '🥦',
   Dairy: '🥛',
   Meat: '🍗',
   Grain: '🍞',
