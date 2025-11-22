@@ -263,10 +263,8 @@ def create_inventory_transaction():
 def _format_packages(whole_packages, remainder, package_label, base_unit, total_qty):
     # Formats package: ie 2 Bags + 100g.
     if whole_packages > 0 and remainder > 0:
-        plural = 's' if whole_packages > 1 else ''
-        return f"{whole_packages} {package_label}{plural} + {round(remainder)}{base_unit}"
+        return f"{whole_packages} {package_label} + {round(remainder)}{base_unit}"
     elif whole_packages > 0:
-        plural = 's' if whole_packages > 1 else ''
-        return f"{whole_packages} {package_label}{plural}"
+        return f"{whole_packages} {package_label}"
     else:
         return f"{round(total_qty)}{base_unit}"
