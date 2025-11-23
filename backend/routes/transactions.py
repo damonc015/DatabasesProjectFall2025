@@ -1,7 +1,7 @@
 from datetime import datetime,time
 import pytz
 from flask import jsonify, request
-from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error
+from extensions import db_cursor, get_db, create_api_blueprint, document_api_route, handle_db_error
 
 bp = create_api_blueprint('transactions', '/api/transactions')
 
@@ -161,8 +161,13 @@ def db_get_expiring_transactions(household_id):
                         'Returns inventory totals for all food items in household')
 @handle_db_error
 def get_inventory_totals(household_id):
+    search_query = request.args.get('search', None)
+
+    if search_query == '':
+        search_query = None
+    
     with db_cursor() as cursor:
-        cursor.callproc('GetHouseholdInventory', (household_id,))
+        cursor.callproc('GetHouseholdInventory', (household_id, search_query))
         results = []
         for result in cursor.stored_results():
             results = result.fetchall()
@@ -185,8 +190,13 @@ def get_inventory_totals(household_id):
                         'Returns food items filtered by location')
 @handle_db_error
 def get_inventory_by_location(household_id, location_id):
+    search_query = request.args.get('search', None)
+
+    if search_query == '':
+        search_query = None
+    
     with db_cursor() as cursor:
-        cursor.callproc('GetInventoryByLocation', (household_id, location_id))
+        cursor.callproc('GetInventoryByLocation', (household_id, location_id, search_query))
         results = []
         for result in cursor.stored_results():
             results = result.fetchall()
@@ -205,13 +215,56 @@ def get_inventory_by_location(household_id, location_id):
         return jsonify(results), 200
 
 
+@document_api_route(bp, 'post', '/inventory/transaction', 
+                        'Create inventory transaction',
+                        'Creates an inventory transaction to add or remove food items')
+@handle_db_error
+def create_inventory_transaction():
+    data = request.get_json()
+    
+    required_fields = ['food_item_id', 'location_id', 'user_id', 'transaction_type', 'quantity']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({'error': f'Missing required field: {field}'}), 400
+    
+    food_item_id = data['food_item_id']
+    location_id = data['location_id']
+    user_id = data['user_id']
+    transaction_type = data['transaction_type']
+    quantity = float(data['quantity'])
+    expiration_date = data.get('expiration_date')
+    
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        cursor.callproc('AddRemoveExistingFoodItem', (
+            food_item_id,
+            location_id,
+            user_id,
+            transaction_type,
+            quantity,
+            expiration_date
+        ))
+        cursor.fetchall() 
+        conn.commit()
+        
+        return jsonify({
+            'message': 'Transaction created successfully',
+            'food_item_id': food_item_id,
+            'transaction_type': transaction_type,
+            'quantity': quantity
+        }), 201
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def _format_packages(whole_packages, remainder, package_label, base_unit, total_qty):
-    # Format package: ie 2 Bags + 100g.
+    # Formats package: ie 2 Bags + 100g.
     if whole_packages > 0 and remainder > 0:
-        plural = 's' if whole_packages > 1 else ''
-        return f"{whole_packages} {package_label}{plural} + {round(remainder)}{base_unit}"
+        return f"{whole_packages} {package_label} + {round(remainder)}{base_unit}"
     elif whole_packages > 0:
-        plural = 's' if whole_packages > 1 else ''
-        return f"{whole_packages} {package_label}{plural}"
+        return f"{whole_packages} {package_label}"
     else:
         return f"{round(total_qty)}{base_unit}"
