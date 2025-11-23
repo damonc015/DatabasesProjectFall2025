@@ -17,11 +17,21 @@ const RegisterForm = () => {
   async function handleRegister() {
     setError('');
 
+    if (!username || !password) {
+      setError('Username and password are required');
+      return;
+    }
+
     try {
       const res = await fetch('http://localhost:5001/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, join_code: joinCode || null, display_name: username})
+        body: JSON.stringify({ 
+          username, 
+          password, 
+          join_code: joinCode.trim() || null, 
+          display_name: username
+        })
       });
 
       const data = await res.json();
@@ -32,9 +42,6 @@ const RegisterForm = () => {
       }
 
       localStorage.setItem('user', JSON.stringify(data));
-      if (!data.user?.household_id) {
-        localStorage.removeItem('hasSeenWelcome');
-      }
       navigate({ to: '/dashboard' });
 
     } catch (err) {
@@ -52,9 +59,31 @@ const RegisterForm = () => {
       </div>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <div className='input-container'>
-        <TextField className='input' label='Username' variant='outlined' value={username} onChange={(e) => setUsername(e.target.value)} />
-        <TextField className='input' label='Password' variant='outlined' type='password' value={password} onChange={(e) => setPassword(e.target.value)} />
-        <TextField className='input' label='Join Household Code' variant='outlined' value={joinCode} onChange={(e) => setJoinCode(e.target.value)} />
+        <TextField 
+          className='input' 
+          label='Username' 
+          variant='outlined' 
+          value={username} 
+          onChange={(e) => setUsername(e.target.value)} 
+          required
+        />
+        <TextField 
+          className='input' 
+          label='Password' 
+          variant='outlined' 
+          type='password' 
+          value={password} 
+          onChange={(e) => setPassword(e.target.value)} 
+          required
+        />
+        <TextField 
+          className='input' 
+          label='Join Household Code (Optional)' 
+          variant='outlined' 
+          value={joinCode} 
+          onChange={(e) => setJoinCode(e.target.value)}
+          helperText="Leave empty to create your own household"
+        />
       </div>
       <div>
         <Button className='button' variant='contained' color='primary' onClick={handleRegister}>

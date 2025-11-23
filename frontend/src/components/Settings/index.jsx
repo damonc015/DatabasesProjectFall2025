@@ -91,7 +91,6 @@ export default function Settings() {
     stored.user.household = data.household_name;
     stored.user.role = "member";
     localStorage.setItem("user", JSON.stringify(stored));
-    localStorage.setItem("hasSeenWelcome", "true");
 
     alert("Joined household!");
     window.location.reload();
@@ -116,7 +115,6 @@ export default function Settings() {
     stored.user.join_code = data.household.join_code;
     stored.user.role = "owner";
     localStorage.setItem("user", JSON.stringify(stored));
-    localStorage.setItem("hasSeenWelcome", "true");
 
     alert("Household created successfully!");
     window.location.reload();
@@ -142,30 +140,6 @@ export default function Settings() {
     window.location.reload();
   }
 
-  async function handleDissolveHousehold() {
-    if (!window.confirm("Are you sure you want to remove all members from this household? This cannot be undone.")) {
-      return;
-    }
-  
-    const res = await fetch("http://localhost:5001/api/auth/dissolve-household", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: user.id }),
-    });
-  
-    const data = await res.json();
-    if (!res.ok) return alert(data.error || "Error");
-  
-    alert("All members removed from household.");
-
-    // clear data for local storage user and reset role to member
-    stored.user.household_id = null;
-    stored.user.join_code = null;
-    stored.user.role = "member"; // Reset role from owner to member
-    localStorage.setItem("user", JSON.stringify(stored));
-
-    window.location.reload();
-  }
 
   return (
     <div style={{
@@ -210,7 +184,7 @@ export default function Settings() {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
               />
-              <Button variant="contained" style={{ marginTop: "10px" }} onClick={handleSaveName}>
+              <Button className='button' variant="contained" style={{ marginTop: "10px" }} onClick={handleSaveName}>
                 Save
               </Button>
             </div>
@@ -232,7 +206,7 @@ export default function Settings() {
                 value={newPw}
                 onChange={(e) => setNewPw(e.target.value)}
               />
-              <Button variant="contained" style={{ marginTop: "10px" }} onClick={handleUpdatePassword}>
+              <Button className='button' variant="contained" style={{ marginTop: "10px" }} onClick={handleUpdatePassword}>
                 Update
               </Button>
             </div>
@@ -255,6 +229,7 @@ export default function Settings() {
                     sx={{ marginBottom: "10px" }}
                   />
                   <Button
+                    className='button'
                     variant="contained"
                     onClick={handleCreateHousehold}
                   >
@@ -272,8 +247,8 @@ export default function Settings() {
                     sx={{ marginBottom: "10px" }}
                   />
                   <Button
+                    className='button'
                     variant="contained"
-                    color="secondary"
                     disabled={joinCode.trim() === ""}
                     onClick={handleJoinHousehold}
                   >
@@ -284,65 +259,49 @@ export default function Settings() {
             ) : (
               // Has household - show management options
               <>
-                {isOwner && (
-                  // Owner: show create/join sections but disabled
-                  <>
-                    <div style={{ marginBottom: "30px" }}>
-                      <h3>Create New Household</h3>
-                      <TextField
-                        fullWidth
-                        value={householdName}
-                        disabled={true}
-                        placeholder="Owner cannot create a new household"
-                        sx={{ marginBottom: "10px" }}
-                      />
-                      <Button
-                        variant="contained"
-                        disabled={true}
-                      >
-                        Create Household
-                      </Button>
-                    </div>
+                {/* Create/Join options - available for both owner and member */}
+                <div style={{ marginBottom: "30px" }}>
+                  <h3>Create New Household</h3>
+                  <p style={{ color: "gray", marginBottom: "10px" }}>
+                    Creating a new household will automatically remove you from your current household.
+                  </p>
+                  <TextField
+                    fullWidth
+                    label="Household Name (Optional)"
+                    value={householdName}
+                    onChange={(e) => setHouseholdName(e.target.value)}
+                    sx={{ marginBottom: "10px" }}
+                  />
+                  <Button
+                    className='button'
+                    variant="contained"
+                    onClick={handleCreateHousehold}
+                  >
+                    Create Household
+                  </Button>
+                </div>
 
-                    <div style={{ marginBottom: "30px" }}>
-                      <h3>Join Existing Household</h3>
-                      <TextField
-                        fullWidth
-                        placeholder="Owner cannot join another household"
-                        value={joinCode}
-                        disabled={true}
-                        sx={{ marginBottom: "10px" }}
-                      />
-                      <Button
-                        variant="contained"
-                        color="secondary"
-                        disabled={true}
-                      >
-                        Join Household
-                      </Button>
-                    </div>
-                  </>
-                )}
-
-                {!isOwner && (
-                  <div style={{ marginBottom: "30px" }}>
-                    <h3>Join Another Household</h3>
-                    <TextField
-                      fullWidth
-                      placeholder="Enter Join Code"
-                      value={joinCode}
-                      onChange={(e) => setJoinCode(e.target.value)}
-                      sx={{ marginBottom: "10px" }}
-                    />
-                    <Button
-                      variant="contained"
-                      disabled={joinCode.trim() === ""}
-                      onClick={handleJoinHousehold}
-                    >
-                      Join
-                    </Button>
-                  </div>
-                )}
+                <div style={{ marginBottom: "30px" }}>
+                  <h3>Join Another Household</h3>
+                  <p style={{ color: "gray", marginBottom: "10px" }}>
+                    Joining a new household will automatically remove you from your current household.
+                  </p>
+                  <TextField
+                    fullWidth
+                    placeholder="Enter Join Code"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value)}
+                    sx={{ marginBottom: "10px" }}
+                  />
+                  <Button
+                    className='button'
+                    variant="contained"
+                    disabled={joinCode.trim() === ""}
+                    onClick={handleJoinHousehold}
+                  >
+                    Join
+                  </Button>
+                </div>
 
                 {/* Owner Only */}
                 {isOwner && (
@@ -367,21 +326,8 @@ export default function Settings() {
                       </select>
                     )}
 
-                    <Button variant="contained" style={{ marginTop: "10px" }} onClick={handleRemoveUser}>
+                    <Button className='button' variant="contained" style={{ marginTop: "10px" }} onClick={handleRemoveUser}>
                       Remove
-                    </Button>
-
-                    <h4 style={{ marginTop: "30px", color: "red" }}>Dissolve Household</h4>
-                    <p style={{ color: "gray", marginBottom: "10px" }}>
-                      This action cannot be undone. All members will be removed from the household.
-                    </p>
-
-                    <Button
-                      variant="contained"
-                      color="error"
-                      onClick={handleDissolveHousehold}
-                    >
-                      Dissolve Household
                     </Button>
                   </div>
                 )}

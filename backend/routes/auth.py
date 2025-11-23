@@ -75,7 +75,7 @@ def login_user():
     }), 200
 
 
-@document_api_route(bp, 'post', '/register', 'Register new user', 'Create user and optionally join a household')
+@document_api_route(bp, 'post', '/register', 'Register new user', 'Create user and automatically create household if no join_code provided') 
 @handle_db_error
 def register_user():
     data = request.get_json() or {}
@@ -97,8 +97,13 @@ def register_user():
         conn.close()
         return jsonify({'error': 'Username already exists'}), 409
 
-    # validate join code (optional)
+    # Hash password using bcrypt
+    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
     household_id = None
+    role = 'member'
+    
+    # If joining existing household
     if join_code:
         cursor.execute("SELECT HouseholdID FROM Household WHERE JoinCode=%s", (join_code,))
         h = cursor.fetchone()
@@ -107,19 +112,37 @@ def register_user():
             conn.close()
             return jsonify({'error': 'Invalid join code'}), 404
         household_id = h["HouseholdID"]
-
-    # Hash password using bcrypt
-    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        role = 'member'
+    else:
+        # Auto-create household if no join_code
+        # Generate unique join code
+        while True:
+            new_join_code = str(uuid.uuid4())[:6].upper()
+            cursor.execute("SELECT HouseholdID FROM Household WHERE JoinCode=%s", (new_join_code,))
+            if not cursor.fetchone():
+                break
+        
+        # Use display name for household name
+        household_name = f"{display_name}'s Household"
+        
+        # Create household
+        cursor.execute("""
+            INSERT INTO Household (HouseholdName, JoinCode)
+            VALUES (%s, %s)
+        """, (household_name, new_join_code))
+        
+        household_id = cursor.lastrowid
+        role = 'owner'
     
-    # insert new user
+    # Insert new user
     cursor.execute("""
         INSERT INTO Users (HouseholdID, UserName, DisplayName, RoleName, PasswordHash, IsArchived)
         VALUES (%s, %s, %s, %s, %s, 0)
-    """, (household_id, username, display_name, 'member', password_hash))
+    """, (household_id, username, display_name, role, password_hash))
 
     conn.commit()
 
-    # get user info
+    # Get user info
     cursor.execute("""
         SELECT u.UserID, u.UserName, u.DisplayName, u.RoleName, u.HouseholdID, h.HouseholdName, h.JoinCode
         FROM Users u
@@ -194,6 +217,21 @@ def join_household():
         conn.close()
         return jsonify({"error": "You are already in this household"}), 400
     
+    # If user is owner of old household, promote first member to owner
+    old_household_id = u.get("HouseholdID") if u else None
+    if old_household_id:
+        cursor.execute("SELECT RoleName FROM Users WHERE UserID=%s", (user_id,))
+        old_user_info = cursor.fetchone()
+        if old_user_info and old_user_info.get("RoleName") == "owner":
+            cursor.execute("""
+                SELECT UserID FROM Users 
+                WHERE HouseholdID=%s AND UserID!=%s AND IsArchived=0
+                LIMIT 1
+            """, (old_household_id, user_id))
+            other_member = cursor.fetchone()
+            if other_member:
+                cursor.execute("UPDATE Users SET RoleName='owner' WHERE UserID=%s", (other_member["UserID"],))
+    
     # update user - set role to member when joining
     cursor.execute("""
         UPDATE Users
@@ -215,7 +253,7 @@ def join_household():
 @document_api_route(
     bp, 'post', '/create-household',
     'Create a new household',
-    'User creates a new household and becomes owner'
+    'User creates a new household and becomes owner. If user is already in a household, they will be removed from it.'
 )
 @handle_db_error
 def create_household():
@@ -242,11 +280,20 @@ def create_household():
         conn.close()
         return jsonify({"error": "User not found"}), 404
 
-    # check if user already has a household
-    if user["HouseholdID"]:
-        cursor.close()
-        conn.close()
-        return jsonify({"error": "User already belongs to a household"}), 400
+    # If user is owner of old household, promote first member to owner
+    old_household_id = user.get("HouseholdID")
+    if old_household_id:
+        cursor.execute("SELECT RoleName FROM Users WHERE UserID=%s", (user_id,))
+        old_user_info = cursor.fetchone()
+        if old_user_info and old_user_info.get("RoleName") == "owner":
+            cursor.execute("""
+                SELECT UserID FROM Users 
+                WHERE HouseholdID=%s AND UserID!=%s AND IsArchived=0
+                LIMIT 1
+            """, (old_household_id, user_id))
+            other_member = cursor.fetchone()
+            if other_member:
+                cursor.execute("UPDATE Users SET RoleName='owner' WHERE UserID=%s", (other_member["UserID"],))
 
     # generate unique join code
     while True:
@@ -267,7 +314,7 @@ def create_household():
     
     household_id = cursor.lastrowid
 
-    # update user - set as owner
+    # update user - set as owner (this automatically removes them from old household)
     cursor.execute("""
         UPDATE Users
         SET HouseholdID=%s, RoleName='owner'
@@ -299,7 +346,7 @@ def create_household():
 
 @document_api_route(bp, 'post', '/remove-member',
                     'Remove user from household',
-                    'Remove an existing household member')
+                    'Remove an existing household member and auto-create a new household for them')
 @handle_db_error
 def remove_member():
     data = request.get_json() or {}
@@ -311,9 +358,9 @@ def remove_member():
     conn = get_write_conn()
     cursor = conn.cursor(dictionary=True)
 
-    # validate user exists
+    # validate user exists and get display name
     cursor.execute("""
-        SELECT UserID, HouseholdID
+        SELECT UserID, HouseholdID, DisplayName
         FROM Users
         WHERE UserName=%s AND IsArchived=0
     """, (username,))
@@ -324,19 +371,40 @@ def remove_member():
         conn.close()
         return jsonify({"error": "User not found"}), 404
 
-    # remove household binding
+    user_id = user["UserID"]
+    
+    # Auto-create household for removed user
+    # Generate unique join code
+    while True:
+        join_code = str(uuid.uuid4())[:6].upper()
+        cursor.execute("SELECT HouseholdID FROM Household WHERE JoinCode=%s", (join_code,))
+        if not cursor.fetchone():
+            break
+    
+    # Use display name for household name
+    household_name = f"{user['DisplayName']}'s Household"
+    
+    # Create household
+    cursor.execute("""
+        INSERT INTO Household (HouseholdName, JoinCode)
+        VALUES (%s, %s)
+    """, (household_name, join_code))
+    
+    household_id = cursor.lastrowid
+
+    # Update user - set as owner of new household
     cursor.execute("""
         UPDATE Users
-        SET HouseholdID=NULL
+        SET HouseholdID=%s, RoleName='owner'
         WHERE UserID=%s
-    """, (user["UserID"],))
+    """, (household_id, user_id))
 
     conn.commit()
     cursor.close()
     conn.close()
 
     return jsonify({
-        "message": "User removed from household",
+        "message": "User removed from household and assigned to new household",
         "removed_username": username
     }), 200
 
@@ -436,57 +504,3 @@ def update_profile():
 
     return jsonify({"message": "Profile updated successfully"}), 200
 
-
-@document_api_route(
-    bp, 'post', '/dissolve-household',
-    'Dissolve household',
-    'Remove all members from household (including owner)'
-)
-@handle_db_error
-def dissolve_household():
-    data = request.get_json() or {}
-    user_id = data.get("user_id")
-
-    if not user_id:
-        return jsonify({"error": "user_id required"}), 400
-
-    conn = get_write_conn()
-    cursor = conn.cursor(dictionary=True)
-
-    # get user info (must be owner)
-    cursor.execute("""
-        SELECT HouseholdID, RoleName
-        FROM Users
-        WHERE UserID=%s AND IsArchived=0
-    """, (user_id,))
-    user = cursor.fetchone()
-
-    if not user:
-        cursor.close()
-        conn.close()
-        return jsonify({"error": "User not found"}), 404
-
-    if user["RoleName"] != "owner":
-        cursor.close()
-        conn.close()
-        return jsonify({"error": "Only owners can dissolve household"}), 403
-
-    household_id = user["HouseholdID"]
-
-    if not household_id:
-        cursor.close()
-        conn.close()
-        return jsonify({"error": "User is not in a household"}), 400
-
-     # remove ALL members from household and reset owner role to member
-    cursor.execute("""
-        UPDATE Users
-        SET HouseholdID=NULL, RoleName='member'
-        WHERE HouseholdID=%s
-    """, (household_id,))
-
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-    return jsonify({"message": "All members removed from household successfully"}), 200
