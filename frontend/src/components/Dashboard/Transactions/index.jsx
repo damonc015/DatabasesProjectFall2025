@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import {
@@ -11,6 +11,13 @@ import {
 } from '@mui/material';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 
+const capitalize = (str) => {
+  if (!str) return '';
+  return str.split(' ').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  ).join(' ');
+};
+
 const Transactions = ({ showPackage }) => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +27,9 @@ const Transactions = ({ showPackage }) => {
 
   const user = useCurrentUser();
 
-  const fetchTransactions = () => {
+  const fetchTransactions = useCallback(() => {
+    if (!user.householdId) return;
+
     setLoading(true);
     fetch(`/api/transactions/${user.householdId}?page=${page - 1}&limit=${rowsPerPage}`)
       .then(res => res.json())
@@ -33,18 +42,23 @@ const Transactions = ({ showPackage }) => {
         console.error('Error:', error);
         setLoading(false);
       });
-  };
+  }, [page, rowsPerPage, user.householdId]);
 
   useEffect(() => {
     fetchTransactions();
+  }, [fetchTransactions]);
 
-    // Set up interval to refresh data every 3 seconds
-    const intervalId = setInterval(() => {
+  useEffect(() => {
+    const handleTransactionCompleted = () => {
       fetchTransactions();
-    }, 3000);
+    };
 
-    return () => clearInterval(intervalId);
-  }, [page, rowsPerPage, user.householdId]);
+    window.addEventListener('transactionCompleted', handleTransactionCompleted);
+
+    return () => {
+      window.removeEventListener('transactionCompleted', handleTransactionCompleted);
+    };
+  }, [fetchTransactions]);
 
   const handleChangePage = (event, value) => {
     setPage(value);
@@ -68,7 +82,7 @@ const Transactions = ({ showPackage }) => {
                         <>
                           <Typography variant="body2" fontWeight="bold" sx={{ flex: 1, whiteSpace: 'nowrap' }}>
                             {tx.UserName} {tx.TransactionType}{tx.TransactionType === 'add' ? 'ed':'d'}{" "}
-                            {showPackage ? tx.FormattedPackages : `${Math.round(tx.QtyInTotal)}${tx.BaseUnitAbbr}`} of {tx.FoodName} at {tx.LocationName}
+                            {showPackage ? tx.FormattedPackages : `${Math.round(tx.QtyInTotal)}${tx.BaseUnitAbbr}`} of {capitalize(tx.FoodName)} at {capitalize(tx.LocationName)}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', ml: 2 }}>
                             {new Date(tx.CreatedAt).toLocaleString()}

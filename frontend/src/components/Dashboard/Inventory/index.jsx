@@ -8,20 +8,26 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import FoodCard from './FoodCard';
+import AddItemCard from './AddItemCard';
+import AddFoodItemModal from './AddFoodItemModal/index.jsx';
 
 const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory }) => {
   const [inventory, setInventory] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [locationFilter, setLocationFilter] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
   
   const { householdId, user } = useCurrentUser();
   
   const userId = user?.id;
 
   const filteredInventory = inventory.filter(item => {
-    const matchesCategory = selectedCategory.length > 0 ? selectedCategory.includes(item.Category) : true;
-    return matchesCategory;
+    if (selectedCategory.length === 0) return true;
+    const itemCategory = item.Category ? item.Category.trim() : '';
+    return selectedCategory.some(cat => 
+      cat.toLowerCase() === itemCategory.toLowerCase()
+    );
   });
 
   useEffect(() => {
@@ -114,6 +120,23 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
         }}
       >
         <Grid container spacing={2}>
+          <Grid
+            item
+            xs={12}
+            sm={6}
+            md={4}
+            lg={2}
+            xl={2}
+            sx={{
+              '@media (min-width: 1200px)': {
+                width: '20%',
+                maxWidth: '20%',
+                flexBasis: '20%'
+              }
+            }}
+          >
+            <AddItemCard onClick={() => setModalOpen(true)} />
+          </Grid>
           {filteredInventory.length === 0 ? (
             <Grid item xs={12}>
               <Typography variant='body2' color='text.secondary'>
@@ -150,6 +173,11 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           )}
         </Grid>
       </Box>
+      <AddFoodItemModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onItemAdded={fetchInventory}
+      />
     </Box>
   );
 };

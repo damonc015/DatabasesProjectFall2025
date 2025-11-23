@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import {
@@ -20,7 +20,9 @@ const Expiring = ({ showPackage }) => {
 
   const user = useCurrentUser();
 
-  const fetchExpiring = () => {
+  const fetchExpiring = useCallback(() => {
+    if (!user.householdId) return;
+
     fetch(`/api/transactions/expiring/${user.householdId}?page=${page - 1}&limit=${rowsPerPage}`)
       .then(res => res.json())
       .then(result => {
@@ -32,18 +34,23 @@ const Expiring = ({ showPackage }) => {
         console.error('Error:', error);
         setLoading(false);
       });
-  };
+  }, [page, rowsPerPage, user.householdId]);
 
   useEffect(() => {
     fetchExpiring();
+  }, [fetchExpiring]);
 
-    // Set up interval to refresh data every 3 seconds
-    const intervalId = setInterval(() => {
+  useEffect(() => {
+    const handleTransactionCompleted = () => {
       fetchExpiring();
-    }, 3000);
+    };
 
-    return () => clearInterval(intervalId);
-  }, [page, rowsPerPage, user.householdId]);
+    window.addEventListener('transactionCompleted', handleTransactionCompleted);
+
+    return () => {
+      window.removeEventListener('transactionCompleted', handleTransactionCompleted);
+    };
+  }, [fetchExpiring]);
 
   const handleChangePage = (event, value) => {
     setPage(value);

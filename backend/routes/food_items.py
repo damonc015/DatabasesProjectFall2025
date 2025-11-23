@@ -1,5 +1,5 @@
 from flask import jsonify, request
-from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error
+from extensions import db_cursor, get_db, create_api_blueprint, document_api_route, handle_db_error
 
 bp = create_api_blueprint('food_items', '/api/food-items')
 
@@ -158,3 +158,78 @@ def get_items_at_or_above_target():
         results = cursor.fetchall()
         
         return jsonify(results), 200
+
+
+@document_api_route(bp, 'get', '/base-units', 'Get all base units', 'Returns a list of all available base units')
+@handle_db_error
+def get_base_units():
+    with db_cursor() as cursor:
+        query = """
+            SELECT UnitID, MeasurementType, Abbreviation
+            FROM BaseUnit
+            ORDER BY MeasurementType
+        """
+        cursor.execute(query)
+        results = cursor.fetchall()
+        return jsonify(results), 200
+
+
+@document_api_route(bp, 'get', '/package-labels', 
+                    'Get unique package labels by household', 'Returns a list of unique package labels for a specific household')
+@handle_db_error
+def get_package_labels():
+    household_id = request.args.get('household_id')
+    
+    if not household_id:
+        return jsonify({'error': 'household_id is required'}), 400
+    
+    with db_cursor() as cursor:
+        query = """
+            SELECT DISTINCT p.Label
+            FROM Package p
+            JOIN FoodItem f ON p.FoodItemID = f.FoodItemID
+            WHERE f.HouseholdID = %s
+              AND p.Label IS NOT NULL AND p.Label != ''
+            ORDER BY p.Label
+        """
+        cursor.execute(query, (household_id,))
+        results = cursor.fetchall()
+        labels = [row['Label'].capitalize() for row in results if row.get('Label')]
+        return jsonify(labels), 200
+
+
+@document_api_route(bp, 'post', '/add', 'Add new food item', 'Creates a new food item with package, stock level, and inventory transaction')
+@handle_db_error
+def add_new_food_item():
+    data = request.get_json()
+    
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        cursor.callproc('AddNewFoodItem', [
+            data.get('food_name'),
+            data.get('type') or '',
+            data.get('category'),
+            data.get('base_unit_id'),
+            data.get('household_id'),
+            data.get('package_label'),
+            data.get('package_base_unit_amt'),
+            data.get('location_id'),
+            data.get('target_level'),
+            data.get('quantity'),
+            data.get('user_id'),
+            data.get('expiration_date'),
+            data.get('price_per_item'),
+            data.get('store')
+        ])
+        cursor.fetchall()
+        conn.commit()
+        
+        return jsonify({'message': 'Added to inventory!'}), 201
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
