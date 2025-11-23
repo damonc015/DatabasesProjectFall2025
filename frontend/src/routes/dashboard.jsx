@@ -15,12 +15,7 @@ function DashboardWrapper() {
       return;
     }
     
-    const hasSeenWelcome = localStorage.getItem("hasSeenWelcome") === "true";
-    
-    // Only redirect to welcome if user has no household AND hasn't seen welcome page yet
-    if (!user?.household_id && !hasSeenWelcome) {
-      navigate({ to: "/welcome" });
-    }
+    // Users must have a household_id after registration
   }, [navigate]);
   
   return <Dashboard />;

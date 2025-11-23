@@ -41,6 +41,28 @@ body {
   color: variables.$highlight-color-two !important;
 }
 
+// settings page button style
+.settings-page {
+  .button {
+    background-color: variables.$highlight-color-two !important;
+    color: white !important;
+  }
+  // outlined button (Back to Dashboard)
+  .MuiButton-outlined {
+    border-color: variables.$highlight-color-two !important;
+    color: variables.$highlight-color-two !important;
+  }
+  // tabs
+  .MuiTab-root {
+    &.Mui-selected {
+      color: variables.$highlight-color-two !important;
+    }
+  }
+  .MuiTabs-indicator {
+    background-color: variables.$highlight-color-two !important;
+  }
+}
+
 // .MuiCardContent-root:last-child {
 //   overflow: hidden;
 // }

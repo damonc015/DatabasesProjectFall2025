@@ -19,8 +19,11 @@ const Header = () => {
 
   return (
     <div className='headerContainer'>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-        <StaticLogo householdName={householdName} />
+      <div style={{ display: 'flex', alignItems: 'baseline' }}>
+        <StaticLogo />
+        {householdName && householdName !== 'No Household' && (
+          <span style={{ marginLeft: '80px' }}>{householdName}</span>
+        )}
       </div>
       <div>
         <span>Welcome back, {username}</span>
