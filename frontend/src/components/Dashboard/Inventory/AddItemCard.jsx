@@ -8,7 +8,9 @@ const AddItemCard = ({ onClick }) => {
     <Card 
       variant='outlined' 
       sx={{ 
-        height: '14rem',
+        height: '100%',
+        minHeight: '17.5rem',
+        flexGrow: 1,
         display: 'flex',
         flexDirection: 'column',
         transition: 'box-shadow 0.2s',
@@ -33,8 +35,10 @@ const AddItemCard = ({ onClick }) => {
         }}
       >
         <AddIcon sx={{ fontSize: '3rem', color: 'primary.main', mb: 1 }} />
-        <Typography variant='h6' sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-          Add Item
+        <Typography variant='h6' sx={{ fontWeight: 'bold', color: 'primary.main', px: 2 }}>
+          Add New Item
+        </Typography>
+        <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5, px: 3 }}>
         </Typography>
       </CardContent>
     </Card>
