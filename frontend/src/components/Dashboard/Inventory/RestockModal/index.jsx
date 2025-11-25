@@ -51,7 +51,7 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
   };
 
   const isRemoving = form.transactionType === 'remove';
-  const isTransfer = form.transactionType === 'transfer_in' || form.transactionType === 'transfer_out';
+  const isTransfer = form.transactionType === 'transfer';
   const allowPriceFields = !isRemoving && !isTransfer;
   const allowExpiration = !isRemoving && !isTransfer;
 
@@ -63,8 +63,8 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
     setError('');
 
     try {
-      const locationId = form.locationId || item.LocationID;
-      if (!locationId) {
+      const destinationLocationId = form.locationId || item.LocationID;
+      if (!destinationLocationId) {
         setError('Please choose a location.');
         setLoading(false);
         return;
@@ -89,24 +89,58 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
         }
       }
 
-      if (Object.keys(metadataExtras).length > 0) {
+      if (!isTransfer && Object.keys(metadataExtras).length > 0) {
         await updateFoodItem(item.FoodItemID, { ...baseMetadata, ...metadataExtras });
       }
 
       const quantityBaseUnits = packagesToBaseUnits(form.quantityPackages, item.QtyPerPackage);
+      if (quantityBaseUnits <= 0) {
+        setError('Quantity must be greater than zero.');
+        setLoading(false);
+        return;
+      }
 
-      if (quantityBaseUnits > 0) {
+      if (isTransfer) {
+        const sourceLocationId = item.LocationID;
+        if (!sourceLocationId) {
+          setError('Cannot transfer: original location is unknown.');
+          setLoading(false);
+          return;
+        }
+
+        if (String(sourceLocationId) === String(destinationLocationId)) {
+          setError('Please choose a different destination location for transfers.');
+          setLoading(false);
+          return;
+        }
+
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
-          location_id: locationId,
+          location_id: sourceLocationId,
+          user_id: userId,
+          transaction_type: 'transfer_out',
+          quantity: quantityBaseUnits,
+        });
+
+        await createInventoryTransaction({
+          food_item_id: item.FoodItemID,
+          location_id: destinationLocationId,
+          user_id: userId,
+          transaction_type: 'transfer_in',
+          quantity: quantityBaseUnits,
+        });
+      } else {
+        await createInventoryTransaction({
+          food_item_id: item.FoodItemID,
+          location_id: destinationLocationId,
           user_id: userId,
           transaction_type: form.transactionType,
           quantity: quantityBaseUnits,
           expiration_date: allowExpiration && form.expirationDate ? form.expirationDate : undefined,
         });
-
-        window.dispatchEvent(new CustomEvent('transactionCompleted'));
       }
+
+      window.dispatchEvent(new CustomEvent('transactionCompleted'));
 
       if (onRestocked) {
         onRestocked();
@@ -179,8 +213,7 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
               >
                 <MenuItem value="add">Add</MenuItem>
                 <MenuItem value="remove">Remove</MenuItem>
-                <MenuItem value="transfer_in">Transfer In</MenuItem>
-                <MenuItem value="transfer_out">Transfer Out</MenuItem>
+                <MenuItem value="transfer">Transfer</MenuItem>
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>

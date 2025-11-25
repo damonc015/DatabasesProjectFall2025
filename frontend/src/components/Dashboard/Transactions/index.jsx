@@ -43,7 +43,7 @@ const renderTransactionText = (tx, showPackage) => {
   if (isTransferOut || isTransferIn) {
     const source = isTransferOut ? tx.LocationName : tx.CounterLocationName;
     const destination = isTransferOut ? tx.CounterLocationName : tx.LocationName;
-    return `${tx.UserName} transferred ${quantityText} of ${foodName} from ${formatLocationName(source)} to ${formatLocationName(destination)}`;
+    return `${tx.UserName} moved ${quantityText} of ${foodName} from ${formatLocationName(source)} to ${formatLocationName(destination)}`;
   }
 
   const verbMap = {
