@@ -50,47 +50,8 @@ BEGIN
     JOIN BaseUnit bu 
         ON f.BaseUnitID = bu.UnitID
     WHERE f.HouseholdID = p_HouseholdID
-      AND GetCurrentStock(f.FoodItemID) > 0
       AND (p_SearchQuery IS NULL OR p_SearchQuery = '' OR LOWER(f.Name) LIKE CONCAT('%', LOWER(p_SearchQuery), '%'))
     ORDER BY f.FoodItemID DESC;
-END;
-
-DROP PROCEDURE IF EXISTS GetFoodQtyByLocation;
-CREATE PROCEDURE GetFoodQtyByLocation(
-    IN p_FoodItemID INT
-)
-BEGIN
-    SELECT 
-        f.Name AS Food,
-        f.Type AS Type,
-        p.Label AS PackageLabel, 
-        l.LocationName as Location,
-        SUM(
-            CASE 
-                WHEN i.TransactionType IN ('add', 'purchase', 'transfer_in') THEN i.QtyInBaseUnits
-                WHEN i.TransactionType IN ('remove', 'expire', 'transfer_out') THEN -i.QtyInBaseUnits
-                ELSE 0
-            END
-        ) AS CurrentQty,
-        CONCAT(
-            ROUND(
-                SUM(
-                    CASE 
-                        WHEN i.TransactionType IN ('add', 'purchase', 'transfer_in') THEN i.QtyInBaseUnits
-                        WHEN i.TransactionType IN ('remove', 'expire', 'transfer_out') THEN -i.QtyInBaseUnits
-                        ELSE 0
-                    END
-                ) / p.BaseUnitAmt, 2
-            ),
-            ' ',
-            p.Label
-        ) AS EquivalentPackages
-    FROM InventoryTransaction i
-    JOIN FoodItem f ON i.FoodItemID = f.FoodItemID
-    JOIN Package p ON f.PreferredPackageID = p.PackageID
-    JOIN Location l ON l.locationID = i.locationID
-    WHERE i.FoodItemID = p_FoodItemID
-    GROUP BY i.LocationID, p.Label;
 END;
 
 DROP PROCEDURE IF EXISTS GetInventoryByLocation;
@@ -140,7 +101,6 @@ BEGIN
       AND l.LocationID = p_LocationID
       AND (p_SearchQuery IS NULL OR p_SearchQuery = '' OR LOWER(f.Name) LIKE CONCAT('%', LOWER(p_SearchQuery), '%'))
     GROUP BY f.FoodItemID, f.Name, f.Type, f.Category, p.Label, p.BaseUnitAmt, bu.Abbreviation
-    HAVING TotalQtyInBaseUnits > 0
     ORDER BY f.FoodItemID DESC;
 END;
 DROP PROCEDURE IF EXISTS AddRemoveExistingFoodItem;
@@ -153,8 +113,40 @@ CREATE PROCEDURE AddRemoveExistingFoodItem(
     IN i_ExpirationDate DATE
 )
 BEGIN
-    DECLARE qty_in_base DECIMAL(9,2);
+    DECLARE current_qty DECIMAL(9,2);
     DECLARE exp_date DATE;
+
+    START TRANSACTION;
+
+    SELECT SUM(
+        CASE
+            WHEN TransactionType IN ('add','purchase','transfer_in') THEN QtyInBaseUnits
+            WHEN TransactionType IN ('remove','expire','transfer_out') THEN -QtyInBaseUnits
+            ELSE 0
+        END
+    )
+    INTO current_qty
+    FROM InventoryTransaction
+    WHERE FoodItemID = f_FoodItemID
+    FOR UPDATE;
+
+    IF current_qty IS NULL THEN
+        SET current_qty = 0;
+    END IF;
+
+    IF i_TransactionType IN ('remove','expire','transfer_out') AND current_qty < quantity THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Insufficient stock for this removal';
+    END IF;
+
+    IF i_TransactionType = 'expire' THEN
+        UPDATE InventoryTransaction
+        SET ExpirationDate = CURDATE()
+        WHERE FoodItemID = f_FoodItemID
+          AND ExpirationDate IS NOT NULL
+          AND ExpirationDate > CURDATE();
+    END IF;
 
     IF i_ExpirationDate IS NOT NULL THEN
         SET exp_date = i_ExpirationDate;
@@ -170,6 +162,8 @@ BEGIN
     VALUES (
         f_FoodItemID, l_LocationID, u_UserID, quantity, i_TransactionType, exp_date
     );
+
+    COMMIT;
 END;
 
 DROP PROCEDURE IF EXISTS AddNewFoodItem;
@@ -247,6 +241,3 @@ BEGIN
                                      ExpirationDate)
     VALUES (food_item_id, l_location_id, u_user_id, total_base_qty, 'add', expiration_date);
 END;
-
-ALTER TABLE FoodItem
-ADD UNIQUE (HouseholdID, Name);
