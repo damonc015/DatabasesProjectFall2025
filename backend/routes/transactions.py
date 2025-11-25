@@ -43,7 +43,7 @@ def db_get_transactions_paged(household_id):
                             WHERE tx_in.TransactionType = 'transfer_in'
                                 AND tx_in.UserID = tx.UserID
                                 AND tx_in.FoodItemID = tx.FoodItemID
-                                AND ABS(tx_in.QtyInBaseUnits - tx.QtyInBaseUnits) < 0.0001
+                                AND tx_in.QtyInBaseUnits = tx.QtyInBaseUnits
                                 AND tx_in.CreatedAt >= tx.CreatedAt
                                 AND tx_in.CreatedAt <= DATE_ADD(tx.CreatedAt, INTERVAL 5 SECOND)
                             ORDER BY tx_in.CreatedAt
@@ -56,7 +56,7 @@ def db_get_transactions_paged(household_id):
                             WHERE tx_out.TransactionType = 'transfer_out'
                                 AND tx_out.UserID = tx.UserID
                                 AND tx_out.FoodItemID = tx.FoodItemID
-                                AND ABS(tx_out.QtyInBaseUnits - tx.QtyInBaseUnits) < 0.0001
+                                AND tx_out.QtyInBaseUnits = tx.QtyInBaseUnits
                                 AND tx_out.CreatedAt <= tx.CreatedAt
                                 AND tx_out.CreatedAt >= DATE_SUB(tx.CreatedAt, INTERVAL 5 SECOND)
                             ORDER BY tx_out.CreatedAt DESC
