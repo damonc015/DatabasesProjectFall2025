@@ -40,9 +40,36 @@ def get_food_item(food_item_id):
                 fi.BaseUnitID,
                 fi.HouseholdID,
                 fi.PreferredPackageID,
-                bu.Abbreviation AS BaseUnit
+                bu.Abbreviation AS BaseUnit,
+                p.Label AS PackageLabel,
+                p.BaseUnitAmt AS PackageBaseUnitAmt,
+
+                (
+                    SELECT sl.TargetLevel
+                    FROM StockLevel sl
+                    WHERE sl.FoodItemID = fi.FoodItemID
+                    LIMIT 1
+                ) AS TargetLevel,
+
+                (
+                    SELECT pl.PriceTotal
+                    FROM PriceLog pl
+                    WHERE pl.PackageID = fi.PreferredPackageID
+                    ORDER BY pl.CreatedAt DESC
+                    LIMIT 1
+                ) AS LatestPrice,
+
+                (
+                    SELECT pl.Store
+                    FROM PriceLog pl
+                    WHERE pl.PackageID = fi.PreferredPackageID
+                    ORDER BY pl.CreatedAt DESC
+                    LIMIT 1
+                ) AS LatestStore
+
             FROM FoodItem fi
             JOIN BaseUnit bu ON fi.BaseUnitID = bu.UnitID
+            LEFT JOIN Package p ON fi.PreferredPackageID = p.PackageID
             WHERE fi.FoodItemID = %s
         """
         cursor.execute(query, (food_item_id,))
@@ -53,7 +80,6 @@ def get_food_item(food_item_id):
         
         return jsonify(result), 200
 
-# get items below thresh using household id 
 @document_api_route(bp, 'get', '/below-target', 'Get items below target level', 'Returns food items where current stock is below target level')
 @handle_db_error
 def get_items_below_target():
@@ -106,7 +132,7 @@ def get_items_below_target():
         
         return jsonify(results), 200
 
-# get items at or above thresh using household id
+
 @document_api_route(bp, 'get', '/at-or-above-target', 'Get items at or above target', 'Returns food items where current stock is at or above target level')
 @handle_db_error  
 def get_items_at_or_above_target():
@@ -227,6 +253,151 @@ def add_new_food_item():
         conn.commit()
         
         return jsonify({'message': 'Added to inventory!'}), 201
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@document_api_route(bp, 'put', '/<int:food_item_id>', 'Update food item metadata', 'Updates basic fields for an existing food item and its preferred package')
+@handle_db_error
+def update_food_item(food_item_id):
+    data = request.get_json()
+
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            UPDATE FoodItem
+            SET Name = %s,
+                Type = %s,
+                Category = %s
+            WHERE FoodItemID = %s
+        """, (
+            data.get('food_name'),
+            data.get('type') or '',
+            data.get('category'),
+            food_item_id
+        ))
+
+        cursor.execute("""
+            SELECT PreferredPackageID
+            FROM FoodItem
+            WHERE FoodItemID = %s
+        """, (food_item_id,))
+        row = cursor.fetchone()
+        preferred_package_id = row['PreferredPackageID'] if row else None
+
+        new_label = data.get('package_label')
+        new_base_amt = data.get('package_base_unit_amt')
+
+        effective_package_id = preferred_package_id
+        effective_base_amt = None
+
+        if new_label is not None and new_base_amt is not None:
+            current_label = None
+            current_base_amt = None
+            if preferred_package_id:
+                cursor.execute("""
+                    SELECT Label, BaseUnitAmt
+                    FROM Package
+                    WHERE PackageID = %s
+                """, (preferred_package_id,))
+                pkg_row = cursor.fetchone()
+                if pkg_row:
+                    current_label = pkg_row.get('Label')
+                    current_base_amt = pkg_row.get('BaseUnitAmt')
+                    
+            if current_label != new_label or float(current_base_amt or 0) != float(new_base_amt):
+                cursor.execute("""
+                    INSERT INTO Package (FoodItemID, Label, BaseUnitAmt)
+                    VALUES (%s, %s, %s)
+                """, (food_item_id, new_label, new_base_amt))
+                new_package_id = cursor.lastrowid
+
+                cursor.execute("""
+                    UPDATE FoodItem
+                    SET PreferredPackageID = %s
+                    WHERE FoodItemID = %s
+                """, (new_package_id, food_item_id))
+
+                effective_package_id = new_package_id
+                effective_base_amt = float(new_base_amt)
+            else:
+                effective_package_id = preferred_package_id
+                effective_base_amt = float(current_base_amt) if current_base_amt is not None else None
+        else:
+            if preferred_package_id:
+                cursor.execute("""
+                    SELECT BaseUnitAmt
+                    FROM Package
+                    WHERE PackageID = %s
+                """, (preferred_package_id,))
+                pkg_row = cursor.fetchone()
+                if pkg_row:
+                    effective_base_amt = float(pkg_row.get('BaseUnitAmt') or 0)
+
+        target_level_packages = data.get('target_level')
+        if target_level_packages is not None and effective_base_amt:
+            try:
+                target_level_packages = float(target_level_packages)
+                target_level_base_units = target_level_packages * effective_base_amt
+
+                cursor.execute("""
+                    SELECT 1 FROM StockLevel WHERE FoodItemId = %s
+                """, (food_item_id,))
+                exists = cursor.fetchone()
+
+                if exists:
+                    cursor.execute("""
+                        UPDATE StockLevel
+                        SET TargetLevel = %s
+                        WHERE FoodItemId = %s
+                    """, (target_level_base_units, food_item_id))
+                else:
+                    cursor.execute("""
+                        INSERT INTO StockLevel (FoodItemId, TargetLevel)
+                        VALUES (%s, %s)
+                    """, (food_item_id, target_level_base_units))
+            except (TypeError, ValueError):
+                pass
+
+        price_per_item = data.get('price_per_item')
+        store = data.get('store')
+        if price_per_item is not None and effective_package_id is not None:
+            try:
+                price_value = float(price_per_item)
+
+                cursor.execute("""
+                    SELECT PriceLogID
+                    FROM PriceLog
+                    WHERE PackageID = %s
+                    ORDER BY CreatedAt DESC
+                    LIMIT 1
+                """, (effective_package_id,))
+                price_log_row = cursor.fetchone()
+
+                if price_log_row:
+                    cursor.execute("""
+                        UPDATE PriceLog
+                        SET PriceTotal = %s,
+                            Store = %s
+                        WHERE PriceLogID = %s
+                    """, (price_value, store, price_log_row['PriceLogID']))
+                else:
+                    cursor.execute("""
+                        INSERT INTO PriceLog (PackageID, PriceTotal, Store)
+                        VALUES (%s, %s, %s)
+                    """, (effective_package_id, price_value, store))
+            except (TypeError, ValueError):
+                pass
+
+        conn.commit()
+
+        return jsonify({'message': 'Food item updated successfully'}), 200
     except Exception as e:
         conn.rollback()
         return jsonify({'error': str(e)}), 500
