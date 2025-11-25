@@ -19,6 +19,7 @@ def db_get_transactions_paged(household_id):
             FROM InventoryTransaction tx
             INNER JOIN Users u ON tx.UserID = u.UserID
             WHERE u.HouseholdID = %s
+              AND tx.TransactionType != 'transfer_in'
         """
         cursor.execute(count_query, (household_id,))
         total = cursor.fetchone()['total']
