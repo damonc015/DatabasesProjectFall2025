@@ -33,6 +33,37 @@ def db_get_transactions_paged(household_id):
                 tx.TransactionType,
                 tx.CreatedAt,
                 l.LocationName,
+                (
+                    CASE
+                        WHEN tx.TransactionType = 'transfer_out' THEN (
+                            SELECT l_in.LocationName
+                            FROM InventoryTransaction tx_in
+                            INNER JOIN Location l_in ON tx_in.LocationID = l_in.LocationID
+                            WHERE tx_in.TransactionType = 'transfer_in'
+                                AND tx_in.UserID = tx.UserID
+                                AND tx_in.FoodItemID = tx.FoodItemID
+                                AND ABS(tx_in.QtyInBaseUnits - tx.QtyInBaseUnits) < 0.0001
+                                AND tx_in.CreatedAt >= tx.CreatedAt
+                                AND tx_in.CreatedAt <= DATE_ADD(tx.CreatedAt, INTERVAL 5 SECOND)
+                            ORDER BY tx_in.CreatedAt
+                            LIMIT 1
+                        )
+                        WHEN tx.TransactionType = 'transfer_in' THEN (
+                            SELECT l_out.LocationName
+                            FROM InventoryTransaction tx_out
+                            INNER JOIN Location l_out ON tx_out.LocationID = l_out.LocationID
+                            WHERE tx_out.TransactionType = 'transfer_out'
+                                AND tx_out.UserID = tx.UserID
+                                AND tx_out.FoodItemID = tx.FoodItemID
+                                AND ABS(tx_out.QtyInBaseUnits - tx.QtyInBaseUnits) < 0.0001
+                                AND tx_out.CreatedAt <= tx.CreatedAt
+                                AND tx_out.CreatedAt >= DATE_SUB(tx.CreatedAt, INTERVAL 5 SECOND)
+                            ORDER BY tx_out.CreatedAt DESC
+                            LIMIT 1
+                        )
+                        ELSE NULL
+                    END
+                ) AS CounterLocationName,
                 bu.Abbreviation AS BaseUnitAbbr,
                 p.Label AS PackageLabel
             FROM InventoryTransaction tx
