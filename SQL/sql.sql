@@ -153,7 +153,6 @@ CREATE PROCEDURE AddRemoveExistingFoodItem(
     IN i_ExpirationDate DATE
 )
 BEGIN
-    DECLARE pkg_id INT;
     DECLARE qty_in_base DECIMAL(9,2);
     DECLARE exp_date DATE;
 
