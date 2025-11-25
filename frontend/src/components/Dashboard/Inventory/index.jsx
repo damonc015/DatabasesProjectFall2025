@@ -35,7 +35,6 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
       cat.toLowerCase() === itemCategory.toLowerCase()
     );
   });
-6
   const sortedInventory = [...filteredInventory].sort((a, b) => {
     const aZero =
       a.TotalQtyInBaseUnits !== undefined &&
@@ -106,7 +105,29 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant='h6'>Inventory</Typography>
+      </Box>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          flexWrap: 'wrap',
+          mb: 2
+        }}
+      >
+        <Box sx={{ flexGrow: 1, borderBottom: 1, borderColor: 'divider', minWidth: 0 }}>
+          <Tabs
+            value={locationFilter ?? 'All'}
+            onChange={(e, newValue) => setLocationFilter(newValue === 'All' ? null : newValue)}
+          >
+            <Tab label="All" value="All" />
+            {locations.map((location) => (
+              <Tab key={location.LocationID} label={location.LocationName} value={location.LocationID} />
+            ))}
+          </Tabs>
+        </Box>
         <FormControlLabel
+          sx={{ ml: { xs: 0, sm: 'auto' }, mt: { xs: 1, sm: 0 } }}
           control={
             <Switch
               checked={showPackage}
@@ -115,18 +136,6 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           }
           label={<Typography variant="caption">Show in Package</Typography>}
         />
-      </Box>
-
-      <Box sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs
-          value={locationFilter ?? 'All'}
-          onChange={(e, newValue) => setLocationFilter(newValue === 'All' ? null : newValue)}
-        >
-          <Tab label="All" value="All" />
-          {locations.map((location) => (
-            <Tab key={location.LocationID} label={location.LocationName} value={location.LocationID} />
-          ))}
-        </Tabs>
       </Box>
 
       <Box
