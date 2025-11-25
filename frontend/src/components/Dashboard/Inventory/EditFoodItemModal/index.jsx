@@ -215,8 +215,10 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
       return;
     }
 
-    const locationId = formData.location_id || item.LocationID;
-    if (!locationId) {
+    const originalLocationId = item.LocationID;
+    const targetLocationId = formData.location_id || originalLocationId;
+
+    if (!targetLocationId) {
       setError('Please select a location before saving.');
       return;
     }
@@ -237,10 +239,15 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
         ? packagesToBaseUnits(desiredPackages, effectivePackageSize)
         : desiredPackages;
 
-    const currentBaseUnits = parseNumberOr(stockSnapshot.baseUnits, 0);
+    const currentBaseUnits = parseNumberOr(stockSnapshot.baseUnits, 0) || 0;
     const deltaBaseUnits = desiredBaseUnits - currentBaseUnits;
+    const locationChanged =
+      targetLocationId &&
+      (originalLocationId == null ||
+        String(originalLocationId) !== String(targetLocationId));
 
     setLoading(true);
+    let emittedTransactionEvent = false;
     try {
       const payload = {
         food_name: formData.food_name.toLowerCase().trim(),
@@ -262,15 +269,49 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
 
       await updateFoodItem(item.FoodItemID, payload);
 
+      if (locationChanged) {
+        const qtyToMove = Math.max(currentBaseUnits, 0);
+
+        if (qtyToMove > 0 && originalLocationId) {
+          await createInventoryTransaction({
+            food_item_id: item.FoodItemID,
+            location_id: originalLocationId,
+            user_id: userId,
+            transaction_type: 'transfer_out',
+            quantity: qtyToMove,
+          });
+          await createInventoryTransaction({
+            food_item_id: item.FoodItemID,
+            location_id: targetLocationId,
+            user_id: userId,
+            transaction_type: 'transfer_in',
+            quantity: qtyToMove,
+          });
+        } else {
+          await createInventoryTransaction({
+            food_item_id: item.FoodItemID,
+            location_id: targetLocationId,
+            user_id: userId,
+            transaction_type: 'transfer_in',
+            quantity: 0,
+          });
+        }
+
+        emittedTransactionEvent = true;
+      }
+
       if (hasMeaningfulDelta(deltaBaseUnits)) {
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
-          location_id: locationId,
+          location_id: targetLocationId,
           user_id: userId,
           transaction_type: deltaBaseUnits > 0 ? 'add' : 'remove',
           quantity: Math.abs(deltaBaseUnits),
         });
+        emittedTransactionEvent = true;
+      }
 
+      if (emittedTransactionEvent) {
         window.dispatchEvent(new CustomEvent('transactionCompleted'));
       }
 
