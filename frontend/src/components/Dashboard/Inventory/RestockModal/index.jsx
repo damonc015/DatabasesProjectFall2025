@@ -12,7 +12,7 @@ import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { createInventoryTransaction, updateFoodItem } from '../api';
 import { packagesToBaseUnits } from '../utils';
 
-const RestockModal = ({ open, onClose, item, onRestocked }) => {
+const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
   const { user } = useCurrentUser();
   const userId = user?.id;
 
@@ -22,6 +22,7 @@ const RestockModal = ({ open, onClose, item, onRestocked }) => {
     pricePerItem: '',
     store: '',
     expirationDate: '',
+    locationId: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,6 +35,7 @@ const RestockModal = ({ open, onClose, item, onRestocked }) => {
       pricePerItem: '',
       store: '',
       expirationDate: '',
+      locationId: item?.LocationID || '',
     });
     setError('');
   }, [open, item]);
@@ -49,6 +51,9 @@ const RestockModal = ({ open, onClose, item, onRestocked }) => {
   };
 
   const isRemoving = form.transactionType === 'remove';
+  const isTransfer = form.transactionType === 'transfer_in' || form.transactionType === 'transfer_out';
+  const allowPriceFields = !isRemoving && !isTransfer;
+  const allowExpiration = !isRemoving && !isTransfer;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -58,6 +63,13 @@ const RestockModal = ({ open, onClose, item, onRestocked }) => {
     setError('');
 
     try {
+      const locationId = form.locationId || item.LocationID;
+      if (!locationId) {
+        setError('Please choose a location.');
+        setLoading(false);
+        return;
+      }
+
       const baseMetadata = {
         food_name: (item.FoodName || '').toLowerCase().trim(),
         type: (item.Type || '').toLowerCase().trim(),
@@ -68,7 +80,7 @@ const RestockModal = ({ open, onClose, item, onRestocked }) => {
 
       const metadataExtras = {};
 
-      if (!isRemoving) {
+      if (allowPriceFields) {
         if (form.pricePerItem) {
           metadataExtras.price_per_item = parseFloat(form.pricePerItem);
         }
@@ -86,11 +98,11 @@ const RestockModal = ({ open, onClose, item, onRestocked }) => {
       if (quantityBaseUnits > 0) {
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
-          location_id: item.LocationID,
+          location_id: locationId,
           user_id: userId,
           transaction_type: form.transactionType,
           quantity: quantityBaseUnits,
-          expiration_date: !isRemoving && form.expirationDate ? form.expirationDate : undefined,
+          expiration_date: allowExpiration && form.expirationDate ? form.expirationDate : undefined,
         });
 
         window.dispatchEvent(new CustomEvent('transactionCompleted'));
@@ -167,6 +179,8 @@ const RestockModal = ({ open, onClose, item, onRestocked }) => {
               >
                 <MenuItem value="add">Add</MenuItem>
                 <MenuItem value="remove">Remove</MenuItem>
+                <MenuItem value="transfer_in">Transfer In</MenuItem>
+                <MenuItem value="transfer_out">Transfer Out</MenuItem>
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -181,7 +195,24 @@ const RestockModal = ({ open, onClose, item, onRestocked }) => {
               />
             </Grid>
 
-            {!isRemoving && (
+            <Grid item xs={12}>
+              <TextField
+                select
+                label="Location"
+                value={form.locationId}
+                onChange={handleChange('locationId')}
+                fullWidth
+                helperText="Choose the location this transaction applies to"
+              >
+                {locations.map((loc) => (
+                  <MenuItem key={loc.LocationID} value={loc.LocationID}>
+                    {loc.LocationName}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            {allowExpiration && (
               <Grid item xs={12} sm={6}>
                 <TextField
                   label="Expiration Date"
@@ -202,7 +233,7 @@ const RestockModal = ({ open, onClose, item, onRestocked }) => {
                 onChange={handleChange('pricePerItem')}
                 fullWidth
                 inputProps={{ min: '0', step: '0.01' }}
-                disabled={isRemoving}
+                disabled={!allowPriceFields}
               />
             </Grid>
 
@@ -212,14 +243,14 @@ const RestockModal = ({ open, onClose, item, onRestocked }) => {
                 value={form.store}
                 onChange={handleChange('store')}
                 fullWidth
-                disabled={isRemoving}
+                disabled={!allowPriceFields}
               />
             </Grid>
           </Grid>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 3 }}>
             <Button type="submit" variant="contained" disabled={loading} fullWidth>
-              {loading ? 'Saving...' : 'Save & Apply'}
+              {loading ? 'Saving...' : 'Save'}
             </Button>
           </Box>
         </Box>

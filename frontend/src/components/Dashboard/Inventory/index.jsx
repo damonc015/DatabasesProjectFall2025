@@ -226,6 +226,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           setRestockItem(null);
         }}
         item={restockItem}
+        locations={locations}
         onRestocked={fetchInventory}
       />
     </Box>
