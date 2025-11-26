@@ -4,8 +4,11 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import Button from '@mui/material/Button';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
+import EditIcon from '@mui/icons-material/Edit';
 import { FoodIcon } from '../../../utils/foodEmojis';
 
 const capitalize = (str) => {
@@ -15,7 +18,7 @@ const capitalize = (str) => {
   ).join(' ');
 };
 
-const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete }) => {
+const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete, onEdit, onRestock }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleTransaction = async (transactionType) => {
@@ -33,7 +36,6 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
 
     setIsLoading(true);
     
-    // The quick add/remove uses the package amount to increase/decrease.
     const quantity = item.QtyPerPackage && item.QtyPerPackage > 0 
       ? item.QtyPerPackage 
       : 1;
@@ -89,15 +91,23 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
     handleTransaction('remove');
   };
 
+  const isOutOfStock =
+    item.TotalQtyInBaseUnits !== undefined &&
+    item.TotalQtyInBaseUnits !== null &&
+    Number(item.TotalQtyInBaseUnits) === 0;
+
   return (
     <Card 
       variant='outlined' 
       sx={{ 
-        height: '14rem',
+        minHeight: '17.5rem',
+        flexGrow: 1,
         display: 'flex',
         flexDirection: 'column',
-        transition: 'box-shadow 0.2s',
+        transition: 'box-shadow 0.2s, opacity 0.2s, filter 0.2s',
         overflow: 'hidden',
+        opacity: isOutOfStock ? 0.5 : 1,
+        filter: isOutOfStock ? 'grayscale(0.6)' : 'none',
         '&:hover': {
           boxShadow: 3,
           cursor: 'pointer'
@@ -114,6 +124,23 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
           overflow: 'hidden'
         }}
       >
+        {onEdit && (
+          <Box sx={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
+            <Tooltip title="Edit item">
+              <IconButton
+                size='small'
+                color='default'
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onEdit(item);
+                }}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
         <FoodIcon category={item.Category} />
         <Typography variant='h6' sx={{ mb: 1, mt: 1, fontWeight: 'bold' }}>
           {capitalize(item.FoodName)}
@@ -121,23 +148,40 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
         <Typography variant='body1' sx={{ mb: 2, color: 'text.secondary' }}>
           {showPackage ? item.FormattedPackages : item.FormattedBaseUnits}
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 'auto' }}>
-          <IconButton 
-            size='small' 
-            color='primary' 
-            onClick={handleRemove}
-            disabled={isLoading}
-          >
-            <RemoveIcon />
-          </IconButton>
-          <IconButton 
-            size='small' 
-            color='primary' 
-            onClick={handleAdd}
-            disabled={isLoading}
-          >
-            <AddIcon />
-          </IconButton>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: '100%', mt: 'auto' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+            <IconButton 
+              size='small' 
+              color='primary' 
+              onClick={handleRemove}
+              disabled={isLoading}
+            >
+              <RemoveIcon />
+            </IconButton>
+            <IconButton 
+              size='small' 
+              color='primary' 
+              onClick={handleAdd}
+              disabled={isLoading}
+            >
+              <AddIcon />
+            </IconButton>
+          </Box>
+          {onRestock && (
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onRestock(item);
+                }}
+              >
+                Stock
+              </Button>
+            </Box>
+          )}
         </Box>
       </CardContent>
     </Card>

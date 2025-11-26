@@ -10,6 +10,8 @@ import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import FoodCard from './FoodCard';
 import AddItemCard from './AddItemCard';
 import AddFoodItemModal from './AddFoodItemModal/index.jsx';
+import EditFoodItemModal from './EditFoodItemModal/index.jsx';
+import RestockModal from './RestockModal/index.jsx';
 
 const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory }) => {
   const [inventory, setInventory] = useState([]);
@@ -17,6 +19,10 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
   const [loading, setLoading] = useState(true);
   const [locationFilter, setLocationFilter] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [restockModalOpen, setRestockModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [restockItem, setRestockItem] = useState(null);
   
   const { householdId, user } = useCurrentUser();
   
@@ -28,6 +34,21 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
     return selectedCategory.some(cat => 
       cat.toLowerCase() === itemCategory.toLowerCase()
     );
+  });
+  const sortedInventory = [...filteredInventory].sort((a, b) => {
+    const aZero =
+      a.TotalQtyInBaseUnits !== undefined &&
+      a.TotalQtyInBaseUnits !== null &&
+      Number(a.TotalQtyInBaseUnits) === 0;
+    const bZero =
+      b.TotalQtyInBaseUnits !== undefined &&
+      b.TotalQtyInBaseUnits !== null &&
+      Number(b.TotalQtyInBaseUnits) === 0;
+
+    if (aZero === bZero) return 0;
+    if (aZero) return 1;
+    if (bZero) return -1;
+    return 0;
   });
 
   useEffect(() => {
@@ -84,7 +105,29 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant='h6'>Inventory</Typography>
+      </Box>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          flexWrap: 'wrap',
+          mb: 2
+        }}
+      >
+        <Box sx={{ flexGrow: 1, borderBottom: 1, borderColor: 'divider', minWidth: 0 }}>
+          <Tabs
+            value={locationFilter ?? 'All'}
+            onChange={(e, newValue) => setLocationFilter(newValue === 'All' ? null : newValue)}
+          >
+            <Tab label="All" value="All" />
+            {locations.map((location) => (
+              <Tab key={location.LocationID} label={location.LocationName} value={location.LocationID} />
+            ))}
+          </Tabs>
+        </Box>
         <FormControlLabel
+          sx={{ ml: { xs: 0, sm: 'auto' }, mt: { xs: 1, sm: 0 } }}
           control={
             <Switch
               checked={showPackage}
@@ -93,18 +136,6 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           }
           label={<Typography variant="caption">Show in Package</Typography>}
         />
-      </Box>
-
-      <Box sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs
-          value={locationFilter ?? 'All'}
-          onChange={(e, newValue) => setLocationFilter(newValue === 'All' ? null : newValue)}
-        >
-          <Tab label="All" value="All" />
-          {locations.map((location) => (
-            <Tab key={location.LocationID} label={location.LocationName} value={location.LocationID} />
-          ))}
-        </Tabs>
       </Box>
 
       <Box
@@ -128,6 +159,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
             lg={2}
             xl={2}
             sx={{
+              display: 'flex',
               '@media (min-width: 1200px)': {
                 width: '20%',
                 maxWidth: '20%',
@@ -137,14 +169,14 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           >
             <AddItemCard onClick={() => setModalOpen(true)} />
           </Grid>
-          {filteredInventory.length === 0 ? (
+          {sortedInventory.length === 0 ? (
             <Grid item xs={12}>
               <Typography variant='body2' color='text.secondary'>
                 {noItemsMessage}
               </Typography>
             </Grid>
           ) : (
-            filteredInventory.map((item) => (
+            sortedInventory.map((item) => (
               <Grid
                 item
                 xs={12}
@@ -154,6 +186,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
                 xl={2}
                 key={item.FoodItemID}
                 sx={{
+                  display: 'flex',
                   '@media (min-width: 1200px)': {
                     width: '20%',
                     maxWidth: '20%',
@@ -167,6 +200,14 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
                   userId={userId}
                   locationId={item.LocationID}
                   onTransactionComplete={fetchInventory}
+                  onEdit={(itm) => {
+                    setSelectedItem(itm);
+                    setEditModalOpen(true);
+                  }}
+                  onRestock={(itm) => {
+                    setRestockItem(itm);
+                    setRestockModalOpen(true);
+                  }}
                 />
               </Grid>
             ))
@@ -177,6 +218,25 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onItemAdded={fetchInventory}
+      />
+      <EditFoodItemModal
+        open={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setSelectedItem(null);
+        }}
+        item={selectedItem}
+        onItemUpdated={fetchInventory}
+      />
+      <RestockModal
+        open={restockModalOpen}
+        onClose={() => {
+          setRestockModalOpen(false);
+          setRestockItem(null);
+        }}
+        item={restockItem}
+        locations={locations}
+        onRestocked={fetchInventory}
       />
     </Box>
   );

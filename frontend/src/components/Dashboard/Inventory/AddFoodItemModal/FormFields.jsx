@@ -4,9 +4,10 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 import { CATEGORY_EMOJI } from '../../../../utils/foodEmojis';
 
-export const LeftColumnFields = ({ formData, handleChange, locations, categories }) => (
+export const LeftColumnFields = ({ formData, handleChange, locations, categories, showExpiration = true }) => (
   <>
     <TextField
       required
@@ -39,17 +40,18 @@ export const LeftColumnFields = ({ formData, handleChange, locations, categories
       onChange={handleChange('target_level')}
       fullWidth
       inputProps={{ min: '1', step: '1' }}
-      helperText="Number of packages to keep in stock"
     />
 
-    <TextField
-      label="Expiration Date:"
-      type="date"
-      value={formData.expiration_date}
-      onChange={handleChange('expiration_date')}
-      fullWidth
-      InputLabelProps={{ shrink: true }}
-    />
+    {showExpiration && (
+      <TextField
+        label="Expiration Date:"
+        type="date"
+        value={formData.expiration_date}
+        onChange={handleChange('expiration_date')}
+        fullWidth
+        InputLabelProps={{ shrink: true }}
+      />
+    )}
 
     <FormControl fullWidth required>
       <InputLabel>Category:</InputLabel>
@@ -68,17 +70,42 @@ export const LeftColumnFields = ({ formData, handleChange, locations, categories
   </>
 );
 
-export const RightColumnFields = ({ formData, handleChange, baseUnits, packageLabels }) => (
-  <>
-    <TextField
-      required
-      label="Quantity:"
-      type="number"
-      value={formData.quantity}
-      onChange={handleChange('quantity')}
-      fullWidth
-      inputProps={{ min: '1' }}
-    />
+export const RightColumnFields = ({
+  formData,
+  handleChange,
+  baseUnits,
+  packageLabels,
+  readOnlyBaseUnit = false,
+  baseUnitLabel,
+  quantityFieldOptions = {},
+}) => {
+  const {
+    label: quantityLabel = 'Quantity:',
+    helperText: quantityHelperText,
+    inputProps: quantityInputOverrides = {},
+    required: quantityRequired = true,
+    hideField: hideQuantityField = false,
+  } = quantityFieldOptions;
+
+  const mergedQuantityInputProps = {
+    min: '1',
+    ...quantityInputOverrides,
+  };
+
+  return (
+    <>
+      {!hideQuantityField && (
+        <TextField
+          required={quantityRequired}
+          label={quantityLabel}
+          type="number"
+          value={formData.quantity}
+          onChange={handleChange('quantity')}
+          fullWidth
+          inputProps={mergedQuantityInputProps}
+          helperText={quantityHelperText}
+        />
+      )}
 
     <Box sx={{ display: 'flex', gap: 1 }}>
       <FormControl required sx={{ flex: 1 }}>
@@ -126,30 +153,54 @@ export const RightColumnFields = ({ formData, handleChange, baseUnits, packageLa
         sx={{ flex: 1 }}
         inputProps={{ step: '0.01', min: '0.01' }}
       />
-      <FormControl required sx={{ minWidth: 100 }}>
-        <InputLabel>Unit</InputLabel>
-        <Select
-          value={formData.base_unit_id}
-          onChange={handleChange('base_unit_id')}
-          label="Unit"
-        >
-          {baseUnits.map((unit) => (
-            <MenuItem key={unit.UnitID} value={unit.UnitID}>
-              {unit.Abbreviation}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      {readOnlyBaseUnit ? (
+        <Box sx={{ minWidth: 100, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <Typography variant="caption" color="text.secondary">
+            Unit
+          </Typography>
+          <Typography variant="body2">
+            {baseUnitLabel ||
+              (() => {
+                const unit = baseUnits.find(
+                  (u) => String(u.UnitID) === String(formData.base_unit_id)
+                );
+                return unit ? unit.Abbreviation : '';
+              })()}
+          </Typography>
+        </Box>
+      ) : (
+        <FormControl required sx={{ minWidth: 100 }}>
+          <InputLabel>Unit</InputLabel>
+          <Select
+            value={formData.base_unit_id}
+            onChange={handleChange('base_unit_id')}
+            label="Unit"
+          >
+            {baseUnits.map((unit) => (
+              <MenuItem key={unit.UnitID} value={unit.UnitID}>
+                {unit.Abbreviation}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
     </Box>
 
     <TextField
-      label="Price Per Item:"
+      label="Price Per Package:"
       type="number"
       value={formData.price_per_item}
       onChange={handleChange('price_per_item')}
       fullWidth
       inputProps={{ step: '0.01', min: '0' }}
     />
+    <TextField
+      label="Store:"
+      value={formData.store}
+      onChange={handleChange('store')}
+      fullWidth
+    />
   </>
-);
+  );
+};
 

@@ -1,8 +1,9 @@
-export const validateForm = (formData) => {
+export const validateForm = (formData, options = {}) => {
+  const { requireBaseUnitId = true } = options;
+
   const requiredFields = [
     'food_name',
     'category',
-    'base_unit_id',
     'location_id',
     'package_label',
     'package_base_unit_amt',
@@ -14,6 +15,10 @@ export const validateForm = (formData) => {
     if (!formData[field]) {
       return 'Please fill in all required fields';
     }
+  }
+
+  if (requireBaseUnitId && !formData.base_unit_id) {
+    return 'Please fill in all required fields';
   }
 
   if (!formData.package_label || formData.package_label.trim() === '') {

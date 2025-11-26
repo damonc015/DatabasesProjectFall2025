@@ -18,6 +18,46 @@ const capitalize = (str) => {
   ).join(' ');
 };
 
+const formatQuantityDisplay = (tx, showPackage) => {
+  if (showPackage && tx.FormattedPackages) {
+    return tx.FormattedPackages;
+  }
+  const qty = Number(tx.QtyInTotal);
+  return `${Number.isFinite(qty) ? Math.round(qty) : 0}${tx.BaseUnitAbbr || ''}`;
+};
+
+const formatLocationName = (name) => {
+  if (!name) {
+    return 'Unknown location';
+  }
+  return capitalize(name);
+};
+
+const renderTransactionText = (tx, showPackage) => {
+  const quantityText = formatQuantityDisplay(tx, showPackage);
+  const foodName = capitalize(tx.FoodName);
+
+  const isTransferOut = tx.TransactionType === 'transfer_out';
+  const isTransferIn = tx.TransactionType === 'transfer_in';
+
+  if (isTransferOut || isTransferIn) {
+    const source = isTransferOut ? tx.LocationName : tx.CounterLocationName;
+    const destination = isTransferOut ? tx.CounterLocationName : tx.LocationName;
+    return `${tx.UserName} moved ${quantityText} of ${foodName} from ${formatLocationName(source)} to ${formatLocationName(destination)}`;
+  }
+
+  const verbMap = {
+    add: 'added',
+    remove: 'removed',
+    expire: 'expired',
+    purchase: 'purchased',
+  };
+
+  const verb = verbMap[tx.TransactionType] || `${tx.TransactionType}${tx.TransactionType?.endsWith('e') ? 'd' : 'ed'}`;
+
+  return `${tx.UserName} ${verb} ${quantityText} of ${foodName} at ${formatLocationName(tx.LocationName)}`;
+};
+
 const Transactions = ({ showPackage }) => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -81,8 +121,7 @@ const Transactions = ({ showPackage }) => {
                       {tx ? (
                         <>
                           <Typography variant="body2" fontWeight="bold" sx={{ flex: 1, whiteSpace: 'nowrap' }}>
-                            {tx.UserName} {tx.TransactionType}{tx.TransactionType === 'add' ? 'ed':'d'}{" "}
-                            {showPackage ? tx.FormattedPackages : `${Math.round(tx.QtyInTotal)}${tx.BaseUnitAbbr}`} of {capitalize(tx.FoodName)} at {capitalize(tx.LocationName)}
+                            {renderTransactionText(tx, showPackage)}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', ml: 2 }}>
                             {new Date(tx.CreatedAt).toLocaleString()}

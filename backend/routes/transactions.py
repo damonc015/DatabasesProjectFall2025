@@ -19,6 +19,7 @@ def db_get_transactions_paged(household_id):
             FROM InventoryTransaction tx
             INNER JOIN Users u ON tx.UserID = u.UserID
             WHERE u.HouseholdID = %s
+              AND tx.TransactionType != 'transfer_in'
         """
         cursor.execute(count_query, (household_id,))
         total = cursor.fetchone()['total']
@@ -33,6 +34,10 @@ def db_get_transactions_paged(household_id):
                 tx.TransactionType,
                 tx.CreatedAt,
                 l.LocationName,
+                CASE
+                    WHEN tx.TransactionType = 'transfer_out' THEN l_pair.LocationName
+                    ELSE NULL
+                END AS CounterLocationName,
                 bu.Abbreviation AS BaseUnitAbbr,
                 p.Label AS PackageLabel
             FROM InventoryTransaction tx
@@ -41,7 +46,16 @@ def db_get_transactions_paged(household_id):
             INNER JOIN Location l ON tx.LocationID = l.LocationID
             INNER JOIN BaseUnit bu ON fi.BaseUnitID = bu.UnitID
             INNER JOIN Package p ON fi.PreferredPackageID = p.PackageID
+            LEFT JOIN InventoryTransaction tx_pair
+                ON tx.TransactionType = 'transfer_out'
+                AND tx_pair.TransactionType = 'transfer_in'
+                AND tx_pair.UserID = tx.UserID
+                AND tx_pair.FoodItemID = tx.FoodItemID
+                AND tx_pair.QtyInBaseUnits = tx.QtyInBaseUnits
+                AND tx_pair.CreatedAt BETWEEN tx.CreatedAt AND DATE_ADD(tx.CreatedAt, INTERVAL 5 SECOND)
+            LEFT JOIN Location l_pair ON tx_pair.LocationID = l_pair.LocationID
             WHERE u.HouseholdID = %s
+              AND tx.TransactionType != 'transfer_in'
             ORDER BY tx.CreatedAt DESC
             LIMIT %s OFFSET %s
         """
