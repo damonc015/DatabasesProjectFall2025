@@ -1,23 +1,44 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import Dashboard from '../components/Dashboard';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { restoreSessionFromCookie } from '../utils/session';
 
 function DashboardWrapper() {
   const navigate = useNavigate();
+  const [isChecking, setIsChecking] = useState(true);
   
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("user"));
-    const user = stored?.user;
-    
-    // Redirect to register if user is not authenticated
-    if (!user || !user.id) {
+    let isMounted = true;
+
+    async function ensureUser() {
+      const stored = JSON.parse(localStorage.getItem("user"));
+      const user = stored?.user;
+      
+      if (user?.id) {
+        if (isMounted) setIsChecking(false);
+        return;
+      }
+
+      const restored = await restoreSessionFromCookie();
+      if (!isMounted) return;
+
+      if (restored?.id) {
+        setIsChecking(false);
+        return;
+      }
+
       navigate({ to: "/register" });
-      return;
     }
-    
-    // Users must have a household_id after registration
+
+    ensureUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, [navigate]);
   
+  if (isChecking) return null;
+
   return <Dashboard />;
 }
 

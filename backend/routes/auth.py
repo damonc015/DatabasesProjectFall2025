@@ -1,9 +1,12 @@
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error
 import mysql.connector
-from flask import current_app
 import uuid
 import bcrypt
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+
+SESSION_COOKIE_NAME = "session"
+SESSION_MAX_AGE = 60 * 60 * 24 * 30  # 30 days
 
 bp = create_api_blueprint('auth', '/api/auth')
 
@@ -17,6 +20,38 @@ def get_write_conn():
         unix_socket=current_app.config.get('MYSQL_UNIX_SOCKET')
     )
 
+def _create_session_token(user_id: int, remember: bool = True) -> str:
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='auth-session')
+    return serializer.dumps({"user_id": user_id, "remember": bool(remember)})
+
+
+def _parse_session_token(token: str):
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='auth-session')
+    try:
+        data = serializer.loads(token, max_age=SESSION_MAX_AGE)
+        return data
+    except (BadSignature, SignatureExpired):
+        return None
+
+
+def _set_session_cookie(response, token: str, persistent: bool = True):
+    response.set_cookie(
+        SESSION_COOKIE_NAME,
+        token,
+        max_age=SESSION_MAX_AGE if persistent else None,
+        httponly=True,
+        samesite='Lax',
+    )
+    return response
+
+
+def _clear_session_cookie(response):
+    response.delete_cookie(
+        SESSION_COOKIE_NAME,
+        samesite='Lax',
+    )
+    return response
+
 
 @document_api_route(bp, 'post', '/login', 'Login user', 'Validate user credentials')
 @handle_db_error
@@ -24,6 +59,7 @@ def login_user():
     data = request.get_json() or {}
     username = data.get('username')
     password = data.get('password')
+    remember = bool(data.get('remember', True))
 
     if not username or not password:
         return jsonify({'error': 'Username and password required'}), 400
@@ -61,7 +97,9 @@ def login_user():
         except (ValueError, TypeError):
             return jsonify({'error': 'Invalid username or password'}), 401
 
-    return jsonify({
+    session_token = _create_session_token(user["UserID"], remember=remember)
+
+    response = jsonify({
         "message": "Login successful",
         "user": {
             "id": user["UserID"],
@@ -72,7 +110,10 @@ def login_user():
             "household": user["HouseholdName"],
             "join_code": user["JoinCode"]
         }
-    }), 200
+    })
+    _set_session_cookie(response, session_token, persistent=remember)
+
+    return response, 200
 
 
 @document_api_route(bp, 'post', '/register', 'Register new user', 'Create user and automatically create household if no join_code provided') 
@@ -83,6 +124,7 @@ def register_user():
     display_name = data.get('display_name')
     password = data.get('password')
     join_code = data.get('join_code')
+    remember = bool(data.get('remember', True))
 
     if not username or not display_name or not password:
         return jsonify({'error': 'Username, display name, and password required'}), 400
@@ -154,7 +196,9 @@ def register_user():
     cursor.close()
     conn.close()
 
-    return jsonify({
+    session_token = _create_session_token(user["UserID"], remember=remember)
+
+    response = jsonify({
         "message": "Registration successful",
         "user": {
             "id": user["UserID"],
@@ -165,7 +209,10 @@ def register_user():
             "household": user["HouseholdName"],
             "join_code": user["JoinCode"]
         }
-    }), 200
+    })
+    _set_session_cookie(response, session_token, persistent=remember)
+
+    return response, 200
 
 
 @document_api_route(bp, 'get', '/members/<int:household_id>',
@@ -504,3 +551,76 @@ def update_profile():
 
     return jsonify({"message": "Profile updated successfully"}), 200
 
+
+def _get_user_by_id(user_id: int):
+    with db_cursor() as cursor:
+        cursor.execute("""
+            SELECT 
+                u.UserID,
+                u.UserName,
+                u.DisplayName,
+                u.RoleName,
+                u.HouseholdID,
+                h.HouseholdName,
+                h.JoinCode
+            FROM Users u
+            LEFT JOIN Household h ON u.HouseholdID = h.HouseholdID
+            WHERE u.UserID = %s
+              AND u.IsArchived = 0
+            LIMIT 1
+        """, (user_id,))
+        return cursor.fetchone()
+
+
+@document_api_route(
+    bp, 'get', '/session',
+    'Get current session',
+    'Return the current authenticated user based on the session cookie'
+)
+@handle_db_error
+def get_session():
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    token_data = _parse_session_token(token)
+    if not token_data:
+        response = jsonify({"error": "Session expired"})
+        _clear_session_cookie(response)
+        return response, 401
+
+    user_id = token_data.get("user_id")
+    remember = bool(token_data.get("remember", True))
+
+    user = _get_user_by_id(user_id)
+    if not user:
+        response = jsonify({"error": "User not found"})
+        _clear_session_cookie(response)
+        return response, 404
+
+    session_token = _create_session_token(user_id, remember=remember)
+    response = jsonify({
+        "message": "Session active",
+        "user": {
+            "id": user["UserID"],
+            "username": user["UserName"],
+            "display_name": user["DisplayName"],
+            "role": user["RoleName"],
+            "household_id": user["HouseholdID"],
+            "household": user["HouseholdName"],
+            "join_code": user["JoinCode"]
+        }
+    })
+    _set_session_cookie(response, session_token, persistent=remember)
+    return response, 200
+
+
+@document_api_route(
+    bp, 'post', '/logout',
+    'Logout user',
+    'Clear session cookie and log user out'
+)
+def logout_user():
+    response = jsonify({"message": "Logged out"})
+    _clear_session_cookie(response)
+    return response, 200

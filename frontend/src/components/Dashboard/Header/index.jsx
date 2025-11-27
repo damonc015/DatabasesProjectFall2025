@@ -11,8 +11,13 @@ const Header = () => {
   const username = user?.display_name || user?.username || 'Guest';
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    navigate({ to: '/login' });
+    fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    }).finally(() => {
+      localStorage.removeItem('user');
+      navigate({ to: '/login' });
+    });
   };
 
   const householdName = user?.household || 'No Household';
