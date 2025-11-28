@@ -1,10 +1,11 @@
+from datetime import datetime, timedelta
 from flask import jsonify, request
 from extensions import db_cursor, get_db, create_api_blueprint, document_api_route, handle_db_error
 
 bp = create_api_blueprint('food_items', '/api/food-items')
 
 
-@document_api_route(bp, 'get', '/', 'Get all food items', 'Returns a list of food items (limited to 50)')
+@document_api_route(bp, 'get', '/', 'Get all food items', 'Returns a list of food items')
 @handle_db_error
 def db_test_get_food_items():
     with db_cursor() as cursor:
@@ -20,7 +21,6 @@ def db_test_get_food_items():
                 bu.Abbreviation AS BaseUnit
             FROM FoodItem fi
             JOIN BaseUnit bu ON fi.BaseUnitID = bu.UnitID
-            LIMIT 50
         """
         cursor.execute(query)
         results = cursor.fetchall()
@@ -228,6 +228,10 @@ def get_package_labels():
 @handle_db_error
 def add_new_food_item():
     data = request.get_json()
+
+    expiration_date = data.get('expiration_date')
+    if not expiration_date:
+        expiration_date = (datetime.utcnow() + timedelta(days=14)).date().isoformat()
     
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
@@ -245,7 +249,7 @@ def add_new_food_item():
             data.get('target_level'),
             data.get('quantity'),
             data.get('user_id'),
-            data.get('expiration_date'),
+            expiration_date,
             data.get('price_per_item'),
             data.get('store')
         ])
