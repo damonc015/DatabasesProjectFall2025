@@ -11,24 +11,41 @@ const Header = () => {
   const username = user?.display_name || user?.username || 'Guest';
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    navigate({ to: '/login' });
+    fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    }).finally(() => {
+      localStorage.removeItem('user');
+      navigate({ to: '/login' });
+    });
   };
 
   const householdName = user?.household || 'No Household';
 
   return (
-    <div className='headerContainer'>
-      <div style={{ display: 'flex', alignItems: 'baseline' }}>
+    <div className='headerContainer' style={{ alignItems: 'baseline', maxHeight: '14vh' }}>
+      {/* --- Left Area --- */}
+      <div style={{ align: 'center', display: 'flex', alignItems: 'baseline'}}>
         <StaticLogo />
         {householdName && householdName !== 'No Household' && (
-          <span style={{ marginLeft: '80px' }}>{householdName}</span>
+          <span style={{
+            marginLeft: '80px',
+            position: 'relative',
+            top: '-2px'
+          }}>
+            {householdName}
+          </span>
         )}
       </div>
-      <div>
+      {/* --- Right Area --- */}
+      <div style={{ align: 'center', display: 'flex', alignItems: 'center' }}>
         <span>Welcome back, {username}</span>
         <SettingsIcon
-          style={{ cursor: 'pointer', marginLeft: '10px', marginRight: '10px' }}
+          style={{
+            cursor: 'pointer',
+            marginLeft: '10px',
+            marginRight: '10px',
+          }}
           onClick={() => navigate({ to: '/settings' })}
         />
         <Button className='button' variant='contained' color='primary' onClick={handleLogout}>
