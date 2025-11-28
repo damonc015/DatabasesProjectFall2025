@@ -46,6 +46,10 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
     packages: 0,
     packageSize: 0,
   });
+  const [latestExpiration, setLatestExpiration] = useState('');
+  const [originalLatestExpiration, setOriginalLatestExpiration] = useState('');
+  const [expirationLoading, setExpirationLoading] = useState(false);
+  const [expirationError, setExpirationError] = useState('');
 
   const todayISO = useMemo(() => new Date().toISOString().split('T')[0], []);
 
@@ -130,6 +134,25 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
     };
 
     loadDetails();
+    const fetchLatestExpiration = async () => {
+      setExpirationLoading(true);
+      setExpirationError('');
+      try {
+        const res = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`);
+        if (!res.ok) throw new Error('Could not fetch expiration date');
+        const data = await res.json();
+        const expirationValue = data?.expiration_date || '';
+        setLatestExpiration(expirationValue);
+        setOriginalLatestExpiration(expirationValue);
+      } catch (err) {
+        console.error('Error fetching latest expiration:', err);
+        setLatestExpiration('');
+        setOriginalLatestExpiration('');
+      } finally {
+        setExpirationLoading(false);
+      }
+    };
+    fetchLatestExpiration();
   }, [open, item]);
 
   const handleChange = (field) => (e) => {
@@ -148,6 +171,10 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
       packages: 0,
       packageSize: 0,
     });
+    setLatestExpiration('');
+    setOriginalLatestExpiration('');
+    setExpirationError('');
+    setExpirationLoading(false);
     onClose();
   };
 
@@ -180,7 +207,6 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
         user_id: userId,
         transaction_type: 'expire',
         quantity: quantityToExpire,
-        expiration_date: todayISO,
       });
 
       window.dispatchEvent(new CustomEvent('transactionCompleted'));
@@ -268,6 +294,27 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
       }
 
       await updateFoodItem(item.FoodItemID, payload);
+
+      if (latestExpiration && latestExpiration !== originalLatestExpiration) {
+        try {
+          const expirationRes = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ expiration_date: latestExpiration }),
+          });
+          if (!expirationRes.ok) {
+            const payload = await expirationRes.json().catch(() => ({}));
+            throw new Error(payload?.error || 'Could not update expiration date.');
+          }
+          setOriginalLatestExpiration(latestExpiration);
+        } catch (expErr) {
+          setExpirationError(expErr.message || 'Could not update expiration date.');
+          setLoading(false);
+          return;
+        }
+      }
 
       if (locationChanged) {
         const qtyToMove = Math.max(currentBaseUnits, 0);
@@ -414,6 +461,47 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
                     Enter the current total. The system will reconcile the difference.
                   </Typography>
                 </Box>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1,
+                    p: 2,
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'primary.light',
+                    backgroundColor: '#eef7ff',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 1 }}>
+                      Expiration Date
+                    </Typography>
+                  </Box>
+                  <TextField
+                    type="date"
+                    value={latestExpiration || ''}
+                    onChange={(e) => {
+                      setLatestExpiration(e.target.value);
+                      setExpirationError('');
+                    }}
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    helperText={
+                      expirationLoading
+                        ? 'Loading expiration...'
+                        : latestExpiration
+                          ? 'Adjust and click Save Item to update the latest future batch.'
+                          : 'No future expirations recorded. Set one if needed.'
+                    }
+                    disabled={expirationLoading}
+                  />
+                  {expirationError && (
+                    <Typography variant="caption" color="error">
+                      {expirationError}
+                    </Typography>
+                  )}
+                </Box>
               </Box>
             </Grid>
 
@@ -450,9 +538,6 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
                       Expire remaining stock
                     </Typography>
                   </Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Marks all remaining stock as expired with date {todayISO}.
-                  </Typography>
                   <Button
                     variant="outlined"
                     color="primary"

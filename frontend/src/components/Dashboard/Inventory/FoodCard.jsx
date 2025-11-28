@@ -21,6 +21,27 @@ const capitalize = (str) => {
 const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete, onEdit, onRestock }) => {
   const [isLoading, setIsLoading] = useState(false);
 
+  const fetchLatestExpiration = async () => {
+    try {
+      const res = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`);
+      if (!res.ok) {
+        await res.json().catch(() => ({}));
+        return null;
+      }
+      const data = await res.json();
+      return data?.expiration_date || null;
+    } catch (err) {
+      console.error('Quick add expiration fetch error:', err);
+      return null;
+    }
+  };
+
+  const getDefaultExpiration = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 14);
+    return date.toISOString().split('T')[0];
+  };
+
   const handleTransaction = async (transactionType) => {
     if (!userId) {
       alert('Error: User ID is missing. Please log in again.');
@@ -41,18 +62,32 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
       : 1;
 
     try {
+      let expirationDate;
+      if (transactionType === 'add') {
+        expirationDate = await fetchLatestExpiration();
+        if (!expirationDate) {
+          expirationDate = getDefaultExpiration();
+        }
+      }
+
+      const payload = {
+        food_item_id: item.FoodItemID,
+        location_id: locationId,
+        user_id: userId,
+        transaction_type: transactionType,
+        quantity,
+      };
+
+      if (transactionType === 'add' && expirationDate) {
+        payload.expiration_date = expirationDate;
+      }
+
       const response = await fetch('http://localhost:5001/api/transactions/inventory/transaction', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          food_item_id: item.FoodItemID,
-          location_id: locationId,
-          user_id: userId,
-          transaction_type: transactionType,
-          quantity: quantity,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -61,8 +96,7 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
         throw new Error(error.error || 'Failed to create transaction');
       }
 
-      const result = await response.json();
-      console.log('Transaction created:', result);
+      await response.json();
 
       window.dispatchEvent(new CustomEvent('transactionCompleted'));
 

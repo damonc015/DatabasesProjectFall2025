@@ -193,7 +193,7 @@ export const RightColumnFields = ({
     </Box>
 
     <TextField
-      label="Price Per Package:"
+      label="Price Per Package"
       type="number"
       value={formData.price_per_item}
       onChange={handleChange('price_per_item')}
@@ -201,7 +201,7 @@ export const RightColumnFields = ({
       inputProps={{ step: '0.01', min: '0' }}
     />
     <TextField
-      label="Store:"
+      label="Store Name"
       value={formData.store}
       onChange={handleChange('store')}
       fullWidth
