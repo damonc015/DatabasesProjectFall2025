@@ -32,8 +32,6 @@ const parseNumberOr = (value, fallback = null) => {
   return Number.isNaN(parsed) ? fallback : parsed;
 };
 
-const hasMeaningfulDelta = (value, epsilon = 0.0001) => Math.abs(value) >= epsilon;
-
 const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
   const { householdId, user } = useCurrentUser();
   const userId = user?.id;
@@ -197,7 +195,7 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
     }
 
     const quantityToExpire = parseNumberOr(stockSnapshot.baseUnits, 0);
-    if (!hasMeaningfulDelta(quantityToExpire)) {
+    if (!quantityToExpire) {
       setError('No items to expire!');
       return;
     }
@@ -351,7 +349,7 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
         emittedTransactionEvent = true;
       }
 
-      if (hasMeaningfulDelta(deltaBaseUnits)) {
+      if (deltaBaseUnits !== 0) {
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
           location_id: targetLocationId,
