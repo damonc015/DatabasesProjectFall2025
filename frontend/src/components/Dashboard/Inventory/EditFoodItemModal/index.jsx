@@ -183,16 +183,6 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
   const handleExpireNow = async () => {
     if (!formData || !item) return;
 
-    if (!userId) {
-      setError('Missing user information. Please log in again to expire items.');
-      return;
-    }
-
-    const locationId = formData.location_id || item.LocationID;
-    if (!locationId) {
-      setError('Please select a location before expiring.');
-      return;
-    }
 
     const quantityToExpire = parseNumberOr(stockSnapshot.baseUnits, 0);
     if (!quantityToExpire) {
@@ -219,7 +209,6 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
 
       handleClose();
     } catch (err) {
-      console.error('Error expiring item:', err);
       setError(err.message || 'Could not expire item. Please try again.');
     } finally {
       setLoading(false);
@@ -370,7 +359,6 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
 
       handleClose();
     } catch (err) {
-      console.error('Error updating food item:', err);
       setError(err.message || 'Could not update item. Please try again.');
     } finally {
       setLoading(false);
@@ -396,7 +384,6 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
 
       handleClose();
     } catch (err) {
-      console.error('Error archiving food item:', err);
       setError(err.message || 'Could not archive item. Please try again.');
     } finally {
       setArchiveLoading(false);
