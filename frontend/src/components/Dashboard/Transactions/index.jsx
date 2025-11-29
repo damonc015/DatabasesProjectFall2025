@@ -10,32 +10,18 @@ import {
   Box,
 } from '@mui/material';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
-
-const capitalize = (str) => {
-  if (!str) return '';
-  return str.split(' ').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  ).join(' ');
-};
-
-const formatQuantityDisplay = (tx, showPackage) => {
-  if (showPackage && tx.FormattedPackages) {
-    return tx.FormattedPackages;
-  }
-  const qty = Number(tx.QtyInTotal);
-  return `${Number.isFinite(qty) ? Math.round(qty) : 0}${tx.BaseUnitAbbr || ''}`;
-};
+import { capitalizeWords, formatQuantityDisplay } from '../../../utils/formatters';
 
 const formatLocationName = (name) => {
   if (!name) {
     return 'Unknown location';
   }
-  return capitalize(name);
+  return capitalizeWords(name);
 };
 
 const renderTransactionText = (tx, showPackage) => {
   const quantityText = formatQuantityDisplay(tx, showPackage);
-  const foodName = capitalize(tx.FoodName);
+  const foodName = capitalizeWords(tx.FoodName);
 
   const isTransferOut = tx.TransactionType === 'transfer_out';
   const isTransferIn = tx.TransactionType === 'transfer_in';
@@ -43,7 +29,7 @@ const renderTransactionText = (tx, showPackage) => {
   if (isTransferOut || isTransferIn) {
     const source = isTransferOut ? tx.LocationName : tx.CounterLocationName;
     const destination = isTransferOut ? tx.CounterLocationName : tx.LocationName;
-    return `${tx.UserName} moved ${quantityText} of ${foodName} from ${formatLocationName(source)} to ${formatLocationName(destination)}`;
+    return `${tx.DisplayName} moved ${quantityText} of ${foodName} from ${formatLocationName(source)} to ${formatLocationName(destination)}`;
   }
 
   const verbMap = {
@@ -55,7 +41,7 @@ const renderTransactionText = (tx, showPackage) => {
 
   const verb = verbMap[tx.TransactionType] || `${tx.TransactionType}${tx.TransactionType?.endsWith('e') ? 'd' : 'ed'}`;
 
-  return `${tx.UserName} ${verb} ${quantityText} of ${foodName} at ${formatLocationName(tx.LocationName)}`;
+  return `${tx.DisplayName} ${verb} ${quantityText} of ${foodName} at ${formatLocationName(tx.LocationName)}`;
 };
 
 const Transactions = ({ showPackage }) => {

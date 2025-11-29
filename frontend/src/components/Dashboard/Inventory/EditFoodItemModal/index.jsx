@@ -9,127 +9,51 @@ import CloseIcon from '@mui/icons-material/Close';
 import TextField from '@mui/material/TextField';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { CATEGORY_EMOJI } from '../../../../utils/foodEmojis';
+import { dispatchTransactionCompleted } from '../../../../utils/transactionEvents';
 import { useFormData } from '../AddFoodItemModal/useFormData';
 import { LeftColumnFields, RightColumnFields } from '../AddFoodItemModal/FormFields';
 import { validateForm } from '../AddFoodItemModal/validation';
-import { updateFoodItem, createInventoryTransaction } from '../api';
-import { normalizeCategoryKey, packagesToBaseUnits } from '../utils';
-
-const formatQuantityValue = (value) => {
-  const parsed = parseFloat(value);
-  if (Number.isNaN(parsed)) {
-    return '0';
-  }
-  const rounded = Math.round(parsed * 100) / 100;
-  if (Number.isInteger(rounded)) {
-    return String(rounded);
-  }
-  return rounded.toFixed(2).replace(/\.?0+$/, '');
-};
-
-const parseNumberOr = (value, fallback = null) => {
-  const parsed = parseFloat(value);
-  return Number.isNaN(parsed) ? fallback : parsed;
-};
-
-const hasMeaningfulDelta = (value, epsilon = 0.0001) => Math.abs(value) >= epsilon;
+import { updateFoodItem, createInventoryTransaction, archiveFoodItem } from '../api';
+import { useFoodItemDetails, useInventoryAdjustment } from './hooks';
 
 const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
   const { householdId, user } = useCurrentUser();
   const userId = user?.id;
 
-  const [formData, setFormData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [stockSnapshot, setStockSnapshot] = useState({
-    baseUnits: 0,
-    packages: 0,
-    packageSize: 0,
-  });
+  const [archiveLoading, setArchiveLoading] = useState(false);
 
   const todayISO = useMemo(() => new Date().toISOString().split('T')[0], []);
 
   const { locations, baseUnits, packageLabels } = useFormData(open, householdId);
-
-  const categories = Object.keys(CATEGORY_EMOJI);
+  const categories = useMemo(() => Object.keys(CATEGORY_EMOJI), []);
+  const {
+    formData,
+    setFormData,
+    stockSnapshot,
+    latestExpiration,
+    setLatestExpiration,
+    originalLatestExpiration,
+    setOriginalLatestExpiration,
+    expirationLoading,
+    expirationError,
+    setExpirationError,
+    resetDetails,
+  } = useFoodItemDetails({ open, item, categories });
+  const {
+    desiredPackages,
+    effectivePackageSize,
+    desiredBaseUnits,
+    deltaBaseUnits,
+    currentBaseUnits,
+    targetLocationId,
+  } = useInventoryAdjustment({ formData, stockSnapshot, item });
 
   useEffect(() => {
-    if (!open || !item) return;
-
-    const currentBaseUnits = parseNumberOr(item.TotalQtyInBaseUnits, 0);
-    const fallbackPackageSize = parseNumberOr(item.QtyPerPackage, 0);
-
-    const loadDetails = async () => {
-      try {
-        const response = await fetch(`http://localhost:5001/api/food-items/${item.FoodItemID}`);
-        if (!response.ok) {
-          throw new Error('Failed to load item details');
-        }
-        const data = await response.json();
-
-        const packageBaseAmt = parseNumberOr(data.PackageBaseUnitAmt, fallbackPackageSize);
-        let targetLevelPackages = '';
-        if (data.TargetLevel != null && packageBaseAmt && packageBaseAmt !== 0) {
-          const baseUnits = parseFloat(data.TargetLevel);
-          if (!isNaN(baseUnits)) {
-            targetLevelPackages = (baseUnits / packageBaseAmt).toFixed(2);
-          }
-        }
-
-        const currentPackages =
-          packageBaseAmt && packageBaseAmt > 0
-            ? currentBaseUnits / packageBaseAmt
-            : currentBaseUnits;
-
-        setStockSnapshot({
-          baseUnits: currentBaseUnits,
-          packages: currentPackages,
-          packageSize: packageBaseAmt || 0,
-        });
-
-        setFormData({
-          food_name: data.Name || item.FoodName || '',
-          type: data.Type || item.Type || '',
-          category: normalizeCategoryKey(data.Category || item.Category || '', categories),
-          location_id: item.LocationID || '',
-          package_label: data.PackageLabel || item.PackageLabel || '',
-          package_base_unit_amt: packageBaseAmt ? String(packageBaseAmt) : '',
-          target_level: targetLevelPackages || '',
-          quantity: formatQuantityValue(currentPackages),
-          price_per_item: data.LatestPrice != null ? String(data.LatestPrice) : '',
-          store: data.LatestStore || ''
-        });
-      } catch (err) {
-        console.error('Error loading item details:', err);
-
-        const packageBaseAmt = fallbackPackageSize || 0;
-        const currentPackages =
-          packageBaseAmt > 0 ? currentBaseUnits / packageBaseAmt : currentBaseUnits;
-
-        setStockSnapshot({
-          baseUnits: currentBaseUnits,
-          packages: currentPackages,
-          packageSize: packageBaseAmt,
-        });
-
-        setFormData({
-          food_name: item.FoodName || '',
-          type: item.Type || '',
-          category: normalizeCategoryKey(item.Category || '', categories),
-          location_id: item.LocationID || '',
-          package_label: item.PackageLabel || '',
-          package_base_unit_amt: packageBaseAmt ? String(packageBaseAmt) : '',
-          target_level: '',
-          quantity: formatQuantityValue(currentPackages),
-          price_per_item: '',
-          store: ''
-        });
-      } finally {
-        setError('');
-      }
-    };
-
-    loadDetails();
+    if (open) {
+      setError('');
+    }
   }, [open, item]);
 
   const handleChange = (field) => (e) => {
@@ -141,33 +65,21 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
   };
 
   const handleClose = () => {
-    setFormData(null);
+    resetDetails();
     setError('');
-    setStockSnapshot({
-      baseUnits: 0,
-      packages: 0,
-      packageSize: 0,
-    });
+    setArchiveLoading(false);
     onClose();
   };
+
+  const isBusy = loading || archiveLoading;
 
   const handleExpireNow = async () => {
     if (!formData || !item) return;
 
-    if (!userId) {
-      setError('Missing user information. Please log in again to expire items.');
-      return;
-    }
 
-    const locationId = formData.location_id || item.LocationID;
-    if (!locationId) {
-      setError('Please select a location before expiring.');
-      return;
-    }
-
-    const quantityToExpire = parseNumberOr(stockSnapshot.baseUnits, 0);
-    if (!hasMeaningfulDelta(quantityToExpire)) {
-      setError('No remaining stock to expire.');
+    const quantityToExpire = currentBaseUnits;
+    if (!quantityToExpire) {
+      setError('No items to expire!');
       return;
     }
 
@@ -176,14 +88,11 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
     try {
       await createInventoryTransaction({
         food_item_id: item.FoodItemID,
-        location_id: locationId,
+        location_id: targetLocationId,
         user_id: userId,
         transaction_type: 'expire',
         quantity: quantityToExpire,
-        expiration_date: todayISO,
       });
-
-      window.dispatchEvent(new CustomEvent('transactionCompleted'));
 
       if (onItemUpdated) {
         onItemUpdated();
@@ -191,7 +100,6 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
 
       handleClose();
     } catch (err) {
-      console.error('Error expiring item:', err);
       setError(err.message || 'Could not expire item. Please try again.');
     } finally {
       setLoading(false);
@@ -216,31 +124,17 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
     }
 
     const originalLocationId = item.LocationID;
-    const targetLocationId = formData.location_id || originalLocationId;
 
     if (!targetLocationId) {
       setError('Please select a location before saving.');
       return;
     }
 
-    const desiredPackages = parseNumberOr(formData.quantity, null);
     if (desiredPackages === null) {
       setError('Please enter a valid quantity.');
       return;
     }
 
-    const effectivePackageSize =
-      parseNumberOr(formData.package_base_unit_amt, stockSnapshot.packageSize) ||
-      parseNumberOr(item.QtyPerPackage, 0) ||
-      0;
-
-    const desiredBaseUnits =
-      effectivePackageSize > 0
-        ? packagesToBaseUnits(desiredPackages, effectivePackageSize)
-        : desiredPackages;
-
-    const currentBaseUnits = parseNumberOr(stockSnapshot.baseUnits, 0) || 0;
-    const deltaBaseUnits = desiredBaseUnits - currentBaseUnits;
     const locationChanged =
       targetLocationId &&
       (originalLocationId == null ||
@@ -269,6 +163,27 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
 
       await updateFoodItem(item.FoodItemID, payload);
 
+      if (latestExpiration && latestExpiration !== originalLatestExpiration) {
+        try {
+          const expirationRes = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ expiration_date: latestExpiration }),
+          });
+          if (!expirationRes.ok) {
+            const payload = await expirationRes.json().catch(() => ({}));
+            throw new Error(payload?.error || 'Could not update expiration date.');
+          }
+          setOriginalLatestExpiration(latestExpiration);
+        } catch (expErr) {
+          setExpirationError(expErr.message || 'Could not update expiration date.');
+          setLoading(false);
+          return;
+        }
+      }
+
       if (locationChanged) {
         const qtyToMove = Math.max(currentBaseUnits, 0);
 
@@ -279,14 +194,14 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
             user_id: userId,
             transaction_type: 'transfer_out',
             quantity: qtyToMove,
-          });
+          }, { notify: false });
           await createInventoryTransaction({
             food_item_id: item.FoodItemID,
             location_id: targetLocationId,
             user_id: userId,
             transaction_type: 'transfer_in',
             quantity: qtyToMove,
-          });
+          }, { notify: false });
         } else {
           await createInventoryTransaction({
             food_item_id: item.FoodItemID,
@@ -294,25 +209,25 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
             user_id: userId,
             transaction_type: 'transfer_in',
             quantity: 0,
-          });
+          }, { notify: false });
         }
 
         emittedTransactionEvent = true;
       }
 
-      if (hasMeaningfulDelta(deltaBaseUnits)) {
+      if (deltaBaseUnits !== 0) {
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
           location_id: targetLocationId,
           user_id: userId,
           transaction_type: deltaBaseUnits > 0 ? 'add' : 'remove',
           quantity: Math.abs(deltaBaseUnits),
-        });
+        }, { notify: false });
         emittedTransactionEvent = true;
       }
 
       if (emittedTransactionEvent) {
-        window.dispatchEvent(new CustomEvent('transactionCompleted'));
+        dispatchTransactionCompleted();
       }
 
       if (onItemUpdated) {
@@ -321,10 +236,34 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
 
       handleClose();
     } catch (err) {
-      console.error('Error updating food item:', err);
       setError(err.message || 'Could not update item. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleArchiveItem = async () => {
+    if (!item) return;
+
+    const confirmed = window.confirm(
+      'Are you sure? It will disappear from your inventory but the history will remain.'
+    );
+    if (!confirmed) return;
+
+    setError('');
+    setArchiveLoading(true);
+    try {
+      await archiveFoodItem(item.FoodItemID);
+
+      if (onItemUpdated) {
+        onItemUpdated();
+      }
+
+      handleClose();
+    } catch (err) {
+      setError(err.message || 'Could not archive item. Please try again.');
+    } finally {
+      setArchiveLoading(false);
     }
   };
 
@@ -380,40 +319,32 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
                   categories={categories}
                   showExpiration={false}
                 />
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
-                    p: 2,
-                    borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: 'primary.light',
-                    backgroundColor: '#f8f1e5',
+                
+                <TextField
+                  label="Expiration Date"
+                  type="date"
+                  value={latestExpiration || ''}
+                  onChange={(e) => {
+                    setLatestExpiration(e.target.value);
+                    setExpirationError('');
                   }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 1 }}>
-                      Total Quantity (pkg)
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Reconcile
-                    </Typography>
-                  </Box>
-                  <TextField
-                    type="number"
-                    value={formData.quantity}
-                    onChange={handleChange('quantity')}
-                    fullWidth
-                    inputProps={{ min: '0', step: '0.01' }}
-                    sx={{
-                      '& .MuiInputBase-root': { fontSize: '1.25rem', fontWeight: 'bold' },
-                    }}
-                  />
-                  <Typography variant="caption" color="text.secondary">
-                    Enter the current total. The system will reconcile the difference.
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  disabled={expirationLoading}
+                />
+                {expirationError && (
+                  <Typography variant="caption" color="error">
+                    {expirationError}
                   </Typography>
-                </Box>
+                )}
+                <TextField
+                  label="Reconile Total Quantity (pkg)"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={handleChange('quantity')}
+                  fullWidth
+                  inputProps={{ min: '0', step: '0.01' }}
+                />
               </Box>
             </Grid>
 
@@ -430,34 +361,13 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
                     hideField: true,
                   }}
                 />
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
-                    p: 2,
-                    borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: 'primary.light',
-                    backgroundColor: '#f8f1e5',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 1 }}>
-                      Expire Item
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Expire remaining stock
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Marks all remaining stock as expired with date {todayISO}.
-                  </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   <Button
                     variant="outlined"
                     color="primary"
                     onClick={handleExpireNow}
-                    disabled={loading}
+                    disabled={isBusy}
+                    sx={{ alignSelf: 'flex-start', mt: 1 }}
                   >
                     Expire Remaining Stock
                   </Button>
@@ -470,11 +380,23 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
             <Button 
               type="submit" 
               variant="contained" 
-              disabled={loading}
+              disabled={isBusy}
               fullWidth
             >
               {loading ? 'Saving...' : 'Save Changes'}
             </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={handleArchiveItem}
+              disabled={isBusy}
+              fullWidth
+            >
+              {archiveLoading ? 'Archiving...' : 'Archive Item'}
+            </Button>
+            <Typography variant="caption" color="text.secondary" textAlign="center">
+              Archiving hides the item and all packages but keeps your history intact.
+            </Typography>
           </Box>
         </Box>
       </Box>

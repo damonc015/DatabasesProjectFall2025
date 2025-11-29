@@ -7,7 +7,13 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { CATEGORY_EMOJI } from '../../../../utils/foodEmojis';
 
-export const LeftColumnFields = ({ formData, handleChange, locations, categories, showExpiration = true }) => (
+export const LeftColumnFields = ({
+  formData,
+  handleChange,
+  locations,
+  categories,
+  showExpiration = true,
+}) => (
   <>
     <TextField
       required
@@ -32,41 +38,41 @@ export const LeftColumnFields = ({ formData, handleChange, locations, categories
       </Select>
     </FormControl>
 
-    <TextField
-      required
-      label="Stock Threshold:"
-      type="number"
-      value={formData.target_level}
-      onChange={handleChange('target_level')}
-      fullWidth
-      inputProps={{ min: '1', step: '1' }}
-    />
-
-    {showExpiration && (
       <TextField
-        label="Expiration Date:"
-        type="date"
-        value={formData.expiration_date}
-        onChange={handleChange('expiration_date')}
+        required
+        label="Stock Threshold:"
+        type="number"
+        value={formData.target_level}
+        onChange={handleChange('target_level')}
         fullWidth
-        InputLabelProps={{ shrink: true }}
+        inputProps={{ min: '1', step: '1' }}
       />
-    )}
 
-    <FormControl fullWidth required>
-      <InputLabel>Category:</InputLabel>
-      <Select
-        value={formData.category}
-        onChange={handleChange('category')}
-        label="Category:"
-      >
-        {categories.map((cat) => (
-          <MenuItem key={cat} value={cat}>
-            {CATEGORY_EMOJI[cat]} {cat}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+      {showExpiration && (
+        <TextField
+          label="Expiration Date:"
+          type="date"
+          value={formData.expiration_date}
+          onChange={handleChange('expiration_date')}
+          fullWidth
+          InputLabelProps={{ shrink: true }}
+        />
+      )}
+
+      <FormControl fullWidth required>
+        <InputLabel>Category:</InputLabel>
+        <Select
+          value={formData.category}
+          onChange={handleChange('category')}
+          label="Category:"
+        >
+          {categories.map((cat) => (
+            <MenuItem key={cat} value={cat}>
+              {CATEGORY_EMOJI[cat]} {cat}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
   </>
 );
 
@@ -187,7 +193,7 @@ export const RightColumnFields = ({
     </Box>
 
     <TextField
-      label="Price Per Package:"
+      label="Price Per Package"
       type="number"
       value={formData.price_per_item}
       onChange={handleChange('price_per_item')}
@@ -195,7 +201,7 @@ export const RightColumnFields = ({
       inputProps={{ step: '0.01', min: '0' }}
     />
     <TextField
-      label="Store:"
+      label="Store Name"
       value={formData.store}
       onChange={handleChange('store')}
       fullWidth

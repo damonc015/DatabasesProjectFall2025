@@ -9,6 +9,7 @@ import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
+import { dispatchTransactionCompleted } from '../../../../utils/transactionEvents';
 import { createInventoryTransaction, updateFoodItem } from '../api';
 import { packagesToBaseUnits } from '../utils';
 
@@ -25,19 +26,40 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
     locationId: '',
   });
   const [loading, setLoading] = useState(false);
+  const [lockedExpiration, setLockedExpiration] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!open || !item) return;
-    setForm({
-      transactionType: 'add',
-      quantityPackages: 1,
-      pricePerItem: '',
-      store: '',
-      expirationDate: '',
-      locationId: item?.LocationID || '',
-    });
-    setError('');
+    const loadDefaultExpiration = async () => {
+      try {
+        const res = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.expiration_date) {
+            return { value: data.expiration_date, locked: true };
+          }
+        }
+      } catch (err) {
+      }
+      const date = new Date();
+      date.setDate(date.getDate() + 14);
+      return { value: date.toISOString().split('T')[0], locked: false };
+    };
+
+    (async () => {
+      const { value: defaultExpiration, locked } = await loadDefaultExpiration();
+      setForm({
+        transactionType: 'add',
+        quantityPackages: 1,
+        pricePerItem: '',
+        store: '',
+        expirationDate: defaultExpiration,
+        locationId: item?.LocationID || '',
+      });
+      setLockedExpiration(locked ? defaultExpiration : '');
+      setError('');
+    })();
   }, [open, item]);
 
   if (!open || !item) return null;
@@ -59,10 +81,16 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
     e.preventDefault();
     if (!item || !userId) return;
 
+    if (allowExpiration && lockedExpiration && form.expirationDate !== lockedExpiration) {
+      setError('Expiration date is locked to the latest batch for this item.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
+      let manualNotify = false;
       const destinationLocationId = form.locationId || item.LocationID;
       if (!destinationLocationId) {
         setError('Please choose a location.');
@@ -102,11 +130,6 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
 
       if (isTransfer) {
         const sourceLocationId = item.LocationID;
-        if (!sourceLocationId) {
-          setError('Cannot transfer: original location is unknown.');
-          setLoading(false);
-          return;
-        }
 
         if (String(sourceLocationId) === String(destinationLocationId)) {
           setError('Please choose a different destination location for transfers.');
@@ -114,13 +137,14 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
           return;
         }
 
+        manualNotify = true;
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
           location_id: sourceLocationId,
           user_id: userId,
           transaction_type: 'transfer_out',
           quantity: quantityBaseUnits,
-        });
+        }, { notify: false });
 
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
@@ -128,7 +152,7 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
           user_id: userId,
           transaction_type: 'transfer_in',
           quantity: quantityBaseUnits,
-        });
+        }, { notify: false });
       } else {
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
@@ -140,7 +164,9 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
         });
       }
 
-      window.dispatchEvent(new CustomEvent('transactionCompleted'));
+      if (manualNotify) {
+        dispatchTransactionCompleted();
+      }
 
       if (onRestocked) {
         onRestocked();
@@ -224,7 +250,6 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
                 onChange={handleChange('quantityPackages')}
                 fullWidth
                 inputProps={{ min: '0', step: '1' }}
-                helperText={`Each package = ${item.QtyPerPackage}${item.BaseUnitAbbr || ''}`}
               />
             </Grid>
 
@@ -235,7 +260,6 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
                 value={form.locationId}
                 onChange={handleChange('locationId')}
                 fullWidth
-                helperText="Choose the location this transaction applies to"
               >
                 {locations.map((loc) => (
                   <MenuItem key={loc.LocationID} value={loc.LocationID}>
@@ -254,6 +278,12 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
                   onChange={handleChange('expirationDate')}
                   fullWidth
                   InputLabelProps={{ shrink: true }}
+                  disabled={Boolean(lockedExpiration)}
+                  helperText={
+                    lockedExpiration
+                      ? 'Expiration date matches latest batch.'
+                      : 'Specify an expiration date for this stock.'
+                  }
                 />
               </Grid>
             )}
@@ -272,7 +302,7 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
 
             <Grid item xs={12} sm={6}>
               <TextField
-                label="Store"
+                label="Store Name"
                 value={form.store}
                 onChange={handleChange('store')}
                 fullWidth

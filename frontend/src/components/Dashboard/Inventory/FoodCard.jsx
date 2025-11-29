@@ -10,16 +10,32 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import EditIcon from '@mui/icons-material/Edit';
 import { FoodIcon } from '../../../utils/foodEmojis';
-
-const capitalize = (str) => {
-  if (!str) return '';
-  return str.split(' ').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  ).join(' ');
-};
+import { capitalizeWords } from '../../../utils/formatters';
+import { createInventoryTransaction } from './api';
 
 const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete, onEdit, onRestock }) => {
   const [isLoading, setIsLoading] = useState(false);
+
+  const fetchLatestExpiration = async () => {
+    try {
+      const res = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`);
+      if (!res.ok) {
+        await res.json().catch(() => ({}));
+        return null;
+      }
+      const data = await res.json();
+      return data?.expiration_date || null;
+    } catch (err) {
+      console.error('Quick add expiration fetch error:', err);
+      return null;
+    }
+  };
+
+  const getDefaultExpiration = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 14);
+    return date.toISOString().split('T')[0];
+  };
 
   const handleTransaction = async (transactionType) => {
     if (!userId) {
@@ -41,30 +57,24 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
       : 1;
 
     try {
-      const response = await fetch('http://localhost:5001/api/transactions/inventory/transaction', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          food_item_id: item.FoodItemID,
-          location_id: locationId,
-          user_id: userId,
-          transaction_type: transactionType,
-          quantity: quantity,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        console.error('API Error:', error);
-        throw new Error(error.error || 'Failed to create transaction');
+      let expirationDate;
+      if (transactionType === 'add') {
+        expirationDate = await fetchLatestExpiration();
+        if (!expirationDate) {
+          expirationDate = getDefaultExpiration();
+        }
       }
 
-      const result = await response.json();
-      console.log('Transaction created:', result);
+      const payload = {
+        food_item_id: item.FoodItemID,
+        location_id: locationId,
+        user_id: userId,
+        transaction_type: transactionType,
+        quantity,
+        ...(transactionType === 'add' && expirationDate ? { expiration_date: expirationDate } : {})
+      };
 
-      window.dispatchEvent(new CustomEvent('transactionCompleted'));
+      await createInventoryTransaction(payload);
 
       if (onTransactionComplete) {
         setTimeout(() => {
@@ -72,7 +82,6 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
         }, 0);
       }
     } catch (error) {
-      console.error('Error creating transaction:', error);
       alert(`Error: ${error.message}`);
     } finally {
       setIsLoading(false);
@@ -143,7 +152,7 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
         )}
         <FoodIcon category={item.Category} />
         <Typography variant='h6' sx={{ mb: 1, mt: 1, fontWeight: 'bold' }}>
-          {capitalize(item.FoodName)}
+          {capitalizeWords(item.FoodName)}
         </Typography>
         <Typography variant='body1' sx={{ mb: 2, color: 'text.secondary' }}>
           {showPackage ? item.FormattedPackages : item.FormattedBaseUnits}

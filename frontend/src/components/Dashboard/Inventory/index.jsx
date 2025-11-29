@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
@@ -6,27 +6,41 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
+import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
+import { useLocations } from '../../../hooks/useLocations';
+import { useInventoryData } from '../../../hooks/useInventoryData';
 import FoodCard from './FoodCard';
 import AddItemCard from './AddItemCard';
 import AddFoodItemModal from './AddFoodItemModal/index.jsx';
 import EditFoodItemModal from './EditFoodItemModal/index.jsx';
 import RestockModal from './RestockModal/index.jsx';
+import LocationModal from '../LocationModal';
+import Filter from '../Filter';
 
-const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory }) => {
-  const [inventory, setInventory] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
+const Inventory = ({
+  showPackage,
+  setShowPackage,
+  searchQuery,
+  selectedCategory,
+  setSelectedCategory
+}) => {
   const [locationFilter, setLocationFilter] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [restockModalOpen, setRestockModalOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [restockItem, setRestockItem] = useState(null);
+  const [modals, setModals] = useState({
+    addItemOpen: false,
+    edit: { open: false, item: null },
+    restock: { open: false, item: null },
+    location: { open: false, mode: 'add', target: null }
+  });
+  const { addItemOpen, edit, restock, location: locationModal } = modals;
   
   const { householdId, user } = useCurrentUser();
-  
   const userId = user?.id;
+  const { locations, refreshLocations } = useLocations(householdId);
+  const { inventory, refreshInventory } = useInventoryData(householdId, locationFilter, searchQuery);
 
   const filteredInventory = inventory.filter(item => {
     if (selectedCategory.length === 0) return true;
@@ -51,49 +65,41 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
     return 0;
   });
 
-  useEffect(() => {
-    if (!householdId) return;
+  const selectedLocation = locations.find(
+    (loc) => String(loc.LocationID) === String(locationFilter)
+  );
 
-    fetch(`http://localhost:5001/api/households/${householdId}/locations`)
-      .then(res => res.json())
-      .then(data => {
-        setLocations(data);
-      })
-      .catch(error => {
-        console.error('Error fetching locations:', error);
-      });
-  }, [householdId]);
+  const openAddLocationModal = () => {
+    setModals((prev) => ({
+      ...prev,
+      location: { open: true, mode: 'add', target: null }
+    }));
+  };
 
-  const fetchInventory = useCallback(() => {
-    if (!householdId) {
-      setLoading(false);
-      return;
-    }
+  const handleRenameLocationClick = () => {
+    if (!selectedLocation) return;
+    setModals((prev) => ({
+      ...prev,
+      location: { open: true, mode: 'rename', target: selectedLocation }
+    }));
+  };
 
-    setLoading(true);
-    const baseUrl = locationFilter === null
-      ? `http://localhost:5001/api/transactions/inventory/${householdId}`
-      : `http://localhost:5001/api/transactions/inventory/${householdId}/location/${locationFilter}`;
-    
-    const url = searchQuery && searchQuery.trim() !== ''
-      ? `${baseUrl}?search=${encodeURIComponent(searchQuery.trim())}`
-      : baseUrl;
+  const closeLocationModal = () => {
+    setModals((prev) => ({
+      ...prev,
+      location: { ...prev.location, open: false, target: null }
+    }));
+  };
 
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        setInventory(data);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching inventory:', error);
-        setLoading(false);
-      });
-  }, [householdId, locationFilter, searchQuery]);
+  const handleLocationSaved = async (savedLocation) => {
+    await refreshLocations();
+    setLocationFilter(savedLocation?.LocationID ?? locationFilter);
+    setModals((prev) => ({
+      ...prev,
+      location: { open: false, mode: 'add', target: null }
+    }));
+  };
 
-  useEffect(() => {
-    fetchInventory();
-  }, [fetchInventory]);
   const noItemsMessage = (() => {
     if (inventory.length === 0) {
       return searchQuery?.trim() ? 'No items match your search.' : 'No items in inventory.';
@@ -104,7 +110,6 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant='h6'>Inventory</Typography>
       </Box>
       <Box
         sx={{
@@ -115,16 +120,37 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           mb: 2
         }}
       >
-        <Box sx={{ flexGrow: 1, borderBottom: 1, borderColor: 'divider', minWidth: 0 }}>
+        <Box sx={{ flexGrow: 1, borderBottom: 1, borderColor: 'divider', minWidth: 0, display: 'flex', alignItems: 'center' }}>
           <Tabs
             value={locationFilter ?? 'All'}
             onChange={(e, newValue) => setLocationFilter(newValue === 'All' ? null : newValue)}
+            sx={{ flexGrow: 1, minHeight: '48px' }}
           >
             <Tab label="All" value="All" />
             {locations.map((location) => (
               <Tab key={location.LocationID} label={location.LocationName} value={location.LocationID} />
             ))}
           </Tabs>
+          <IconButton
+            color="primary"
+            size="small"
+            onClick={openAddLocationModal}
+            sx={{ ml: 1, border: 1, borderColor: 'divider' }}
+            aria-label="Add location"
+          >
+            <AddIcon fontSize="small" />
+          </IconButton>
+          {selectedLocation && (
+            <IconButton
+              color="primary"
+              size="small"
+              onClick={handleRenameLocationClick}
+              sx={{ ml: 1, border: 1, borderColor: 'divider' }}
+              aria-label="Rename location"
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          )}
         </Box>
         <FormControlLabel
           sx={{ ml: { xs: 0, sm: 'auto' }, mt: { xs: 1, sm: 0 } }}
@@ -137,6 +163,10 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           label={<Typography variant="caption">Show in Package</Typography>}
         />
       </Box>
+      <Filter
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+      />
 
       <Box
         sx={{
@@ -167,7 +197,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
               }
             }}
           >
-            <AddItemCard onClick={() => setModalOpen(true)} />
+            <AddItemCard onClick={() => setModals((prev) => ({ ...prev, addItemOpen: true }))} />
           </Grid>
           {sortedInventory.length === 0 ? (
             <Grid item xs={12}>
@@ -194,19 +224,23 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
                   }
                 }}
               >
-                <FoodCard 
-                  item={item} 
+                <FoodCard
+                  item={item}
                   showPackage={showPackage}
                   userId={userId}
                   locationId={item.LocationID}
-                  onTransactionComplete={fetchInventory}
+                  onTransactionComplete={refreshInventory}
                   onEdit={(itm) => {
-                    setSelectedItem(itm);
-                    setEditModalOpen(true);
+                    setModals((prev) => ({
+                      ...prev,
+                      edit: { open: true, item: itm }
+                    }));
                   }}
                   onRestock={(itm) => {
-                    setRestockItem(itm);
-                    setRestockModalOpen(true);
+                    setModals((prev) => ({
+                      ...prev,
+                      restock: { open: true, item: itm }
+                    }));
                   }}
                 />
               </Grid>
@@ -215,28 +249,40 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
         </Grid>
       </Box>
       <AddFoodItemModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onItemAdded={fetchInventory}
+        open={addItemOpen}
+        onClose={() => setModals((prev) => ({ ...prev, addItemOpen: false }))}
+        onItemAdded={refreshInventory}
       />
       <EditFoodItemModal
-        open={editModalOpen}
+        open={edit.open}
         onClose={() => {
-          setEditModalOpen(false);
-          setSelectedItem(null);
+          setModals((prev) => ({
+            ...prev,
+            edit: { open: false, item: null }
+          }));
         }}
-        item={selectedItem}
-        onItemUpdated={fetchInventory}
+        item={edit.item}
+        onItemUpdated={refreshInventory}
       />
       <RestockModal
-        open={restockModalOpen}
+        open={restock.open}
         onClose={() => {
-          setRestockModalOpen(false);
-          setRestockItem(null);
+          setModals((prev) => ({
+            ...prev,
+            restock: { open: false, item: null }
+          }));
         }}
-        item={restockItem}
+        item={restock.item}
         locations={locations}
-        onRestocked={fetchInventory}
+        onRestocked={refreshInventory}
+      />
+      <LocationModal
+        open={locationModal.open}
+        mode={locationModal.mode}
+        householdId={householdId}
+        targetLocation={locationModal.target}
+        onClose={closeLocationModal}
+        onSuccess={handleLocationSaved}
       />
     </Box>
   );

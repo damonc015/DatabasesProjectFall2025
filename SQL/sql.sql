@@ -47,9 +47,11 @@ BEGIN
     FROM FoodItem f
     JOIN Package p 
         ON f.PreferredPackageID = p.PackageID
+        AND (p.IsArchived = 0 OR p.IsArchived IS NULL)
     JOIN BaseUnit bu 
         ON f.BaseUnitID = bu.UnitID
     WHERE f.HouseholdID = p_HouseholdID
+      AND f.IsArchived = 0
       AND (p_SearchQuery IS NULL OR p_SearchQuery = '' OR LOWER(f.Name) LIKE CONCAT('%', LOWER(p_SearchQuery), '%'))
     ORDER BY f.FoodItemID DESC;
 END;
@@ -94,13 +96,16 @@ BEGIN
         p_LocationID AS LocationID
     FROM FoodItem f
     JOIN Package p ON f.PreferredPackageID = p.PackageID
+        AND (p.IsArchived = 0 OR p.IsArchived IS NULL)
     JOIN BaseUnit bu ON f.BaseUnitID = bu.UnitID
     JOIN InventoryTransaction i ON f.FoodItemID = i.FoodItemID
     JOIN Location l ON i.LocationID = l.LocationID
     WHERE f.HouseholdID = p_HouseholdID
+      AND f.IsArchived = 0
       AND l.LocationID = p_LocationID
       AND (p_SearchQuery IS NULL OR p_SearchQuery = '' OR LOWER(f.Name) LIKE CONCAT('%', LOWER(p_SearchQuery), '%'))
     GROUP BY f.FoodItemID, f.Name, f.Type, f.Category, p.Label, p.BaseUnitAmt, bu.Abbreviation
+    HAVING TotalQtyInBaseUnits > 0
     ORDER BY f.FoodItemID DESC;
 END;
 DROP PROCEDURE IF EXISTS AddRemoveExistingFoodItem;

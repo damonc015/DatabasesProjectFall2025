@@ -17,6 +17,8 @@ export default function Settings() {
   const [householdName, setHouseholdName] = useState("");
 
   const [members, setMembers] = useState([]);
+  const [confirmUsername, setConfirmUsername] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const [currentTab, setCurrentTab] = useState(0);
 
@@ -140,6 +142,46 @@ export default function Settings() {
     window.location.reload();
   }
 
+  async function handleDeleteAccount() {
+    if (!user?.id) return;
+
+    if (confirmUsername.trim() !== user?.username) {
+      return alert("Type your username to confirm deletion.");
+    }
+
+    const confirmed = window.confirm(
+      "Are you sure? This will permanently delete your account."
+    );
+
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(
+        `http://localhost:5001/api/auth/account/${user.id}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ confirm_username: confirmUsername.trim() }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) {
+        return alert(data.error || "Failed to delete account");
+      }
+
+      localStorage.removeItem("user");
+      alert("Account deleted!");
+      navigate({ to: "/login" });
+    } catch (error) {
+      alert("Network error");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
 
   return (
     <div style={{
@@ -208,6 +250,40 @@ export default function Settings() {
               />
               <Button className='button' variant="contained" style={{ marginTop: "10px" }} onClick={handleUpdatePassword}>
                 Update
+              </Button>
+            </div>
+
+            <div
+              style={{
+                marginBottom: "30px",
+                border: "1px solid #f44336",
+                borderRadius: "8px",
+                padding: "20px",
+                backgroundColor: "#fff5f5",
+              }}
+            >
+              <h3 style={{ color: "#d32f2f" }}>Delete Account Permanently</h3>
+              <p style={{ color: "#555" }}>
+                Account deletion is permanent and cannot be undone.
+              </p>
+              <TextField
+                fullWidth
+                label="Type your username to confirm"
+                value={confirmUsername}
+                onChange={(e) => setConfirmUsername(e.target.value)}
+                sx={{ marginTop: "10px" }}
+              />
+              <Button
+                className='button'
+                variant="contained"
+                color="error"
+                style={{ marginTop: "10px" }}
+                disabled={
+                  confirmUsername.trim() !== (user?.username || "") || isDeleting
+                }
+                onClick={handleDeleteAccount}
+              >
+                {isDeleting ? "Deleting..." : "Delete Account"}
               </Button>
             </div>
           </Box>

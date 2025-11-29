@@ -28,7 +28,7 @@ def db_get_transactions_paged(household_id):
         query = """
             SELECT 
                 fi.Name AS FoodName,
-                u.DisplayName AS UserName,
+                u.DisplayName AS DisplayName,
                 tx.QtyInBaseUnits AS QtyInTotal,
                 p.BaseUnitAmt AS QtyPerPackage,
                 tx.TransactionType,
@@ -100,41 +100,88 @@ def db_get_expiring_transactions(household_id):
 
     with db_cursor() as cursor:
         # Get total count
-        count_query = """
+        count_query = f"""
+            WITH LatestExpiring AS (
+                SELECT 
+                    tx.FoodItemID,
+                    MAX(tx.ExpirationDate) AS LatestExpiration
+                FROM InventoryTransaction tx
+                INNER JOIN Location l ON tx.LocationID = l.LocationID
+                WHERE 
+                    l.HouseholdID = %s
+                    AND tx.TransactionType IN ('add', 'purchase', 'transfer_in')
+                    AND tx.ExpirationDate IS NOT NULL
+                GROUP BY tx.FoodItemID
+            )
             SELECT COUNT(*) as total
-            FROM InventoryTransaction tx
-            INNER JOIN Users u ON tx.UserID = u.UserID
+            FROM LatestExpiring le
+            INNER JOIN InventoryTransaction tx 
+                ON tx.FoodItemID = le.FoodItemID 
+                AND tx.ExpirationDate = le.LatestExpiration
+            INNER JOIN FoodItem fi ON tx.FoodItemID = fi.FoodItemID
+            INNER JOIN Location l ON tx.LocationID = l.LocationID
             WHERE 
-                u.HouseholdID = %s AND 
+                l.HouseholdID = %s AND
+                getCurrentStock(fi.FoodItemID) > 0 AND
                 DATE(tx.ExpirationDate) > CURDATE() AND 
                 DATE(tx.ExpirationDate) <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)
         """
-        cursor.execute(count_query, (household_id,))
+        cursor.execute(count_query, (household_id, household_id))
         total = cursor.fetchone()['total']
 
         # Get paged data
-        query = """
+        query = f"""
+            WITH LatestExpiring AS (
+                SELECT 
+                    tx.FoodItemID,
+                    MAX(tx.ExpirationDate) AS LatestExpiration
+                FROM InventoryTransaction tx
+                INNER JOIN Location l ON tx.LocationID = l.LocationID
+                WHERE 
+                    l.HouseholdID = %s
+                    AND tx.TransactionType IN ('add', 'purchase', 'transfer_in')
+                    AND tx.ExpirationDate IS NOT NULL
+                GROUP BY tx.FoodItemID
+            )
             SELECT 
                 fi.Name AS FoodName,
-                tx.QtyInBaseUnits AS QtyInTotal,
+                LEAST(SUM(tx.QtyInBaseUnits), MAX(getCurrentStock(fi.FoodItemID))) AS QtyInTotal,
                 p.BaseUnitAmt AS QtyPerPackage,
                 tx.ExpirationDate,
                 l.LocationName,
                 bu.Abbreviation AS BaseUnitAbbr,
-                p.Label AS PackageLabel 
-            FROM InventoryTransaction tx
+                p.Label AS PackageLabel,
+                MAX(getCurrentStock(fi.FoodItemID)) AS CurrentStock
+            FROM LatestExpiring le
+            INNER JOIN InventoryTransaction tx 
+                ON tx.FoodItemID = le.FoodItemID 
+                AND (
+                    tx.ExpirationDate = le.LatestExpiration
+                    OR (tx.ExpirationDate IS NULL AND le.LatestExpiration IS NOT NULL)
+                )
+                AND tx.TransactionType IN ('add', 'purchase', 'transfer_in')
             INNER JOIN FoodItem fi ON tx.FoodItemID = fi.FoodItemID
             INNER JOIN Location l ON tx.LocationID = l.LocationID
             INNER JOIN BaseUnit bu ON fi.BaseUnitID = bu.UnitID
             INNER JOIN Package p ON fi.PreferredPackageID = p.PackageID
             WHERE 
-                l.HouseholdID = %s AND 
-                DATE(tx.ExpirationDate) > CURDATE() AND 
-                DATE(tx.ExpirationDate) <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+                l.HouseholdID = %s
+                AND getCurrentStock(fi.FoodItemID) > 0
+                AND DATE(tx.ExpirationDate) > CURDATE()
+                AND DATE(tx.ExpirationDate) <= DATE_ADD(CURDATE(), INTERVAL 13 DAY)
+            GROUP BY 
+                fi.Name,
+                tx.ExpirationDate,
+                l.LocationName,
+                bu.Abbreviation,
+                p.Label,
+                p.BaseUnitAmt,
+                fi.FoodItemID
+            HAVING QtyInTotal > 0
             ORDER BY tx.ExpirationDate
             LIMIT %s OFFSET %s
         """
-        cursor.execute(query, (household_id, limit, offset))
+        cursor.execute(query, (household_id, household_id, limit, offset))
         results = cursor.fetchall()
 
         # set New York Time Zone
@@ -247,6 +294,8 @@ def create_inventory_transaction():
     transaction_type = data['transaction_type']
     quantity = float(data['quantity'])
     expiration_date = data.get('expiration_date')
+    if transaction_type not in ('add', 'purchase', 'transfer_in'):
+        expiration_date = None
     
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
@@ -261,6 +310,7 @@ def create_inventory_transaction():
             expiration_date
         ))
         cursor.fetchall() 
+
         conn.commit()
         
         return jsonify({
@@ -269,6 +319,86 @@ def create_inventory_transaction():
             'transaction_type': transaction_type,
             'quantity': quantity
         }), 201
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@document_api_route(bp, 'get', '/food-item/<int:food_item_id>/latest-expiration', 'Get latest upcoming expiration', 'Returns the latest non-expired expiration date for a food item')
+@handle_db_error
+def get_latest_expiration(food_item_id):
+    with db_cursor() as cursor:
+        cursor.execute("""
+            SELECT ExpirationDate
+            FROM InventoryTransaction
+            WHERE FoodItemID = %s
+              AND ExpirationDate IS NOT NULL
+              AND DATE(ExpirationDate) > CURDATE()
+            ORDER BY ExpirationDate ASC, CreatedAt ASC
+            LIMIT 1
+        """, (food_item_id,))
+        row = cursor.fetchone()
+        latest = row.get('ExpirationDate') if row else None
+
+        if latest and isinstance(latest, datetime):
+            latest = latest.date()
+
+        return jsonify({
+            'expiration_date': latest.isoformat() if latest else None
+        }), 200
+
+
+@document_api_route(bp, 'put', '/food-item/<int:food_item_id>/latest-expiration', 'Update latest upcoming expiration', 'Updates the most recent non-expired expiration date for a food item')
+@handle_db_error
+def update_latest_expiration(food_item_id):
+    data = request.get_json() or {}
+    new_expiration = data.get('expiration_date')
+
+    if not new_expiration:
+        return jsonify({'error': 'expiration_date is required'}), 400
+
+    try:
+        new_expiration_date = datetime.strptime(new_expiration, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'expiration_date must be in YYYY-MM-DD format'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT ExpirationDate
+            FROM InventoryTransaction
+            WHERE FoodItemID = %s
+              AND ExpirationDate IS NOT NULL
+              AND DATE(ExpirationDate) > CURDATE()
+            ORDER BY ExpirationDate ASC, CreatedAt ASC
+            LIMIT 1
+        """, (food_item_id,))
+        row = cursor.fetchone()
+        latest_expiration = row.get('ExpirationDate') if row else None
+
+        if not latest_expiration:
+            cursor.execute("""
+                UPDATE InventoryTransaction
+                SET ExpirationDate = %s
+                WHERE FoodItemID = %s
+                  AND ExpirationDate IS NULL
+            """, (new_expiration_date, food_item_id))
+        else:
+            cursor.execute("""
+                UPDATE InventoryTransaction
+                SET ExpirationDate = %s
+                WHERE FoodItemID = %s
+                  AND ExpirationDate = %s
+            """, (new_expiration_date, food_item_id, latest_expiration))
+        conn.commit()
+
+        return jsonify({
+            'message': 'Expiration dates updated',
+            'previous_expiration_date': latest_expiration.isoformat() if latest_expiration and hasattr(latest_expiration, 'isoformat') else str(latest_expiration) if latest_expiration else None,
+            'expiration_date': new_expiration_date.isoformat()
+        }), 200
     finally:
         cursor.close()
         conn.close()

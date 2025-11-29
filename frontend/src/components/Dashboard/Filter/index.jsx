@@ -1,6 +1,7 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
+import Typography from '@mui/material/Typography';
 import { CATEGORY_EMOJI } from '../../../utils/foodEmojis';
 
 const Filter = ({ selectedCategory, setSelectedCategory }) => {
@@ -15,17 +16,29 @@ const Filter = ({ selectedCategory, setSelectedCategory }) => {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2, p: 1, justifyContent: 'center' }}>
-      {categories.map((category) => (
-        <Chip
-          key={category}
-          label={`${CATEGORY_EMOJI[category]} ${category}`}
-          onClick={() => handleClick(category)}
-          color={selectedCategory.includes(category) ? 'primary' : 'default'}
-          variant={selectedCategory.includes(category) ? 'filled' : 'outlined'}
-          clickable
-        />
-      ))}
+    <Box sx={{ width: '100%', mb: 2, display: 'flex', justifyContent: 'center' }}>
+      <Box
+        className='categoryFilterContainer'
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          gap: 1, 
+          width: '100%',
+        }}
+      >
+        {categories.map((category) => (
+          <Chip
+            key={category}
+            label={`${CATEGORY_EMOJI[category]} ${category}`}
+            onClick={() => handleClick(category)}
+            color={selectedCategory.includes(category) ? 'primary' : 'default'}
+            variant={selectedCategory.includes(category) ? 'filled' : 'outlined'}
+            size='small'
+            clickable
+          />
+        ))}
+      </Box>
     </Box>
   );
 };
