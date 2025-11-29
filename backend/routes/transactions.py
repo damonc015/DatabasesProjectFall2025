@@ -28,7 +28,7 @@ def db_get_transactions_paged(household_id):
         query = """
             SELECT 
                 fi.Name AS FoodName,
-                u.DisplayName AS UserName,
+                u.DisplayName AS DisplayName,
                 tx.QtyInBaseUnits AS QtyInTotal,
                 p.BaseUnitAmt AS QtyPerPackage,
                 tx.TransactionType,

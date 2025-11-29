@@ -43,7 +43,7 @@ const renderTransactionText = (tx, showPackage) => {
   if (isTransferOut || isTransferIn) {
     const source = isTransferOut ? tx.LocationName : tx.CounterLocationName;
     const destination = isTransferOut ? tx.CounterLocationName : tx.LocationName;
-    return `${tx.UserName} moved ${quantityText} of ${foodName} from ${formatLocationName(source)} to ${formatLocationName(destination)}`;
+    return `${tx.DisplayName} moved ${quantityText} of ${foodName} from ${formatLocationName(source)} to ${formatLocationName(destination)}`;
   }
 
   const verbMap = {
@@ -55,7 +55,7 @@ const renderTransactionText = (tx, showPackage) => {
 
   const verb = verbMap[tx.TransactionType] || `${tx.TransactionType}${tx.TransactionType?.endsWith('e') ? 'd' : 'ed'}`;
 
-  return `${tx.UserName} ${verb} ${quantityText} of ${foodName} at ${formatLocationName(tx.LocationName)}`;
+  return `${tx.DisplayName} ${verb} ${quantityText} of ${foodName} at ${formatLocationName(tx.LocationName)}`;
 };
 
 const Transactions = ({ showPackage }) => {
