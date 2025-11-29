@@ -10,6 +10,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import EditIcon from '@mui/icons-material/Edit';
 import { FoodIcon } from '../../../utils/foodEmojis';
+import { createInventoryTransaction } from './api';
 
 const capitalize = (str) => {
   if (!str) return '';
@@ -76,27 +77,10 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
         user_id: userId,
         transaction_type: transactionType,
         quantity,
+        ...(transactionType === 'add' && expirationDate ? { expiration_date: expirationDate } : {})
       };
 
-      if (transactionType === 'add' && expirationDate) {
-        payload.expiration_date = expirationDate;
-      }
-
-      const response = await fetch('http://localhost:5001/api/transactions/inventory/transaction', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        console.error('API Error:', error);
-        throw new Error(error.error || 'Failed to create transaction');
-      }
-
-      await response.json();
+      await createInventoryTransaction(payload);
 
       window.dispatchEvent(new CustomEvent('transactionCompleted'));
 
@@ -106,7 +90,6 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
         }, 0);
       }
     } catch (error) {
-      console.error('Error creating transaction:', error);
       alert(`Error: ${error.message}`);
     } finally {
       setIsLoading(false);
