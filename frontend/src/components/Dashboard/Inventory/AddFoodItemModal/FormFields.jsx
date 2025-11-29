@@ -5,6 +5,10 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import dayjs from 'dayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { CATEGORY_EMOJI } from '../../../../utils/foodEmojis';
 
 export const LeftColumnFields = ({
@@ -49,14 +53,23 @@ export const LeftColumnFields = ({
       />
 
       {showExpiration && (
-        <TextField
-          label="Expiration Date:"
-          type="date"
-          value={formData.expiration_date}
-          onChange={handleChange('expiration_date')}
-          fullWidth
-          InputLabelProps={{ shrink: true }}
-        />
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DatePicker
+            label="Expiration Date"
+            value={formData.expiration_date ? dayjs(formData.expiration_date) : null}
+            minDate={dayjs()}
+            onChange={(newValue) => {
+              const formatted = newValue?.isValid() ? newValue.format('YYYY-MM-DD') : '';
+              handleChange('expiration_date')({ target: { value: formatted } });
+            }}
+            slotProps={{
+              textField: {
+                fullWidth: true,
+                InputLabelProps: { shrink: true },
+              },
+            }}
+          />
+        </LocalizationProvider>
       )}
 
       <FormControl fullWidth required>
