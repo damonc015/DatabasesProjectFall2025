@@ -552,6 +552,81 @@ def update_profile():
     return jsonify({"message": "Profile updated successfully"}), 200
 
 
+@document_api_route(
+    bp, 'delete', '/account/<int:user_id>',
+    'Delete user account',
+    'Remove a user account and clean up associated ownership/transaction references'
+)
+@handle_db_error
+def delete_account(user_id: int):
+    data = request.get_json() or {}
+    confirm_username = (data.get("confirm_username") or "").strip()
+
+    if not confirm_username:
+        return jsonify({"error": "confirm_username required"}), 400
+
+    conn = get_write_conn()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT UserID, UserName, HouseholdID, RoleName
+            FROM Users
+            WHERE UserID=%s AND IsArchived=0
+            LIMIT 1
+        """, (user_id,))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        if confirm_username != user["UserName"]:
+            return jsonify({"error": "Confirmation username does not match"}), 400
+
+        household_id = user.get("HouseholdID")
+        role = user.get("RoleName")
+
+        placeholder_user_id = add_deleted_user_placeholder(cursor, household_id)
+
+        cursor.execute("""
+            UPDATE InventoryTransaction
+            SET UserID = %s
+            WHERE UserID = %s
+        """, (placeholder_user_id, user_id))
+
+        if household_id and role == 'owner':
+            cursor.execute("""
+                SELECT UserID
+                FROM Users
+                WHERE HouseholdID=%s
+                  AND UserID!=%s
+                  AND IsArchived=0
+                ORDER BY UserID ASC
+                LIMIT 1
+            """, (household_id, user_id))
+            successor = cursor.fetchone()
+            if successor:
+                cursor.execute("""
+                    UPDATE Users
+                    SET RoleName='owner'
+                    WHERE UserID=%s
+                """, (successor["UserID"],))
+
+        cursor.execute("DELETE FROM Users WHERE UserID=%s", (user_id,))
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+    response = jsonify({"message": "Account deleted"})
+    _clear_session_cookie(response)
+    return response, 200
+
+
 def _get_user_by_id(user_id: int):
     with db_cursor() as cursor:
         cursor.execute("""
@@ -570,6 +645,66 @@ def _get_user_by_id(user_id: int):
             LIMIT 1
         """, (user_id,))
         return cursor.fetchone()
+
+
+def add_deleted_user_placeholder(cursor, household_id):
+    target_household_id = household_id or _ensure_deleted_user_household(cursor)
+    username = f"deleted_user_{target_household_id}"
+
+    cursor.execute("""
+        SELECT UserID
+        FROM Users
+        WHERE UserName=%s
+        LIMIT 1
+    """, (username,))
+    existing = cursor.fetchone()
+    if existing:
+        return existing["UserID"]
+
+    placeholder_password = bcrypt.hashpw(b"deleted-user-placeholder", bcrypt.gensalt()).decode('utf-8')
+
+    cursor.execute("""
+        INSERT INTO Users (HouseholdID, UserName, DisplayName, RoleName, PasswordHash, IsArchived)
+        VALUES (%s, %s, %s, %s, %s, 1)
+    """, (
+        target_household_id,
+        username,
+        "Deleted User",
+        "system",
+        placeholder_password
+    ))
+
+    return cursor.lastrowid
+
+
+def _ensure_deleted_user_household(cursor):
+    cursor.execute("""
+        SELECT HouseholdID
+        FROM Household
+        WHERE HouseholdName=%s
+        LIMIT 1
+    """, ("Deleted Users Household",))
+    existing = cursor.fetchone()
+    if existing:
+        return existing["HouseholdID"]
+
+    while True:
+        join_code = str(uuid.uuid4())[:6].upper()
+        cursor.execute("""
+            SELECT HouseholdID
+            FROM Household
+            WHERE JoinCode=%s
+            LIMIT 1
+        """, (join_code,))
+        if not cursor.fetchone():
+            break
+
+    cursor.execute("""
+        INSERT INTO Household (HouseholdName, JoinCode)
+        VALUES (%s, %s)
+    """, ("Deleted Users Household", join_code))
+
+    return cursor.lastrowid
 
 
 @document_api_route(
