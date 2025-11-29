@@ -9,6 +9,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import TextField from '@mui/material/TextField';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { CATEGORY_EMOJI } from '../../../../utils/foodEmojis';
+import { dispatchTransactionCompleted } from '../../../../utils/transactionEvents';
 import { useFormData } from '../AddFoodItemModal/useFormData';
 import { LeftColumnFields, RightColumnFields } from '../AddFoodItemModal/FormFields';
 import { validateForm } from '../AddFoodItemModal/validation';
@@ -201,8 +202,6 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
         quantity: quantityToExpire,
       });
 
-      window.dispatchEvent(new CustomEvent('transactionCompleted'));
-
       if (onItemUpdated) {
         onItemUpdated();
       }
@@ -317,14 +316,14 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
             user_id: userId,
             transaction_type: 'transfer_out',
             quantity: qtyToMove,
-          });
+          }, { notify: false });
           await createInventoryTransaction({
             food_item_id: item.FoodItemID,
             location_id: targetLocationId,
             user_id: userId,
             transaction_type: 'transfer_in',
             quantity: qtyToMove,
-          });
+          }, { notify: false });
         } else {
           await createInventoryTransaction({
             food_item_id: item.FoodItemID,
@@ -332,7 +331,7 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
             user_id: userId,
             transaction_type: 'transfer_in',
             quantity: 0,
-          });
+          }, { notify: false });
         }
 
         emittedTransactionEvent = true;
@@ -345,12 +344,12 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
           user_id: userId,
           transaction_type: deltaBaseUnits > 0 ? 'add' : 'remove',
           quantity: Math.abs(deltaBaseUnits),
-        });
+        }, { notify: false });
         emittedTransactionEvent = true;
       }
 
       if (emittedTransactionEvent) {
-        window.dispatchEvent(new CustomEvent('transactionCompleted'));
+        dispatchTransactionCompleted();
       }
 
       if (onItemUpdated) {

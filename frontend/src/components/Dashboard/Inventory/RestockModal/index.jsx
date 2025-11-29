@@ -9,6 +9,7 @@ import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
+import { dispatchTransactionCompleted } from '../../../../utils/transactionEvents';
 import { createInventoryTransaction, updateFoodItem } from '../api';
 import { packagesToBaseUnits } from '../utils';
 
@@ -89,6 +90,7 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
     setError('');
 
     try {
+      let manualNotify = false;
       const destinationLocationId = form.locationId || item.LocationID;
       if (!destinationLocationId) {
         setError('Please choose a location.');
@@ -135,13 +137,14 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
           return;
         }
 
+        manualNotify = true;
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
           location_id: sourceLocationId,
           user_id: userId,
           transaction_type: 'transfer_out',
           quantity: quantityBaseUnits,
-        });
+        }, { notify: false });
 
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
@@ -149,7 +152,7 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
           user_id: userId,
           transaction_type: 'transfer_in',
           quantity: quantityBaseUnits,
-        });
+        }, { notify: false });
       } else {
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
@@ -161,7 +164,9 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
         });
       }
 
-      window.dispatchEvent(new CustomEvent('transactionCompleted'));
+      if (manualNotify) {
+        dispatchTransactionCompleted();
+      }
 
       if (onRestocked) {
         onRestocked();

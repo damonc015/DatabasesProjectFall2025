@@ -1,3 +1,5 @@
+import { dispatchTransactionCompleted } from '../../../utils/transactionEvents';
+
 export const updateFoodItem = async (foodItemId, payload) => {
   const response = await fetch(`http://localhost:5001/api/food-items/${foodItemId}`, {
     method: 'PUT',
@@ -15,7 +17,7 @@ export const updateFoodItem = async (foodItemId, payload) => {
   return response.json().catch(() => ({}));
 };
 
-export const createInventoryTransaction = async (payload) => {
+export const createInventoryTransaction = async (payload, { notify = true } = {}) => {
   const response = await fetch('http://localhost:5001/api/transactions/inventory/transaction', {
     method: 'POST',
     headers: {
@@ -29,7 +31,13 @@ export const createInventoryTransaction = async (payload) => {
     throw new Error(errData.error || 'Failed to create transaction');
   }
 
-  return response.json();
+  const data = await response.json();
+
+  if (notify) {
+    dispatchTransactionCompleted({ payload, data });
+  }
+
+  return data;
 };
 
 export const archiveFoodItem = async (foodItemId) => {

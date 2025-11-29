@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { dispatchTransactionCompleted } from '../../../../utils/transactionEvents';
 import { INITIAL_FORM_STATE } from './constants';
 
 export const useSubmitForm = (householdId, userId, onItemAdded, onClose) => {
@@ -40,7 +41,7 @@ export const useSubmitForm = (householdId, userId, onItemAdded, onClose) => {
         throw new Error(errorData.error || 'Couldn\'t add item.');
       }
 
-      window.dispatchEvent(new CustomEvent('transactionCompleted'));
+      dispatchTransactionCompleted();
 
       if (onItemAdded) {
         onItemAdded();

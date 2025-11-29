@@ -82,8 +82,6 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
 
       await createInventoryTransaction(payload);
 
-      window.dispatchEvent(new CustomEvent('transactionCompleted'));
-
       if (onTransactionComplete) {
         setTimeout(() => {
           onTransactionComplete();
