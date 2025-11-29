@@ -245,7 +245,6 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
                 onChange={handleChange('quantityPackages')}
                 fullWidth
                 inputProps={{ min: '0', step: '1' }}
-                helperText={`Each package = ${item.QtyPerPackage}${item.BaseUnitAbbr || ''}`}
               />
             </Grid>
 
@@ -256,7 +255,6 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
                 value={form.locationId}
                 onChange={handleChange('locationId')}
                 fullWidth
-                helperText="Choose the location this transaction applies to"
               >
                 {locations.map((loc) => (
                   <MenuItem key={loc.LocationID} value={loc.LocationID}>

@@ -194,7 +194,7 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
 
     const quantityToExpire = parseNumberOr(stockSnapshot.baseUnits, 0);
     if (!hasMeaningfulDelta(quantityToExpire)) {
-      setError('No remaining stock to expire.');
+      setError('No items to expire!');
       return;
     }
 
@@ -427,81 +427,32 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
                   categories={categories}
                   showExpiration={false}
                 />
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
-                    p: 2,
-                    borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: 'primary.light',
-                    backgroundColor: '#f8f1e5',
+                
+                <TextField
+                  label="Expiration Date"
+                  type="date"
+                  value={latestExpiration || ''}
+                  onChange={(e) => {
+                    setLatestExpiration(e.target.value);
+                    setExpirationError('');
                   }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 1 }}>
-                      Total Quantity (pkg)
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Reconcile
-                    </Typography>
-                  </Box>
-                  <TextField
-                    type="number"
-                    value={formData.quantity}
-                    onChange={handleChange('quantity')}
-                    fullWidth
-                    inputProps={{ min: '0', step: '0.01' }}
-                    sx={{
-                      '& .MuiInputBase-root': { fontSize: '1.25rem', fontWeight: 'bold' },
-                    }}
-                  />
-                  <Typography variant="caption" color="text.secondary">
-                    Enter the current total. The system will reconcile the difference.
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  disabled={expirationLoading}
+                />
+                {expirationError && (
+                  <Typography variant="caption" color="error">
+                    {expirationError}
                   </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
-                    p: 2,
-                    borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: 'primary.light',
-                    backgroundColor: '#eef7ff',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 1 }}>
-                      Expiration Date
-                    </Typography>
-                  </Box>
-                  <TextField
-                    type="date"
-                    value={latestExpiration || ''}
-                    onChange={(e) => {
-                      setLatestExpiration(e.target.value);
-                      setExpirationError('');
-                    }}
-                    fullWidth
-                    InputLabelProps={{ shrink: true }}
-                    helperText={
-                      expirationLoading
-                        ? 'Loading expiration...'
-                        : latestExpiration
-                          ? 'Adjust and click Save Item to update the latest future batch.'
-                          : 'No future expirations recorded. Set one if needed.'
-                    }
-                    disabled={expirationLoading}
-                  />
-                  {expirationError && (
-                    <Typography variant="caption" color="error">
-                      {expirationError}
-                    </Typography>
-                  )}
-                </Box>
+                )}
+                <TextField
+                  label="Reconile Total Quantity (pkg)"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={handleChange('quantity')}
+                  fullWidth
+                  inputProps={{ min: '0', step: '0.01' }}
+                />
               </Box>
             </Grid>
 
@@ -518,31 +469,13 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
                     hideField: true,
                   }}
                 />
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
-                    p: 2,
-                    borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: 'primary.light',
-                    backgroundColor: '#f8f1e5',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography variant="overline" color="primary.main" sx={{ letterSpacing: 1 }}>
-                      Expire Item
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Expire remaining stock
-                    </Typography>
-                  </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   <Button
                     variant="outlined"
                     color="primary"
                     onClick={handleExpireNow}
                     disabled={loading}
+                    sx={{ alignSelf: 'flex-start', mt: 1 }}
                   >
                     Expire Remaining Stock
                   </Button>
