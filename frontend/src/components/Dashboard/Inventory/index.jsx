@@ -8,48 +8,32 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import IconButton from '@mui/material/IconButton';
 import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import TextField from '@mui/material/TextField';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import { useLocations } from '../../../hooks/useLocations';
 import { useInventoryData } from '../../../hooks/useInventoryData';
-import { useLocationModals } from '../../../hooks/useLocationModals';
 import FoodCard from './FoodCard';
 import AddItemCard from './AddItemCard';
 import AddFoodItemModal from './AddFoodItemModal/index.jsx';
 import EditFoodItemModal from './EditFoodItemModal/index.jsx';
 import RestockModal from './RestockModal/index.jsx';
+import LocationModal from '../LocationModal';
 
 const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory }) => {
   const [locationFilter, setLocationFilter] = useState(null);
   const [modals, setModals] = useState({
     addItemOpen: false,
     edit: { open: false, item: null },
-    restock: { open: false, item: null }
+    restock: { open: false, item: null },
+    location: { open: false, mode: 'add', target: null }
   });
-  const { addItemOpen, edit, restock } = modals;
+  const { addItemOpen, edit, restock, location: locationModal } = modals;
   
   const { householdId, user } = useCurrentUser();
   const userId = user?.id;
   const { locations, refreshLocations } = useLocations(householdId);
   const { inventory, refreshInventory } = useInventoryData(householdId, locationFilter, searchQuery);
-  const {
-    addModal,
-    renameModal,
-    openAddModal,
-    closeAddModal,
-    updateAddName,
-    saveAddLocation,
-    openRenameModal,
-    closeRenameModal,
-    updateRenameName,
-    saveRenamedLocation,
-  } = useLocationModals({ householdId, refreshLocations });
 
   const filteredInventory = inventory.filter(item => {
     if (selectedCategory.length === 0) return true;
@@ -78,23 +62,35 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
     (loc) => String(loc.LocationID) === String(locationFilter)
   );
 
+  const openAddLocationModal = () => {
+    setModals((prev) => ({
+      ...prev,
+      location: { open: true, mode: 'add', target: null }
+    }));
+  };
+
   const handleRenameLocationClick = () => {
     if (!selectedLocation) return;
-    openRenameModal(selectedLocation);
+    setModals((prev) => ({
+      ...prev,
+      location: { open: true, mode: 'rename', target: selectedLocation }
+    }));
   };
 
-  const handleAddLocationSubmit = async () => {
-    const newLocation = await saveAddLocation();
-    if (newLocation?.LocationID) {
-      setLocationFilter(newLocation.LocationID);
-    }
+  const closeLocationModal = () => {
+    setModals((prev) => ({
+      ...prev,
+      location: { ...prev.location, open: false, target: null }
+    }));
   };
 
-  const handleRenameLocationSubmit = async () => {
-    const updatedLocation = await saveRenamedLocation();
-    if (updatedLocation?.LocationID) {
-      setLocationFilter(updatedLocation.LocationID ?? locationFilter);
-    }
+  const handleLocationSaved = async (savedLocation) => {
+    await refreshLocations();
+    setLocationFilter(savedLocation?.LocationID ?? locationFilter);
+    setModals((prev) => ({
+      ...prev,
+      location: { open: false, mode: 'add', target: null }
+    }));
   };
 
   const noItemsMessage = (() => {
@@ -131,7 +127,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           <IconButton
             color="primary"
             size="small"
-            onClick={openAddModal}
+            onClick={openAddLocationModal}
             sx={{ ml: 1, border: 1, borderColor: 'divider' }}
             aria-label="Add location"
           >
@@ -269,72 +265,14 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
         locations={locations}
         onRestocked={refreshInventory}
       />
-      <Dialog open={addModal.open} onClose={closeAddModal} fullWidth maxWidth="xs">
-        <DialogTitle>Add Location</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-          <TextField
-            autoFocus
-            label="Location name"
-            value={addModal.name}
-            onChange={(e) => {
-              updateAddName(e.target.value);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAddLocationSubmit();
-              }
-            }}
-            placeholder="e.g., Pantry, Freezer"
-          />
-          {addModal.error && (
-            <Typography variant="body2" color="error">
-              {addModal.error}
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={closeAddModal} disabled={addModal.loading}>
-            Cancel
-          </Button>
-          <Button onClick={handleAddLocationSubmit} variant="contained" disabled={addModal.loading}>
-            {addModal.loading ? 'Saving...' : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-      <Dialog open={renameModal.open} onClose={closeRenameModal} fullWidth maxWidth="xs">
-        <DialogTitle>Rename Location</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-          <TextField
-            autoFocus
-            label="Location name"
-            value={renameModal.name}
-            onChange={(e) => {
-              updateRenameName(e.target.value);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleRenameLocationSubmit();
-              }
-            }}
-            placeholder="e.g., Pantry, Freezer"
-          />
-          {renameModal.error && (
-            <Typography variant="body2" color="error">
-              {renameModal.error}
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={closeRenameModal} disabled={renameModal.loading}>
-            Cancel
-          </Button>
-          <Button onClick={handleRenameLocationSubmit} variant="contained" disabled={renameModal.loading}>
-            {renameModal.loading ? 'Saving...' : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <LocationModal
+        open={locationModal.open}
+        mode={locationModal.mode}
+        householdId={householdId}
+        targetLocation={locationModal.target}
+        onClose={closeLocationModal}
+        onSuccess={handleLocationSaved}
+      />
     </Box>
   );
 };
