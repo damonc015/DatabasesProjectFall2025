@@ -10,32 +10,18 @@ import {
   Box,
 } from '@mui/material';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
-
-const capitalize = (str) => {
-  if (!str) return '';
-  return str.split(' ').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  ).join(' ');
-};
-
-const formatQuantityDisplay = (tx, showPackage) => {
-  if (showPackage && tx.FormattedPackages) {
-    return tx.FormattedPackages;
-  }
-  const qty = Number(tx.QtyInTotal);
-  return `${Number.isFinite(qty) ? Math.round(qty) : 0}${tx.BaseUnitAbbr || ''}`;
-};
+import { capitalizeWords, formatQuantityDisplay } from '../../../utils/formatters';
 
 const formatLocationName = (name) => {
   if (!name) {
     return 'Unknown location';
   }
-  return capitalize(name);
+  return capitalizeWords(name);
 };
 
 const renderTransactionText = (tx, showPackage) => {
   const quantityText = formatQuantityDisplay(tx, showPackage);
-  const foodName = capitalize(tx.FoodName);
+  const foodName = capitalizeWords(tx.FoodName);
 
   const isTransferOut = tx.TransactionType === 'transfer_out';
   const isTransferIn = tx.TransactionType === 'transfer_in';

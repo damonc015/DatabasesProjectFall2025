@@ -10,6 +10,7 @@ import {
   Box,
 } from '@mui/material';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
+import { capitalizeWords, computeRelativeExpiration, formatQuantityDisplay } from '../../../utils/formatters';
 
 const Expiring = ({ showPackage }) => {
   const [expiring, setExpiring] = useState([]);
@@ -56,19 +57,6 @@ const Expiring = ({ showPackage }) => {
     setPage(value);
   };
 
-  const computeDateDiff = (targetDate) => {
-    const diffMs = new Date(targetDate) - new Date();
-    if (diffMs <= 0) return "expired";
-    const totalMinutes = Math.floor(diffMs / 60000);
-    const days = Math.floor(totalMinutes / (60 * 24));
-    const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
-    const minutes = totalMinutes % 60;
-
-    if (days > 0) return `${days} day${days > 1 ? "s" : ""}${hours ? ` ${hours} hr` : ""}`;
-    if (hours > 0) return `${hours} hr ${minutes} min`;
-    return `${minutes} min`;
-  }
-
   return (
     <div className='expiringContainer'>
       <Box display="flex" alignItems="center" gap={1} maxHeight='5vh'>
@@ -85,7 +73,7 @@ const Expiring = ({ showPackage }) => {
                     <ListItem sx={{ py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '40px' }}>
                       {tx ? (
                         <Typography variant="body2" fontWeight="bold" sx={{ flex: 1, whiteSpace: 'nowrap' }}>
-                          {showPackage ? tx.FormattedPackages : `${Math.round(tx.QtyInTotal)}${tx.BaseUnitAbbr}`} of {tx.FoodName} at {tx.LocationName} will expire in {computeDateDiff(tx.ExpirationDate)}
+                          {formatQuantityDisplay(tx, showPackage)} of {capitalizeWords(tx.FoodName)} at {capitalizeWords(tx.LocationName)} will expire in {computeRelativeExpiration(tx.ExpirationDate)}
                         </Typography>
                       ) : (
                         index === 0 && expiring.length === 0 && !loading ? (

@@ -10,14 +10,8 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import EditIcon from '@mui/icons-material/Edit';
 import { FoodIcon } from '../../../utils/foodEmojis';
+import { capitalizeWords } from '../../../utils/formatters';
 import { createInventoryTransaction } from './api';
-
-const capitalize = (str) => {
-  if (!str) return '';
-  return str.split(' ').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  ).join(' ');
-};
 
 const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete, onEdit, onRestock }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -158,7 +152,7 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
         )}
         <FoodIcon category={item.Category} />
         <Typography variant='h6' sx={{ mb: 1, mt: 1, fontWeight: 'bold' }}>
-          {capitalize(item.FoodName)}
+          {capitalizeWords(item.FoodName)}
         </Typography>
         <Typography variant='body1' sx={{ mb: 2, color: 'text.secondary' }}>
           {showPackage ? item.FormattedPackages : item.FormattedBaseUnits}
