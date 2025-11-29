@@ -18,6 +18,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import { useLocations } from '../../../hooks/useLocations';
 import { useInventoryData } from '../../../hooks/useInventoryData';
+import { useLocationModals } from '../../../hooks/useLocationModals';
 import FoodCard from './FoodCard';
 import AddItemCard from './AddItemCard';
 import AddFoodItemModal from './AddFoodItemModal/index.jsx';
@@ -29,16 +30,26 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
   const [modals, setModals] = useState({
     addItemOpen: false,
     edit: { open: false, item: null },
-    restock: { open: false, item: null },
-    addLocation: { open: false, name: '', loading: false, error: '' },
-    renameLocation: { open: false, target: null, name: '', loading: false, error: '' }
+    restock: { open: false, item: null }
   });
-  const { addItemOpen, edit, restock, addLocation, renameLocation } = modals;
+  const { addItemOpen, edit, restock } = modals;
   
   const { householdId, user } = useCurrentUser();
   const userId = user?.id;
   const { locations, refreshLocations } = useLocations(householdId);
   const { inventory, refreshInventory } = useInventoryData(householdId, locationFilter, searchQuery);
+  const {
+    addModal,
+    renameModal,
+    openAddModal,
+    closeAddModal,
+    updateAddName,
+    saveAddLocation,
+    openRenameModal,
+    closeRenameModal,
+    updateRenameName,
+    saveRenamedLocation,
+  } = useLocationModals({ householdId, refreshLocations });
 
   const filteredInventory = inventory.filter(item => {
     if (selectedCategory.length === 0) return true;
@@ -63,173 +74,26 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
     return 0;
   });
 
-  const handleAddLocationClick = () => {
-    setModals((prev) => ({
-      ...prev,
-      addLocation: { ...prev.addLocation, open: true, name: '', error: '' }
-    }));
-  };
-
-  const handleAddLocationClose = () => {
-    if (addLocation.loading) return;
-    setModals((prev) => ({
-      ...prev,
-      addLocation: { ...prev.addLocation, open: false, name: '', error: '' }
-    }));
-  };
-
-  const handleSaveLocation = async () => {
-    if (!householdId) {
-      setModals((prev) => ({
-        ...prev,
-        addLocation: { ...prev.addLocation, error: 'Missing household information.' }
-      }));
-      return;
-    }
-    const trimmed = addLocation.name.trim();
-    if (!trimmed) {
-      setModals((prev) => ({
-        ...prev,
-        addLocation: { ...prev.addLocation, error: 'Please enter a location name.' }
-      }));
-      return;
-    }
-
-    setModals((prev) => ({
-      ...prev,
-      addLocation: { ...prev.addLocation, loading: true, error: '' }
-    }));
-    try {
-      const response = await fetch(`http://localhost:5001/api/households/${householdId}/locations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ location_name: trimmed }),
-      });
-
-      if (!response.ok) {
-        let message = 'Could not create location.';
-        try {
-          const errorPayload = await response.json();
-          if (errorPayload?.error) {
-            message = errorPayload.error;
-          }
-        } catch (err) {
-          console.error('Error parsing location error response:', err);
-        }
-        throw new Error(message);
-      }
-
-      const newLocation = await response.json();
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('locationCreated', { detail: newLocation }));
-      }
-      await refreshLocations();
-      setModals((prev) => ({
-        ...prev,
-        addLocation: { ...prev.addLocation, open: false, name: '', error: '' }
-      }));
-      setLocationFilter(newLocation?.LocationID ?? null);
-    } catch (err) {
-      setModals((prev) => ({
-        ...prev,
-        addLocation: { ...prev.addLocation, error: err.message || 'Unable to create location.' }
-      }));
-    } finally {
-      setModals((prev) => ({
-        ...prev,
-        addLocation: { ...prev.addLocation, loading: false }
-      }));
-    }
-  };
-
   const selectedLocation = locations.find(
     (loc) => String(loc.LocationID) === String(locationFilter)
   );
 
   const handleRenameLocationClick = () => {
     if (!selectedLocation) return;
-    setModals((prev) => ({
-      ...prev,
-      renameLocation: {
-        ...prev.renameLocation,
-        open: true,
-        target: selectedLocation,
-        name: selectedLocation.LocationName || '',
-        error: ''
-      }
-    }));
+    openRenameModal(selectedLocation);
   };
 
-  const handleRenameLocationClose = () => {
-    if (renameLocation.loading) return;
-    setModals((prev) => ({
-      ...prev,
-      renameLocation: { ...prev.renameLocation, open: false, target: null, name: '', error: '' }
-    }));
+  const handleAddLocationSubmit = async () => {
+    const newLocation = await saveAddLocation();
+    if (newLocation?.LocationID) {
+      setLocationFilter(newLocation.LocationID);
+    }
   };
 
-  const handleSaveRenamedLocation = async () => {
-    if (!householdId || !renameLocation.target) {
-      setModals((prev) => ({
-        ...prev,
-        renameLocation: { ...prev.renameLocation, error: 'Missing location information.' }
-      }));
-      return;
-    }
-    const trimmed = renameLocation.name.trim();
-    if (!trimmed) {
-      setModals((prev) => ({
-        ...prev,
-        renameLocation: { ...prev.renameLocation, error: 'Please enter a location name.' }
-      }));
-      return;
-    }
-
-    setModals((prev) => ({
-      ...prev,
-      renameLocation: { ...prev.renameLocation, loading: true, error: '' }
-    }));
-    try {
-      const response = await fetch(`http://localhost:5001/api/households/${householdId}/locations/${renameLocation.target.LocationID}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ location_name: trimmed }),
-      });
-
-      if (!response.ok) {
-        let message = 'Could not rename location.';
-        try {
-          const errorPayload = await response.json();
-          if (errorPayload?.error) {
-            message = errorPayload.error;
-          }
-        } catch (err) {
-          console.error('Error parsing rename response:', err);
-        }
-        throw new Error(message);
-      }
-
-      const updatedLocation = await response.json();
-      await refreshLocations();
-      setLocationFilter(updatedLocation?.LocationID ?? locationFilter);
-      setModals((prev) => ({
-        ...prev,
-        renameLocation: { ...prev.renameLocation, open: false, target: null, name: '', error: '' }
-      }));
-    } catch (err) {
-      setModals((prev) => ({
-        ...prev,
-        renameLocation: { ...prev.renameLocation, error: err.message || 'Unable to rename location.' }
-      }));
-    } finally {
-      setModals((prev) => ({
-        ...prev,
-        renameLocation: { ...prev.renameLocation, loading: false }
-      }));
+  const handleRenameLocationSubmit = async () => {
+    const updatedLocation = await saveRenamedLocation();
+    if (updatedLocation?.LocationID) {
+      setLocationFilter(updatedLocation.LocationID ?? locationFilter);
     }
   };
 
@@ -267,7 +131,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           <IconButton
             color="primary"
             size="small"
-            onClick={handleAddLocationClick}
+            onClick={openAddModal}
             sx={{ ml: 1, border: 1, borderColor: 'divider' }}
             aria-label="Add location"
           >
@@ -405,77 +269,69 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
         locations={locations}
         onRestocked={refreshInventory}
       />
-      <Dialog open={addLocation.open} onClose={handleAddLocationClose} fullWidth maxWidth="xs">
+      <Dialog open={addModal.open} onClose={closeAddModal} fullWidth maxWidth="xs">
         <DialogTitle>Add Location</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
           <TextField
             autoFocus
             label="Location name"
-            value={addLocation.name}
+            value={addModal.name}
             onChange={(e) => {
-              const value = e.target.value;
-              setModals((prev) => ({
-                ...prev,
-                addLocation: { ...prev.addLocation, name: value, error: '' }
-              }));
+              updateAddName(e.target.value);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                handleSaveLocation();
+                handleAddLocationSubmit();
               }
             }}
             placeholder="e.g., Pantry, Freezer"
           />
-          {addLocation.error && (
+          {addModal.error && (
             <Typography variant="body2" color="error">
-              {addLocation.error}
+              {addModal.error}
             </Typography>
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleAddLocationClose} disabled={addLocation.loading}>
+          <Button onClick={closeAddModal} disabled={addModal.loading}>
             Cancel
           </Button>
-          <Button onClick={handleSaveLocation} variant="contained" disabled={addLocation.loading}>
-            {addLocation.loading ? 'Saving...' : 'Save'}
+          <Button onClick={handleAddLocationSubmit} variant="contained" disabled={addModal.loading}>
+            {addModal.loading ? 'Saving...' : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={renameLocation.open} onClose={handleRenameLocationClose} fullWidth maxWidth="xs">
+      <Dialog open={renameModal.open} onClose={closeRenameModal} fullWidth maxWidth="xs">
         <DialogTitle>Rename Location</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
           <TextField
             autoFocus
             label="Location name"
-            value={renameLocation.name}
+            value={renameModal.name}
             onChange={(e) => {
-              const value = e.target.value;
-              setModals((prev) => ({
-                ...prev,
-                renameLocation: { ...prev.renameLocation, name: value, error: '' }
-              }));
+              updateRenameName(e.target.value);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                handleSaveRenamedLocation();
+                handleRenameLocationSubmit();
               }
             }}
             placeholder="e.g., Pantry, Freezer"
           />
-          {renameLocation.error && (
+          {renameModal.error && (
             <Typography variant="body2" color="error">
-              {renameLocation.error}
+              {renameModal.error}
             </Typography>
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleRenameLocationClose} disabled={renameLocation.loading}>
+          <Button onClick={closeRenameModal} disabled={renameModal.loading}>
             Cancel
           </Button>
-          <Button onClick={handleSaveRenamedLocation} variant="contained" disabled={renameLocation.loading}>
-            {renameLocation.loading ? 'Saving...' : 'Save'}
+          <Button onClick={handleRenameLocationSubmit} variant="contained" disabled={renameModal.loading}>
+            {renameModal.loading ? 'Saving...' : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>
