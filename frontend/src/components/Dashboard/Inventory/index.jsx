@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
@@ -16,6 +16,8 @@ import TextField from '@mui/material/TextField';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
+import { useLocations } from '../../../hooks/useLocations';
+import { useInventoryData } from '../../../hooks/useInventoryData';
 import FoodCard from './FoodCard';
 import AddItemCard from './AddItemCard';
 import AddFoodItemModal from './AddFoodItemModal/index.jsx';
@@ -23,9 +25,6 @@ import EditFoodItemModal from './EditFoodItemModal/index.jsx';
 import RestockModal from './RestockModal/index.jsx';
 
 const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory }) => {
-  const [inventory, setInventory] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [locationFilter, setLocationFilter] = useState(null);
   const [modals, setModals] = useState({
     addItemOpen: false,
@@ -37,8 +36,9 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
   const { addItemOpen, edit, restock, addLocation, renameLocation } = modals;
   
   const { householdId, user } = useCurrentUser();
-  
   const userId = user?.id;
+  const { locations, refreshLocations } = useLocations(householdId);
+  const { inventory, refreshInventory } = useInventoryData(householdId, locationFilter, searchQuery);
 
   const filteredInventory = inventory.filter(item => {
     if (selectedCategory.length === 0) return true;
@@ -62,39 +62,6 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
     if (bZero) return -1;
     return 0;
   });
-
-  const loadLocations = useCallback(async () => {
-    if (!householdId) {
-      setLocations([]);
-      return;
-    }
-
-    try {
-      const res = await fetch(`http://localhost:5001/api/households/${householdId}/locations`);
-      if (!res.ok) {
-        throw new Error('Failed to load locations');
-      }
-      const data = await res.json();
-      setLocations(data);
-    } catch (error) {
-      console.error('Error fetching locations:', error);
-    }
-  }, [householdId]);
-
-  useEffect(() => {
-    loadLocations();
-  }, [loadLocations]);
-
-  useEffect(() => {
-    const handleLocationCreated = () => {
-      loadLocations();
-    };
-
-    window.addEventListener('locationCreated', handleLocationCreated);
-    return () => {
-      window.removeEventListener('locationCreated', handleLocationCreated);
-    };
-  }, [loadLocations]);
 
   const handleAddLocationClick = () => {
     setModals((prev) => ({
@@ -158,6 +125,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('locationCreated', { detail: newLocation }));
       }
+      await refreshLocations();
       setModals((prev) => ({
         ...prev,
         addLocation: { ...prev.addLocation, open: false, name: '', error: '' }
@@ -246,7 +214,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
       }
 
       const updatedLocation = await response.json();
-      await loadLocations();
+      await refreshLocations();
       setLocationFilter(updatedLocation?.LocationID ?? locationFilter);
       setModals((prev) => ({
         ...prev,
@@ -265,36 +233,6 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
     }
   };
 
-  const fetchInventory = useCallback(() => {
-    if (!householdId) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    const baseUrl = locationFilter === null
-      ? `http://localhost:5001/api/transactions/inventory/${householdId}`
-      : `http://localhost:5001/api/transactions/inventory/${householdId}/location/${locationFilter}`;
-    
-    const url = searchQuery && searchQuery.trim() !== ''
-      ? `${baseUrl}?search=${encodeURIComponent(searchQuery.trim())}`
-      : baseUrl;
-
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        setInventory(data);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching inventory:', error);
-        setLoading(false);
-      });
-  }, [householdId, locationFilter, searchQuery]);
-
-  useEffect(() => {
-    fetchInventory();
-  }, [fetchInventory]);
   const noItemsMessage = (() => {
     if (inventory.length === 0) {
       return searchQuery?.trim() ? 'No items match your search.' : 'No items in inventory.';
@@ -415,12 +353,12 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
                   }
                 }}
               >
-                <FoodCard 
-                  item={item} 
+                <FoodCard
+                  item={item}
                   showPackage={showPackage}
                   userId={userId}
                   locationId={item.LocationID}
-                  onTransactionComplete={fetchInventory}
+                  onTransactionComplete={refreshInventory}
                   onEdit={(itm) => {
                     setModals((prev) => ({
                       ...prev,
@@ -442,7 +380,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
       <AddFoodItemModal
         open={addItemOpen}
         onClose={() => setModals((prev) => ({ ...prev, addItemOpen: false }))}
-        onItemAdded={fetchInventory}
+        onItemAdded={refreshInventory}
       />
       <EditFoodItemModal
         open={edit.open}
@@ -453,7 +391,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           }));
         }}
         item={edit.item}
-        onItemUpdated={fetchInventory}
+        onItemUpdated={refreshInventory}
       />
       <RestockModal
         open={restock.open}
@@ -465,7 +403,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
         }}
         item={restock.item}
         locations={locations}
-        onRestocked={fetchInventory}
+        onRestocked={refreshInventory}
       />
       <Dialog open={addLocation.open} onClose={handleAddLocationClose} fullWidth maxWidth="xs">
         <DialogTitle>Add Location</DialogTitle>
