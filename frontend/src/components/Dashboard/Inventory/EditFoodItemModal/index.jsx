@@ -14,145 +14,46 @@ import { useFormData } from '../AddFoodItemModal/useFormData';
 import { LeftColumnFields, RightColumnFields } from '../AddFoodItemModal/FormFields';
 import { validateForm } from '../AddFoodItemModal/validation';
 import { updateFoodItem, createInventoryTransaction, archiveFoodItem } from '../api';
-import { normalizeCategoryKey, packagesToBaseUnits } from '../utils';
-
-const formatQuantityValue = (value) => {
-  const parsed = parseFloat(value);
-  if (Number.isNaN(parsed)) {
-    return '0';
-  }
-  const rounded = Math.round(parsed * 100) / 100;
-  if (Number.isInteger(rounded)) {
-    return String(rounded);
-  }
-  return rounded.toFixed(2).replace(/\.?0+$/, '');
-};
-
-const parseNumberOr = (value, fallback = null) => {
-  const parsed = parseFloat(value);
-  return Number.isNaN(parsed) ? fallback : parsed;
-};
+import { useFoodItemDetails, useInventoryAdjustment } from './hooks';
 
 const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
   const { householdId, user } = useCurrentUser();
   const userId = user?.id;
 
-  const [formData, setFormData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [stockSnapshot, setStockSnapshot] = useState({
-    baseUnits: 0,
-    packages: 0,
-    packageSize: 0,
-  });
-  const [latestExpiration, setLatestExpiration] = useState('');
-  const [originalLatestExpiration, setOriginalLatestExpiration] = useState('');
-  const [expirationLoading, setExpirationLoading] = useState(false);
-  const [expirationError, setExpirationError] = useState('');
   const [archiveLoading, setArchiveLoading] = useState(false);
 
   const todayISO = useMemo(() => new Date().toISOString().split('T')[0], []);
 
   const { locations, baseUnits, packageLabels } = useFormData(open, householdId);
-
-  const categories = Object.keys(CATEGORY_EMOJI);
+  const categories = useMemo(() => Object.keys(CATEGORY_EMOJI), []);
+  const {
+    formData,
+    setFormData,
+    stockSnapshot,
+    latestExpiration,
+    setLatestExpiration,
+    originalLatestExpiration,
+    setOriginalLatestExpiration,
+    expirationLoading,
+    expirationError,
+    setExpirationError,
+    resetDetails,
+  } = useFoodItemDetails({ open, item, categories });
+  const {
+    desiredPackages,
+    effectivePackageSize,
+    desiredBaseUnits,
+    deltaBaseUnits,
+    currentBaseUnits,
+    targetLocationId,
+  } = useInventoryAdjustment({ formData, stockSnapshot, item });
 
   useEffect(() => {
-    if (!open || !item) return;
-
-    const currentBaseUnits = parseNumberOr(item.TotalQtyInBaseUnits, 0);
-    const fallbackPackageSize = parseNumberOr(item.QtyPerPackage, 0);
-
-    const loadDetails = async () => {
-      try {
-        const response = await fetch(`http://localhost:5001/api/food-items/${item.FoodItemID}`);
-        if (!response.ok) {
-          throw new Error('Failed to load item details');
-        }
-        const data = await response.json();
-
-        const packageBaseAmt = parseNumberOr(data.PackageBaseUnitAmt, fallbackPackageSize);
-        let targetLevelPackages = '';
-        if (data.TargetLevel != null && packageBaseAmt && packageBaseAmt !== 0) {
-          const baseUnits = parseFloat(data.TargetLevel);
-          if (!isNaN(baseUnits)) {
-            targetLevelPackages = (baseUnits / packageBaseAmt).toFixed(2);
-          }
-        }
-
-        const currentPackages =
-          packageBaseAmt && packageBaseAmt > 0
-            ? currentBaseUnits / packageBaseAmt
-            : currentBaseUnits;
-
-        setStockSnapshot({
-          baseUnits: currentBaseUnits,
-          packages: currentPackages,
-          packageSize: packageBaseAmt || 0,
-        });
-
-        setFormData({
-          food_name: data.Name || item.FoodName || '',
-          type: data.Type || item.Type || '',
-          category: normalizeCategoryKey(data.Category || item.Category || '', categories),
-          location_id: item.LocationID || '',
-          package_label: data.PackageLabel || item.PackageLabel || '',
-          package_base_unit_amt: packageBaseAmt ? String(packageBaseAmt) : '',
-          target_level: targetLevelPackages || '',
-          quantity: formatQuantityValue(currentPackages),
-          price_per_item: data.LatestPrice != null ? String(data.LatestPrice) : '',
-          store: data.LatestStore || ''
-        });
-      } catch (err) {
-        console.error('Error loading item details:', err);
-
-        const packageBaseAmt = fallbackPackageSize || 0;
-        const currentPackages =
-          packageBaseAmt > 0 ? currentBaseUnits / packageBaseAmt : currentBaseUnits;
-
-        setStockSnapshot({
-          baseUnits: currentBaseUnits,
-          packages: currentPackages,
-          packageSize: packageBaseAmt,
-        });
-
-        setFormData({
-          food_name: item.FoodName || '',
-          type: item.Type || '',
-          category: normalizeCategoryKey(item.Category || '', categories),
-          location_id: item.LocationID || '',
-          package_label: item.PackageLabel || '',
-          package_base_unit_amt: packageBaseAmt ? String(packageBaseAmt) : '',
-          target_level: '',
-          quantity: formatQuantityValue(currentPackages),
-          price_per_item: '',
-          store: ''
-        });
-      } finally {
-        setError('');
-      }
-    };
-
-    loadDetails();
-    const fetchLatestExpiration = async () => {
-      setExpirationLoading(true);
-      setExpirationError('');
-      try {
-        const res = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`);
-        if (!res.ok) throw new Error('Could not fetch expiration date');
-        const data = await res.json();
-        const expirationValue = data?.expiration_date || '';
-        setLatestExpiration(expirationValue);
-        setOriginalLatestExpiration(expirationValue);
-      } catch (err) {
-        console.error('Error fetching latest expiration:', err);
-        setLatestExpiration('');
-        setOriginalLatestExpiration('');
-      } finally {
-        setExpirationLoading(false);
-      }
-    };
-    fetchLatestExpiration();
+    if (open) {
+      setError('');
+    }
   }, [open, item]);
 
   const handleChange = (field) => (e) => {
@@ -164,18 +65,9 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
   };
 
   const handleClose = () => {
-    setFormData(null);
+    resetDetails();
     setError('');
-    setStockSnapshot({
-      baseUnits: 0,
-      packages: 0,
-      packageSize: 0,
-    });
-    setLatestExpiration('');
-    setOriginalLatestExpiration('');
-    setExpirationError('');
     setArchiveLoading(false);
-    setExpirationLoading(false);
     onClose();
   };
 
@@ -185,7 +77,7 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
     if (!formData || !item) return;
 
 
-    const quantityToExpire = parseNumberOr(stockSnapshot.baseUnits, 0);
+    const quantityToExpire = currentBaseUnits;
     if (!quantityToExpire) {
       setError('No items to expire!');
       return;
@@ -196,7 +88,7 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
     try {
       await createInventoryTransaction({
         food_item_id: item.FoodItemID,
-        location_id: locationId,
+        location_id: targetLocationId,
         user_id: userId,
         transaction_type: 'expire',
         quantity: quantityToExpire,
@@ -232,31 +124,17 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
     }
 
     const originalLocationId = item.LocationID;
-    const targetLocationId = formData.location_id || originalLocationId;
 
     if (!targetLocationId) {
       setError('Please select a location before saving.');
       return;
     }
 
-    const desiredPackages = parseNumberOr(formData.quantity, null);
     if (desiredPackages === null) {
       setError('Please enter a valid quantity.');
       return;
     }
 
-    const effectivePackageSize =
-      parseNumberOr(formData.package_base_unit_amt, stockSnapshot.packageSize) ||
-      parseNumberOr(item.QtyPerPackage, 0) ||
-      0;
-
-    const desiredBaseUnits =
-      effectivePackageSize > 0
-        ? packagesToBaseUnits(desiredPackages, effectivePackageSize)
-        : desiredPackages;
-
-    const currentBaseUnits = parseNumberOr(stockSnapshot.baseUnits, 0) || 0;
-    const deltaBaseUnits = desiredBaseUnits - currentBaseUnits;
     const locationChanged =
       targetLocationId &&
       (originalLocationId == null ||
