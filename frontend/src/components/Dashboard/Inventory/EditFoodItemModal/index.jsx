@@ -12,7 +12,7 @@ import { CATEGORY_EMOJI } from '../../../../utils/foodEmojis';
 import { useFormData } from '../AddFoodItemModal/useFormData';
 import { LeftColumnFields, RightColumnFields } from '../AddFoodItemModal/FormFields';
 import { validateForm } from '../AddFoodItemModal/validation';
-import { updateFoodItem, createInventoryTransaction } from '../api';
+import { updateFoodItem, createInventoryTransaction, archiveFoodItem } from '../api';
 import { normalizeCategoryKey, packagesToBaseUnits } from '../utils';
 
 const formatQuantityValue = (value) => {
@@ -50,6 +50,7 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
   const [originalLatestExpiration, setOriginalLatestExpiration] = useState('');
   const [expirationLoading, setExpirationLoading] = useState(false);
   const [expirationError, setExpirationError] = useState('');
+  const [archiveLoading, setArchiveLoading] = useState(false);
 
   const todayISO = useMemo(() => new Date().toISOString().split('T')[0], []);
 
@@ -174,9 +175,12 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
     setLatestExpiration('');
     setOriginalLatestExpiration('');
     setExpirationError('');
+    setArchiveLoading(false);
     setExpirationLoading(false);
     onClose();
   };
+
+  const isBusy = loading || archiveLoading;
 
   const handleExpireNow = async () => {
     if (!formData || !item) return;
@@ -375,6 +379,32 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
     }
   };
 
+  const handleArchiveItem = async () => {
+    if (!item) return;
+
+    const confirmed = window.confirm(
+      'Are you sure? It will disappear from your inventory but the history will remain.'
+    );
+    if (!confirmed) return;
+
+    setError('');
+    setArchiveLoading(true);
+    try {
+      await archiveFoodItem(item.FoodItemID);
+
+      if (onItemUpdated) {
+        onItemUpdated();
+      }
+
+      handleClose();
+    } catch (err) {
+      console.error('Error archiving food item:', err);
+      setError(err.message || 'Could not archive item. Please try again.');
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
   if (!formData) return null;
 
   return (
@@ -474,7 +504,7 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
                     variant="outlined"
                     color="primary"
                     onClick={handleExpireNow}
-                    disabled={loading}
+                    disabled={isBusy}
                     sx={{ alignSelf: 'flex-start', mt: 1 }}
                   >
                     Expire Remaining Stock
@@ -488,11 +518,23 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
             <Button 
               type="submit" 
               variant="contained" 
-              disabled={loading}
+              disabled={isBusy}
               fullWidth
             >
               {loading ? 'Saving...' : 'Save Changes'}
             </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={handleArchiveItem}
+              disabled={isBusy}
+              fullWidth
+            >
+              {archiveLoading ? 'Archiving...' : 'Archive Item'}
+            </Button>
+            <Typography variant="caption" color="text.secondary" textAlign="center">
+              Archiving hides the item and all packages but keeps your history intact.
+            </Typography>
           </Box>
         </Box>
       </Box>

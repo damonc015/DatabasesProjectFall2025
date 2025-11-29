@@ -21,6 +21,7 @@ def db_test_get_food_items():
                 bu.Abbreviation AS BaseUnit
             FROM FoodItem fi
             JOIN BaseUnit bu ON fi.BaseUnitID = bu.UnitID
+            WHERE fi.IsArchived = 0
         """
         cursor.execute(query)
         results = cursor.fetchall()
@@ -70,7 +71,9 @@ def get_food_item(food_item_id):
             FROM FoodItem fi
             JOIN BaseUnit bu ON fi.BaseUnitID = bu.UnitID
             LEFT JOIN Package p ON fi.PreferredPackageID = p.PackageID
+                AND (p.IsArchived = 0 OR p.IsArchived IS NULL)
             WHERE fi.FoodItemID = %s
+              AND fi.IsArchived = 0
         """
         cursor.execute(query, (food_item_id,))
         result = cursor.fetchone()
@@ -104,6 +107,7 @@ def get_items_below_target():
             FROM StockLevel sl
             JOIN FoodItem fi ON sl.FoodItemID = fi.FoodItemID
             LEFT JOIN Package pp ON fi.PreferredPackageID = pp.PackageID
+                AND (pp.IsArchived = 0 OR pp.IsArchived IS NULL)
             LEFT JOIN (
                 SELECT pl1.PackageID, pl1.PriceTotal
                 FROM PriceLog pl1
@@ -123,6 +127,7 @@ def get_items_below_target():
                 ) l2 ON l1.HouseholdID = l2.HouseholdID AND l1.LocationID = l2.MinLocationID
             ) loc ON fi.HouseholdID = loc.HouseholdID
             WHERE fi.HouseholdID = %s
+                AND fi.IsArchived = 0
                 AND getCurrentStock(fi.FoodItemID) < sl.TargetLevel
             ORDER BY (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) DESC
         """
@@ -157,6 +162,7 @@ def get_items_at_or_above_target():
             FROM StockLevel sl
             JOIN FoodItem fi ON sl.FoodItemID = fi.FoodItemID
             LEFT JOIN Package pp ON fi.PreferredPackageID = pp.PackageID
+                AND (pp.IsArchived = 0 OR pp.IsArchived IS NULL)
             LEFT JOIN (
                 SELECT pl1.PackageID, pl1.PriceTotal
                 FROM PriceLog pl1
@@ -176,6 +182,7 @@ def get_items_at_or_above_target():
                 ) l2 ON l1.HouseholdID = l2.HouseholdID AND l1.LocationID = l2.MinLocationID
             ) loc ON fi.HouseholdID = loc.HouseholdID
             WHERE fi.HouseholdID = %s
+                AND fi.IsArchived = 0
                 AND getCurrentStock(fi.FoodItemID) >= sl.TargetLevel
             ORDER BY fi.Name
         """
@@ -215,6 +222,8 @@ def get_package_labels():
             FROM Package p
             JOIN FoodItem f ON p.FoodItemID = f.FoodItemID
             WHERE f.HouseholdID = %s
+              AND f.IsArchived = 0
+              AND (p.IsArchived = 0 OR p.IsArchived IS NULL)
               AND p.Label IS NOT NULL AND p.Label != ''
             ORDER BY p.Label
         """
@@ -402,6 +411,42 @@ def update_food_item(food_item_id):
         conn.commit()
 
         return jsonify({'message': 'Food item updated successfully'}), 200
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@document_api_route(bp, 'delete', '/<int:food_item_id>', 'Archive food item', 'Soft deletes a food item and packages')
+@handle_db_error
+def archive_food_item(food_item_id):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            UPDATE FoodItem
+            SET IsArchived = 1
+            WHERE FoodItemID = %s
+              AND IsArchived = 0
+        """, (food_item_id,))
+
+        if cursor.rowcount == 0:
+            conn.rollback()
+            return jsonify({'error': 'Item not found'}), 404
+
+        cursor.execute("""
+            UPDATE Package
+            SET IsArchived = 1
+            WHERE FoodItemID = %s
+              AND (IsArchived = 0 OR IsArchived IS NULL)
+        """, (food_item_id,))
+
+        conn.commit()
+
+        return jsonify({'message': 'Item archived.'}), 200
     except Exception as e:
         conn.rollback()
         return jsonify({'error': str(e)}), 500
