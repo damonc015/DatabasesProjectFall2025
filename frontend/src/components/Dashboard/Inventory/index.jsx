@@ -19,8 +19,15 @@ import AddFoodItemModal from './AddFoodItemModal/index.jsx';
 import EditFoodItemModal from './EditFoodItemModal/index.jsx';
 import RestockModal from './RestockModal/index.jsx';
 import LocationModal from '../LocationModal';
+import Filter from '../Filter';
 
-const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory }) => {
+const Inventory = ({
+  showPackage,
+  setShowPackage,
+  searchQuery,
+  selectedCategory,
+  setSelectedCategory
+}) => {
   const [locationFilter, setLocationFilter] = useState(null);
   const [modals, setModals] = useState({
     addItemOpen: false,
@@ -156,6 +163,10 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
           label={<Typography variant="caption">Show in Package</Typography>}
         />
       </Box>
+      <Filter
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+      />
 
       <Box
         sx={{
