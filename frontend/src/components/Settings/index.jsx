@@ -262,7 +262,7 @@ export default function Settings() {
                 backgroundColor: "#fff5f5",
               }}
             >
-              <h3 style={{ color: "#d32f2f" }}>Danger Zone</h3>
+              <h3 style={{ color: "#d32f2f" }}>Delete Account Permanently</h3>
               <p style={{ color: "#555" }}>
                 Account deletion is permanent and cannot be undone.
               </p>
