@@ -27,20 +27,14 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [locationFilter, setLocationFilter] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [restockModalOpen, setRestockModalOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [restockItem, setRestockItem] = useState(null);
-  const [addLocationOpen, setAddLocationOpen] = useState(false);
-  const [newLocationName, setNewLocationName] = useState('');
-  const [addingLocation, setAddingLocation] = useState(false);
-  const [locationError, setLocationError] = useState('');
-  const [renameLocationOpen, setRenameLocationOpen] = useState(false);
-  const [locationToRename, setLocationToRename] = useState(null);
-  const [renameLocationName, setRenameLocationName] = useState('');
-  const [renamingLocation, setRenamingLocation] = useState(false);
-  const [renameError, setRenameError] = useState('');
+  const [modals, setModals] = useState({
+    addItemOpen: false,
+    edit: { open: false, item: null },
+    restock: { open: false, item: null },
+    addLocation: { open: false, name: '', loading: false, error: '' },
+    renameLocation: { open: false, target: null, name: '', loading: false, error: '' }
+  });
+  const { addItemOpen, edit, restock, addLocation, renameLocation } = modals;
   
   const { householdId, user } = useCurrentUser();
   
@@ -103,31 +97,41 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
   }, [loadLocations]);
 
   const handleAddLocationClick = () => {
-    setNewLocationName('');
-    setLocationError('');
-    setAddLocationOpen(true);
+    setModals((prev) => ({
+      ...prev,
+      addLocation: { ...prev.addLocation, open: true, name: '', error: '' }
+    }));
   };
 
   const handleAddLocationClose = () => {
-    if (addingLocation) return;
-    setAddLocationOpen(false);
-    setNewLocationName('');
-    setLocationError('');
+    if (addLocation.loading) return;
+    setModals((prev) => ({
+      ...prev,
+      addLocation: { ...prev.addLocation, open: false, name: '', error: '' }
+    }));
   };
 
   const handleSaveLocation = async () => {
     if (!householdId) {
-      setLocationError('Missing household information.');
+      setModals((prev) => ({
+        ...prev,
+        addLocation: { ...prev.addLocation, error: 'Missing household information.' }
+      }));
       return;
     }
-    const trimmed = newLocationName.trim();
+    const trimmed = addLocation.name.trim();
     if (!trimmed) {
-      setLocationError('Please enter a location name.');
+      setModals((prev) => ({
+        ...prev,
+        addLocation: { ...prev.addLocation, error: 'Please enter a location name.' }
+      }));
       return;
     }
 
-    setAddingLocation(true);
-    setLocationError('');
+    setModals((prev) => ({
+      ...prev,
+      addLocation: { ...prev.addLocation, loading: true, error: '' }
+    }));
     try {
       const response = await fetch(`http://localhost:5001/api/households/${householdId}/locations`, {
         method: 'POST',
@@ -154,13 +158,21 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('locationCreated', { detail: newLocation }));
       }
-      setAddLocationOpen(false);
-      setNewLocationName('');
+      setModals((prev) => ({
+        ...prev,
+        addLocation: { ...prev.addLocation, open: false, name: '', error: '' }
+      }));
       setLocationFilter(newLocation?.LocationID ?? null);
     } catch (err) {
-      setLocationError(err.message || 'Unable to create location.');
+      setModals((prev) => ({
+        ...prev,
+        addLocation: { ...prev.addLocation, error: err.message || 'Unable to create location.' }
+      }));
     } finally {
-      setAddingLocation(false);
+      setModals((prev) => ({
+        ...prev,
+        addLocation: { ...prev.addLocation, loading: false }
+      }));
     }
   };
 
@@ -170,35 +182,49 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
 
   const handleRenameLocationClick = () => {
     if (!selectedLocation) return;
-    setLocationToRename(selectedLocation);
-    setRenameLocationName(selectedLocation.LocationName || '');
-    setRenameError('');
-    setRenameLocationOpen(true);
+    setModals((prev) => ({
+      ...prev,
+      renameLocation: {
+        ...prev.renameLocation,
+        open: true,
+        target: selectedLocation,
+        name: selectedLocation.LocationName || '',
+        error: ''
+      }
+    }));
   };
 
   const handleRenameLocationClose = () => {
-    if (renamingLocation) return;
-    setRenameLocationOpen(false);
-    setLocationToRename(null);
-    setRenameLocationName('');
-    setRenameError('');
+    if (renameLocation.loading) return;
+    setModals((prev) => ({
+      ...prev,
+      renameLocation: { ...prev.renameLocation, open: false, target: null, name: '', error: '' }
+    }));
   };
 
   const handleSaveRenamedLocation = async () => {
-    if (!householdId || !locationToRename) {
-      setRenameError('Missing location information.');
+    if (!householdId || !renameLocation.target) {
+      setModals((prev) => ({
+        ...prev,
+        renameLocation: { ...prev.renameLocation, error: 'Missing location information.' }
+      }));
       return;
     }
-    const trimmed = renameLocationName.trim();
+    const trimmed = renameLocation.name.trim();
     if (!trimmed) {
-      setRenameError('Please enter a location name.');
+      setModals((prev) => ({
+        ...prev,
+        renameLocation: { ...prev.renameLocation, error: 'Please enter a location name.' }
+      }));
       return;
     }
 
-    setRenamingLocation(true);
-    setRenameError('');
+    setModals((prev) => ({
+      ...prev,
+      renameLocation: { ...prev.renameLocation, loading: true, error: '' }
+    }));
     try {
-      const response = await fetch(`http://localhost:5001/api/households/${householdId}/locations/${locationToRename.LocationID}`, {
+      const response = await fetch(`http://localhost:5001/api/households/${householdId}/locations/${renameLocation.target.LocationID}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -222,11 +248,20 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
       const updatedLocation = await response.json();
       await loadLocations();
       setLocationFilter(updatedLocation?.LocationID ?? locationFilter);
-      handleRenameLocationClose();
+      setModals((prev) => ({
+        ...prev,
+        renameLocation: { ...prev.renameLocation, open: false, target: null, name: '', error: '' }
+      }));
     } catch (err) {
-      setRenameError(err.message || 'Unable to rename location.');
+      setModals((prev) => ({
+        ...prev,
+        renameLocation: { ...prev.renameLocation, error: err.message || 'Unable to rename location.' }
+      }));
     } finally {
-      setRenamingLocation(false);
+      setModals((prev) => ({
+        ...prev,
+        renameLocation: { ...prev.renameLocation, loading: false }
+      }));
     }
   };
 
@@ -353,7 +388,7 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
               }
             }}
           >
-            <AddItemCard onClick={() => setModalOpen(true)} />
+            <AddItemCard onClick={() => setModals((prev) => ({ ...prev, addItemOpen: true }))} />
           </Grid>
           {sortedInventory.length === 0 ? (
             <Grid item xs={12}>
@@ -387,12 +422,16 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
                   locationId={item.LocationID}
                   onTransactionComplete={fetchInventory}
                   onEdit={(itm) => {
-                    setSelectedItem(itm);
-                    setEditModalOpen(true);
+                    setModals((prev) => ({
+                      ...prev,
+                      edit: { open: true, item: itm }
+                    }));
                   }}
                   onRestock={(itm) => {
-                    setRestockItem(itm);
-                    setRestockModalOpen(true);
+                    setModals((prev) => ({
+                      ...prev,
+                      restock: { open: true, item: itm }
+                    }));
                   }}
                 />
               </Grid>
@@ -401,39 +440,46 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
         </Grid>
       </Box>
       <AddFoodItemModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        open={addItemOpen}
+        onClose={() => setModals((prev) => ({ ...prev, addItemOpen: false }))}
         onItemAdded={fetchInventory}
       />
       <EditFoodItemModal
-        open={editModalOpen}
+        open={edit.open}
         onClose={() => {
-          setEditModalOpen(false);
-          setSelectedItem(null);
+          setModals((prev) => ({
+            ...prev,
+            edit: { open: false, item: null }
+          }));
         }}
-        item={selectedItem}
+        item={edit.item}
         onItemUpdated={fetchInventory}
       />
       <RestockModal
-        open={restockModalOpen}
+        open={restock.open}
         onClose={() => {
-          setRestockModalOpen(false);
-          setRestockItem(null);
+          setModals((prev) => ({
+            ...prev,
+            restock: { open: false, item: null }
+          }));
         }}
-        item={restockItem}
+        item={restock.item}
         locations={locations}
         onRestocked={fetchInventory}
       />
-      <Dialog open={addLocationOpen} onClose={handleAddLocationClose} fullWidth maxWidth="xs">
+      <Dialog open={addLocation.open} onClose={handleAddLocationClose} fullWidth maxWidth="xs">
         <DialogTitle>Add Location</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
           <TextField
             autoFocus
             label="Location name"
-            value={newLocationName}
+            value={addLocation.name}
             onChange={(e) => {
-              setNewLocationName(e.target.value);
-              setLocationError('');
+              const value = e.target.value;
+              setModals((prev) => ({
+                ...prev,
+                addLocation: { ...prev.addLocation, name: value, error: '' }
+              }));
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -443,31 +489,34 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
             }}
             placeholder="e.g., Pantry, Freezer"
           />
-          {locationError && (
+          {addLocation.error && (
             <Typography variant="body2" color="error">
-              {locationError}
+              {addLocation.error}
             </Typography>
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleAddLocationClose} disabled={addingLocation}>
+          <Button onClick={handleAddLocationClose} disabled={addLocation.loading}>
             Cancel
           </Button>
-          <Button onClick={handleSaveLocation} variant="contained" disabled={addingLocation}>
-            {addingLocation ? 'Saving...' : 'Save'}
+          <Button onClick={handleSaveLocation} variant="contained" disabled={addLocation.loading}>
+            {addLocation.loading ? 'Saving...' : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={renameLocationOpen} onClose={handleRenameLocationClose} fullWidth maxWidth="xs">
+      <Dialog open={renameLocation.open} onClose={handleRenameLocationClose} fullWidth maxWidth="xs">
         <DialogTitle>Rename Location</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
           <TextField
             autoFocus
             label="Location name"
-            value={renameLocationName}
+            value={renameLocation.name}
             onChange={(e) => {
-              setRenameLocationName(e.target.value);
-              setRenameError('');
+              const value = e.target.value;
+              setModals((prev) => ({
+                ...prev,
+                renameLocation: { ...prev.renameLocation, name: value, error: '' }
+              }));
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -477,18 +526,18 @@ const Inventory = ({ showPackage, setShowPackage, searchQuery, selectedCategory 
             }}
             placeholder="e.g., Pantry, Freezer"
           />
-          {renameError && (
+          {renameLocation.error && (
             <Typography variant="body2" color="error">
-              {renameError}
+              {renameLocation.error}
             </Typography>
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleRenameLocationClose} disabled={renamingLocation}>
+          <Button onClick={handleRenameLocationClose} disabled={renameLocation.loading}>
             Cancel
           </Button>
-          <Button onClick={handleSaveRenamedLocation} variant="contained" disabled={renamingLocation}>
-            {renamingLocation ? 'Saving...' : 'Save'}
+          <Button onClick={handleSaveRenamedLocation} variant="contained" disabled={renameLocation.loading}>
+            {renameLocation.loading ? 'Saving...' : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>
