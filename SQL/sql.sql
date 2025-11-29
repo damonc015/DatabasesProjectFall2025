@@ -105,6 +105,7 @@ BEGIN
       AND l.LocationID = p_LocationID
       AND (p_SearchQuery IS NULL OR p_SearchQuery = '' OR LOWER(f.Name) LIKE CONCAT('%', LOWER(p_SearchQuery), '%'))
     GROUP BY f.FoodItemID, f.Name, f.Type, f.Category, p.Label, p.BaseUnitAmt, bu.Abbreviation
+    HAVING TotalQtyInBaseUnits > 0
     ORDER BY f.FoodItemID DESC;
 END;
 DROP PROCEDURE IF EXISTS AddRemoveExistingFoodItem;
