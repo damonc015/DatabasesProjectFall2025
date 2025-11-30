@@ -12,13 +12,14 @@ const fetchCurrentUser = async () => {
       return null;
     }
 
+    const payload = await res.json().catch(() => ({}));
+
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const message = err?.error || 'Unable to restore session';
+      const message = payload?.error || 'Unable to restore session';
       throw new Error(message);
     }
 
-    return res.json();
+    return payload?.user ?? null;
   } catch (error) {
     if (error?.message === 'Failed to fetch') {
       throw new Error('Unable to reach the server');
@@ -35,7 +36,7 @@ export const useCurrentUser = () => {
     retry: false,
   });
 
-  const user = query.data?.user ?? null;
+  const user = query.data ?? null;
 
   return {
     user,

@@ -115,7 +115,6 @@ def login_user():
     flask_login_user(AuthenticatedUser(user), remember=remember)
 
     return jsonify({
-        "message": "Login successful",
         "user": _serialize_user(user)
     }), 200
 
@@ -203,7 +202,6 @@ def register_user():
     flask_login_user(AuthenticatedUser(user), remember=remember)
 
     return jsonify({
-        "message": "Registration successful",
         "user": _serialize_user(user)
     }), 200
 
@@ -710,7 +708,6 @@ def get_session():
         return jsonify({"error": "Not authenticated"}), 401
 
     return jsonify({
-        "message": "Session active",
         "user": _serialize_user(current_user.row)
     }), 200
 

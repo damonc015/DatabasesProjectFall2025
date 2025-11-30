@@ -45,7 +45,7 @@ const RegisterForm = () => {
         return;
       }
 
-      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, data);
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, data?.user ?? null);
       navigate({ to: '/dashboard' });
 
     } catch (err) {
