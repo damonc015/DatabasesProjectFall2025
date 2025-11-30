@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import jsonify, request
+from flask import jsonify, request, g
 from extensions import db_cursor, get_db, create_api_blueprint, document_api_route, handle_db_error
 
 bp = create_api_blueprint('food_items', '/api/food-items')
@@ -7,10 +7,54 @@ bp = create_api_blueprint('food_items', '/api/food-items')
 
 
 
+def _get_current_user_household():
+    user = getattr(g, 'current_user', None)
+    if not user:
+        return None, (jsonify({"error": "Not authenticated"}), 401)
+    try:
+        household_id = int(user.get("HouseholdID"))
+    except (TypeError, ValueError):
+        return None, (jsonify({"error": "Forbidden"}), 403)
+    return household_id, None
+
+
+def _ensure_food_item_access(food_item_id):
+    household_id, error = _get_current_user_household()
+    if error:
+        return error
+
+    with db_cursor() as cursor:
+        cursor.execute("""
+            SELECT HouseholdID
+            FROM FoodItem
+            WHERE FoodItemID = %s
+              AND IsArchived = 0
+            LIMIT 1
+        """, (food_item_id,))
+        row = cursor.fetchone()
+
+    if not row:
+        return jsonify({'error': 'Food item not found'}), 404
+
+    try:
+        item_household_id = int(row.get("HouseholdID"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Forbidden"}), 403
+
+    if item_household_id != household_id:
+        return jsonify({"error": "Forbidden"}), 403
+
+    return None
+
+
 
 @document_api_route(bp, 'get', '/<int:food_item_id>', 'Get food item by ID', 'Returns a single food item by its ID')
 @handle_db_error
 def get_food_item(food_item_id):
+    unauthorized = _ensure_food_item_access(food_item_id)
+    if unauthorized:
+        return unauthorized
+
     with db_cursor() as cursor:
         query = """
             SELECT 
@@ -257,6 +301,10 @@ def add_new_food_item():
 @document_api_route(bp, 'put', '/<int:food_item_id>', 'Update food item metadata', 'Updates basic fields for an existing food item and its preferred package')
 @handle_db_error
 def update_food_item(food_item_id):
+    unauthorized = _ensure_food_item_access(food_item_id)
+    if unauthorized:
+        return unauthorized
+
     data = request.get_json()
 
     conn = get_db()
@@ -404,6 +452,10 @@ def update_food_item(food_item_id):
 @document_api_route(bp, 'delete', '/<int:food_item_id>', 'Archive food item', 'Soft deletes a food item and packages')
 @handle_db_error
 def archive_food_item(food_item_id):
+    unauthorized = _ensure_food_item_access(food_item_id)
+    if unauthorized:
+        return unauthorized
+
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
 
