@@ -5,15 +5,12 @@ from extensions import db_cursor, get_db, create_api_blueprint, document_api_rou
 bp = create_api_blueprint('food_items', '/api/food-items')
 
 
-
-
 def _get_current_user_household():
     user = getattr(g, 'current_user', None)
     if not user:
         return None, (jsonify({"error": "Not authenticated"}), 401)
-    try:
-        household_id = int(user.get("HouseholdID"))
-    except (TypeError, ValueError):
+    household_id = user.get("HouseholdID")
+    if household_id is None:
         return None, (jsonify({"error": "Forbidden"}), 403)
     return household_id, None
 
@@ -36,11 +33,9 @@ def _ensure_food_item_access(food_item_id):
     if not row:
         return jsonify({'error': 'Food item not found'}), 404
 
-    try:
-        item_household_id = int(row.get("HouseholdID"))
-    except (TypeError, ValueError):
+    item_household_id = row.get("HouseholdID")
+    if item_household_id is None or household_id is None:
         return jsonify({"error": "Forbidden"}), 403
-
     if item_household_id != household_id:
         return jsonify({"error": "Forbidden"}), 403
 

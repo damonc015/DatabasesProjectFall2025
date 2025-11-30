@@ -12,13 +12,10 @@ def _ensure_household_access(target_household_id: int):
         return jsonify({"error": "Not authenticated"}), 401
 
     current_household_id = user.get("HouseholdID")
-    try:
-        current_household_id = int(current_household_id) if current_household_id is not None else None
-        target_household_id = int(target_household_id)
-    except (TypeError, ValueError):
+    if current_household_id is None or target_household_id is None:
         return jsonify({"error": "Forbidden"}), 403
 
-    if current_household_id is None or current_household_id != target_household_id:
+    if current_household_id != target_household_id:
         return jsonify({"error": "Forbidden"}), 403
 
     return None
@@ -33,10 +30,12 @@ def _location_belongs_to_household(location_id: int, household_id: int) -> bool:
         row = cursor.fetchone()
     if not row:
         return False
-    try:
-        return int(row.get("HouseholdID")) == int(household_id)
-    except (TypeError, ValueError):
-        return False
+    location_household_id = row.get("HouseholdID")
+    return (
+        location_household_id is not None
+        and household_id is not None
+        and location_household_id == household_id
+    )
 
 
 def _ensure_location_access(household_id: int, location_id: int):
@@ -55,11 +54,8 @@ def _ensure_location_access_for_current_user(location_id: int):
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
     household_id = user.get("HouseholdID")
-    try:
-        household_id = int(household_id)
-    except (TypeError, ValueError):
+    if household_id is None:
         return jsonify({"error": "Forbidden"}), 403
-
     if not _location_belongs_to_household(location_id, household_id):
         return jsonify({"error": "Forbidden"}), 403
 
