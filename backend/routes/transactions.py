@@ -423,7 +423,6 @@ def get_latest_expiration(food_item_id):
             'expiration_date': latest.isoformat() if latest else None
         }), 200
 
-
 @document_api_route(bp, 'put', '/food-item/<int:food_item_id>/latest-expiration', 'Update latest upcoming expiration', 'Updates the most recent non-expired expiration date for a food item')
 @handle_db_error
 def update_latest_expiration(food_item_id):

@@ -178,7 +178,10 @@ export default function CreateShoppingListTable() {
 
   console.log('initial belowThresholdData', belowThresholdData);
   console.log('initial atThresholdData', atThresholdData);
-  console.log('belowThresholdData', typeof belowThresholdData[0].PurchasedQty);
+  console.log(
+    'belowThresholdData',
+    belowThresholdData?.length ? typeof belowThresholdData[0].PurchasedQty : 'no data'
+  );
   console.log('tempCreateListBelowThresholdItems', tempCreateListBelowThresholdItems);
   console.log('tempCreateListAtThresholdItems', tempCreateListAtThresholdItems);
   console.log('totalPrice', totalPrice);
