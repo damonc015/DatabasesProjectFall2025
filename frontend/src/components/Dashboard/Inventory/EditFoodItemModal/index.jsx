@@ -169,11 +169,12 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
 
       if (latestExpiration && latestExpiration !== originalLatestExpiration) {
         try {
-          const expirationRes = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`, {
+          const expirationRes = await fetch(`/api/transactions/food-item/${item.FoodItemID}/latest-expiration`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({ expiration_date: latestExpiration }),
           });
           if (!expirationRes.ok) {

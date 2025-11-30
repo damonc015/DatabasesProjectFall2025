@@ -13,9 +13,9 @@ export const useFormData = (open, householdId) => {
       setLoading(true);
       try {
         const [locationsRes, baseUnitsRes, packageLabelsRes] = await Promise.all([
-          fetch(`http://localhost:5001/api/households/${householdId}/locations`),
-          fetch('http://localhost:5001/api/food-items/base-units'),
-          fetch(`http://localhost:5001/api/food-items/package-labels?household_id=${householdId}`)
+          fetch(`/api/households/${householdId}/locations`, { credentials: 'include' }),
+          fetch('/api/food-items/base-units', { credentials: 'include' }),
+          fetch(`/api/food-items/package-labels?household_id=${householdId}`, { credentials: 'include' })
         ]);
 
         const [locationsData, baseUnitsData, packageLabelsData] = await Promise.all([

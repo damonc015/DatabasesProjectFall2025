@@ -2,22 +2,26 @@ import React from 'react';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Button from '@mui/material/Button';
 import { useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import StaticLogo from './StaticLogo';
+import { useCurrentUser, CURRENT_USER_QUERY_KEY } from '../../../hooks/useCurrentUser';
 
 const Header = () => {
   const navigate = useNavigate();
-  const stored = JSON.parse(localStorage.getItem('user'));
-  const user = stored?.user;
+  const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
   const username = user?.display_name || user?.username || 'Guest';
 
-  const handleLogout = () => {
-    fetch('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-    }).finally(() => {
-      localStorage.removeItem('user');
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } finally {
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
       navigate({ to: '/login' });
-    });
+    }
   };
 
   const householdName = user?.household || 'No Household';
