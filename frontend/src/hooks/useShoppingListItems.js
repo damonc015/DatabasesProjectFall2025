@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 export const useShoppingListItems = (shoppingListId) => {
   return useQuery({
@@ -11,19 +11,5 @@ export const useShoppingListItems = (shoppingListId) => {
       return res.json();
     },
     enabled: !!shoppingListId,
-  });
-};
-
-export const useAddShoppingListItems = (shoppingListId, items) => {
-  return useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/shopping-lists/${shoppingListId}/items`, {
-        method: 'POST',
-        body: JSON.stringify(items),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['shoppingListItems', shoppingListId]);
-    },
   });
 };

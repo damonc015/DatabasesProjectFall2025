@@ -27,7 +27,7 @@ export default function ModifyShoppingListTable() {
   if (error) return <div>Error: {error.message}</div>;
   if (!data) return <div>No items found</div>;
 
-  console.log('data', data);
+  // console.log('data', data);
 
   const tableHeaders = [
     { label: 'Item', align: 'left' },

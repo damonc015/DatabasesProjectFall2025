@@ -52,9 +52,9 @@ export default function CreateShoppingListTable() {
 
   useEffect(() => {
     const handleTransactionCompleted = () => {
-      console.log('Transaction completed event received');
-      console.log('Invalidating queries for household:', householdId);
-      console.log('Invalidating shopping list items for list:', activeShoppingListData?.ShoppingListID);
+      // console.log('Transaction completed event received');
+      // console.log('Invalidating queries for household:', householdId);
+      // console.log('Invalidating shopping list items for list:', activeShoppingListData?.ShoppingListID);
 
       refetchFoodItems();
       queryClient.invalidateQueries(['itemsNotOnActiveList', householdId]);
@@ -68,7 +68,7 @@ export default function CreateShoppingListTable() {
     return () => {
       window.removeEventListener(TRANSACTION_COMPLETED_EVENT, handleTransactionCompleted);
     };
-  }, [householdId, activeShoppingListData?.ShoppingListID, refetchFoodItems, queryClient]);
+  }, [activeShoppingListData?.ShoppingListID, refetchFoodItems, queryClient]);
 
   useEffect(() => {
     if (Array.isArray(shoppingListItemsData) && shoppingListItemsData.length > 0) {
@@ -206,12 +206,12 @@ export default function CreateShoppingListTable() {
     { label: 'Remove from List' },
   ];
 
-  console.log('initial activeShoppingListData', activeShoppingListData);
-  console.log('initial shoppingListItemsData', shoppingListItemsData);
-  console.log('initial foodItemsData', foodItemsData);
-  console.log('tempCreateListBelowThresholdItems', tempCreateListBelowThresholdItems);
-  console.log('tempCreateListAtThresholdItems', tempCreateListAtThresholdItems);
-  console.log('totalPrice', totalPrice);
+  // console.log('initial activeShoppingListData', activeShoppingListData);
+  // console.log('initial shoppingListItemsData', shoppingListItemsData);
+  // console.log('initial foodItemsData', foodItemsData);
+  // console.log('tempCreateListBelowThresholdItems', tempCreateListBelowThresholdItems);
+  // console.log('tempCreateListAtThresholdItems', tempCreateListAtThresholdItems);
+  // console.log('totalPrice', totalPrice);
   return (
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 650 }} aria-label='simple table'>

@@ -5,44 +5,6 @@ import json
 bp = create_api_blueprint('shopping_lists', '/api/shopping-lists')
 
 # Shopping List 
-#TODO: 1.1
-@document_api_route(bp, 'post', '/', 'Create shopping list', 'Creates a new shopping list for a household')
-@handle_db_error
-def create_shopping_list():
-    data = request.get_json()
-    household_id = data.get('household_id')
-    
-    if not household_id:
-        return jsonify({'error': 'household_id is required'}), 400
-    
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    
-    try:
-        cursor.callproc('createShoppingList', [household_id])
-        
-        for result in cursor.stored_results():
-            result.fetchall()
-        
-        conn.commit()
-        
-        cursor.execute("""
-            SELECT ShoppingListID as shopping_list_id 
-            FROM ShoppingList 
-            WHERE HouseholdID = %s 
-            ORDER BY ShoppingListID DESC 
-            LIMIT 1
-        """, (household_id,))
-        result = cursor.fetchone()
-        
-        if not result:
-            return jsonify({'error': 'Failed to create shopping list'}), 500
-        
-        return jsonify(result), 201
-    finally:
-        cursor.close()
-        conn.close()
-
 
 # Get active shopping list
 @document_api_route(bp, 'get', '/active', 'Get active shopping list', 'Returns the active shopping list for a household')
@@ -181,17 +143,7 @@ def complete_shopping_list(shopping_list_id):
             
         return jsonify({'message': 'Shopping list completed', 'shopping_list_id': shopping_list_id}), 200
 
-#TODO: 1.4
-@document_api_route(bp, 'get', '/completed', 'Get completed lists', 'Returns all completed shopping lists')
-@handle_db_error
-def get_completed_shopping_lists():
-    with db_cursor() as cursor:
-        cursor.callproc('getCompletedShoppingLists')
-        results = []
-        for result in cursor.stored_results():
-            results = result.fetchall()
-        return jsonify(results), 200
-
+# get all items in a shopping list by slid
 @document_api_route(bp, 'get', '/<int:shopping_list_id>/items', 'Get shopping list items', 'Returns all items in a shopping list')
 @handle_db_error
 def get_shopping_list_items(shopping_list_id):
@@ -322,6 +274,7 @@ def update_active_shopping_list_items():
         cursor.close()
         conn.close()
 
+# update shopping list items for either leaving a list open or closing it
 @document_api_route(bp, 'put', '/<int:shopping_list_id>/items', 'Update shopping list items', 'Updates multiple items in a shopping list using JSON')
 @handle_db_error
 def update_shopping_list_items(shopping_list_id):
@@ -358,50 +311,6 @@ def update_shopping_list_items(shopping_list_id):
     finally:
         cursor.close()
         conn.close()
-
-#TODO: 2.2
-@document_api_route(bp, 'patch', '/<int:shopping_list_id>/items/<int:item_id>', 'Mark item status', 'Updates the status of a shopping list item')
-@handle_db_error
-def mark_shopping_list_item(shopping_list_id, item_id):
-    data = request.get_json()
-    new_status = data.get('status')
-    
-    if not new_status:
-        return jsonify({'error': 'status is required'}), 400
-    
-    with db_cursor() as cursor:
-        cursor.callproc('markShoppingListItems', [shopping_list_id, item_id, new_status])
-        cursor.execute("SELECT ROW_COUNT() as affected_rows")
-        result = cursor.fetchone()
-        
-        if result['affected_rows'] == 0:
-            return jsonify({'error': 'Shopping list item not found'}), 404
-            
-        return jsonify({
-            'message': 'Item status updated',
-            'shopping_list_id': shopping_list_id,
-            'item_id': item_id,
-            'status': new_status
-        }), 200
-
-#TODO: 2.3
-@document_api_route(bp, 'delete', '/<int:shopping_list_id>/items/<int:item_id>', 'Remove shopping list item', 'Removes an item from a shopping list')
-@handle_db_error
-def remove_shopping_list_item(shopping_list_id, item_id):
-    with db_cursor() as cursor:
-        cursor.callproc('removeShoppingListItem', [shopping_list_id, item_id])
-        cursor.execute("SELECT ROW_COUNT() as affected_rows")
-        result = cursor.fetchone()
-        
-        if result['affected_rows'] == 0:
-            return jsonify({'error': 'Shopping list item not found'}), 404
-            
-        return jsonify({
-            'message': 'Item removed successfully',
-            'shopping_list_id': shopping_list_id,
-            'item_id': item_id
-        }), 200
-
 
 # Export shopping list
 @document_api_route(bp, 'get', '/<int:shopping_list_id>/export', 'Export shopping list', 'Export shopping list data in JSON or HTML format')

@@ -67,7 +67,7 @@ export default function ShoppingHistoryTable() {
     handleCloseMenu();
   };
 
-  console.log(data);
+  // console.log(data);
   return (
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 650 }} aria-label='simple table'>

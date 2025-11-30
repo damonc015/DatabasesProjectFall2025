@@ -39,18 +39,3 @@ export const useShoppingLists = ({ param = 0, order = 'asc' } = {}) => {
   });
 };
 
-// get completed shopping lists
-export const useCompletedShoppingLists = () => {
-  return useQuery({
-    queryKey: ['shoppingLists', 'completed'],
-    queryFn: async () => {
-      const res = await fetch('/api/shopping-lists/completed');
-
-      if (!res.ok) {
-        throw new Error('Failed to fetch completed shopping lists');
-      }
-
-      return res.json();
-    },
-  });
-};

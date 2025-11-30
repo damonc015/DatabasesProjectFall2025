@@ -23,12 +23,12 @@ const Dashboard = () => {
 
   useEffect(() => {
     const handleTransactionCompleted = () => {
-      console.log('Transaction completed (Dashboard): Invalidating queries');
+      // console.log('Transaction completed (Dashboard): Invalidating queries');
       queryClient.invalidateQueries(['itemsNotOnActiveList']);
       queryClient.invalidateQueries(['shoppingLists']);
       queryClient.invalidateQueries(['shoppingListItems']);
       queryClient.invalidateQueries(['foodItems']);
-      queryClient.invalidateQueries(['inventory']); // Assuming there are inventory queries
+      queryClient.invalidateQueries(['inventory']);
     };
 
     window.addEventListener(TRANSACTION_COMPLETED_EVENT, handleTransactionCompleted);

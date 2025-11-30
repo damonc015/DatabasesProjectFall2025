@@ -38,14 +38,14 @@ const SaveModal = () => {
           Status: item.Status || 'active',
         }));
 
-        console.log('Sending items to update:', cleanedItems);
+        // console.log('Sending items to update:', cleanedItems);
 
         await updateItemsMutation.mutateAsync({
           household_id: householdId,
           items: cleanedItems,
         });
       }
-      console.log('List updated successfully');
+      // console.log('List updated successfully');
     } catch (error) {
       console.error('Error creating/updating shopping list:', error);
     }
@@ -53,13 +53,14 @@ const SaveModal = () => {
   const handleSaveLeaveList = async () => {
     await handleUpdateActiveShoppingList();
     setIsMiniModalOpen(false);
-    console.log('saved changes left list open');
+    closeModal();
+    // console.log('saved changes left list open');
   };
   const handleSaveCloseList = async () => {
     await handleUpdateActiveShoppingList();
     try {
       await completeActiveListMutation.mutateAsync({ household_id: householdId, user_id: user?.id });
-      console.log('saved changes closed list');
+      // console.log('saved changes closed list');
     } catch (error) {
       console.error('Failed to close list:', error);
     }
