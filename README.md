@@ -1,11 +1,14 @@
 
 # Database Fall 2025
 ## Prerequisites
+- MySQL 
+- Python 3.8+
+- Node.js and pnpm
+- MySQL database (default name: `stocker`)
 
 ### Backend Setup (Flask)
 
-- Python 3.8+
-- MySQL database (default name: `stocker`)
+
 
 #### Quick Start
 
@@ -33,13 +36,11 @@ Create a `.env` file in the `backend` directory:
 ```env
 MYSQL_HOST=localhost
 MYSQL_PORT=3306
-MYSQL_USER=root
-MYSQL_PASSWORD=your_password
-MYSQL_DATABASE=stocker 
+MYSQL_USER=stocker_app
+MYSQL_PASSWORD=2zC4ngpg2b6F
+MYSQL_DATABASE=stocker
 ``` 
-**Note:** 
-MYSQL_DATABASE is your local db name
-(if you didn't set a pw, leave `MYSQL_PASSWORD=` blank).
+
 
 ### 3. Connect/Create Database
 
@@ -48,7 +49,7 @@ Connect to MySQL
 CREATE DATABASE IF NOT EXISTS stocker;
 ```
 
-### 4. Start the Server
+### 4. Backend Setup
 
 ```bash
 source venv/bin/activate 
@@ -59,32 +60,11 @@ python app.py
 
 The server will start on `http://localhost:5001`
 
-You should see: `{"status":"ok","message":"Stocker API running"}`
 
-## Project Structure
 
-```
-backend/
-├── app.py                 # Main Flask application
-├── config.py              # Configuration settings
-├── extensions.py          # Database connection helper
-├── routes/                # API route
-│   ├── food_items.py
-│   ├── households.py
-│   └── shopping_lists.py
-├── requirements.txt       # Python dependencies
-├── .env                   # Environment variables (git ignored)
-└── README.md
-```
 
-## Troubleshooting
-- **MySQL connection error**: Make sure MySQL is running and credentials are correct
-- **Port 5001 already in use**: Change the port in `app.py` line 34
 
-## API Documentation
-See [API.md](API.md) for API endpoint documentation.
-
-### Frontend Setup (React)
+### Frontend Setup
 
 1. Navigate to the frontend directory:
    ```bash
