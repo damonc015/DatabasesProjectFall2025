@@ -9,12 +9,7 @@ import { useUpdateShoppingListItems, useCompleteActiveShoppingList } from '../..
 
 const SaveModal = () => {
   const { householdId, user } = useCurrentUser();
-  const {
-    closeModal,
-    tempCreateListBelowThresholdItems,
-    isMiniModalOpen,
-    setIsMiniModalOpen,
-  } = useShoppingListStore();
+  const { closeModal, tempCreateListBelowThresholdItems, isMiniModalOpen, setIsMiniModalOpen } = useShoppingListStore();
   const updateItemsMutation = useUpdateShoppingListItems();
   const completeActiveListMutation = useCompleteActiveShoppingList();
 
@@ -40,6 +35,7 @@ const SaveModal = () => {
           NeededQuantity: parseFloat(item.NeededQty),
           PurchasedQuantity: parseInt(item.PurchasedQty, 10) || 0,
           TotalPrice: parseFloat(item.TotalPrice) || 0,
+          Status: item.Status || 'active',
         }));
 
         console.log('Sending items to update:', cleanedItems);

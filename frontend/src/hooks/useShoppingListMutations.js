@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { dispatchTransactionCompleted } from '../utils/transactionEvents';
 
 // create shopping list
 export const useCreateShoppingList = () => {
@@ -99,6 +100,7 @@ export const useCompleteActiveShoppingList = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(['shoppingLists']);
       queryClient.invalidateQueries(['activeShoppingList']);
+      dispatchTransactionCompleted();
     },
   });
 };

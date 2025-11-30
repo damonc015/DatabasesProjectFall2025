@@ -332,82 +332,53 @@ BEGIN
     DECLARE needed_qty DECIMAL(10,2);
     DECLARE purchased_qty DECIMAL(10,2);
     DECLARE total_price DECIMAL(10,2);
+    DECLARE status_val VARCHAR(20);
 
-    DECLARE item_total DECIMAL(10,2) DEFAULT 0;
     DECLARE list_total DECIMAL(10,2) DEFAULT 0;
+
+    -- Disable safe updates to allow deletion by ShoppingListID
+    SET SQL_SAFE_UPDATES = 0;
 
     START TRANSACTION;
 
-    -- make temp table for new items
-    CREATE TEMPORARY TABLE IF NOT EXISTS TempSyncItems (
-        FoodItemID INT,
-        LocationID INT,
-        PackageID INT
-    );
+    -- Remove all items from the current list
+    DELETE FROM ShoppingListItem WHERE ShoppingListID = sl_id;
 
-    -- clear temp table if it exists
-    TRUNCATE TempSyncItems;
-
+    -- Re-insert all items from JSON
     WHILE i < n DO
-
         SET food_item_id   = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].FoodItemID'));
         SET location_id    = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].LocationID'));
         SET package_id     = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].PackageID'));
         SET needed_qty     = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].NeededQuantity'));
         SET purchased_qty  = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].PurchasedQuantity'));
         SET total_price    = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].TotalPrice'));
+        SET status_val     = JSON_UNQUOTE(JSON_EXTRACT(sl_items, CONCAT('$[', i, '].Status')));
 
-        INSERT INTO TempSyncItems VALUES (food_item_id, location_id, package_id);
-
-        IF EXISTS (
-            SELECT 1 FROM ShoppingListItem
-            WHERE ShoppingListID = sl_id
-              AND FoodItemID = food_item_id
-              AND LocationID = location_id
-              AND PackageID = package_id
-        ) THEN
-            UPDATE ShoppingListItem
-            SET NeededQty = needed_qty,
-                PurchasedQty = purchased_qty,
-                TotalPrice = total_price,
-                Status = 'Active'
-            WHERE ShoppingListID = sl_id
-              AND FoodItemID = food_item_id
-              AND LocationID = location_id
-              AND PackageID = package_id;
-        ELSE
-            INSERT INTO ShoppingListItem (
-                ShoppingListID,
-                FoodItemID,
-                LocationID,
-                PackageID,
-                NeededQty,
-                PurchasedQty,
-                TotalPrice,
-                Status
-            ) VALUES (
-                sl_id, food_item_id, location_id, package_id,
-                needed_qty, purchased_qty, total_price, 'Active'
-            );
-        END IF;
+        INSERT INTO ShoppingListItem (
+            ShoppingListID,
+            FoodItemID,
+            LocationID,
+            PackageID,
+            NeededQty,
+            PurchasedQty,
+            TotalPrice,
+            Status
+        ) VALUES (
+            sl_id, food_item_id, location_id, package_id,
+            needed_qty, purchased_qty, total_price, IFNULL(status_val, 'active')
+        );
 
         SET list_total = list_total + total_price;
-
         SET i = i + 1;
     END WHILE;
 
-    DELETE FROM ShoppingListItem
-    WHERE ShoppingListID = sl_id
-      AND (FoodItemID, LocationID, PackageID)
-          NOT IN (SELECT FoodItemID, LocationID, PackageID FROM TempSyncItems);
-
+    -- Update Shopping List totals
     UPDATE ShoppingList
     SET TotalCost = list_total,
         LastUpdated = CURRENT_TIMESTAMP
     WHERE ShoppingListID = sl_id;
 
     COMMIT;
-
 END;
 
 

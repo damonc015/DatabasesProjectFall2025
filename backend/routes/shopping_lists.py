@@ -129,16 +129,16 @@ def complete_active_shopping_list():
             for item in purchased_items:
                 qty_in_base_units = float(item['PurchasedQty']) * float(item['BaseUnitAmt'])
                 
-                cursor.execute("""
-                    INSERT INTO InventoryTransaction 
-                    (FoodItemID, LocationID, UserID, QtyInBaseUnits, TransactionType, CreatedAt)
-                    VALUES (%s, %s, %s, %s, 'purchase', NOW())
-                """, (
-                    item['FoodItemID'], 
-                    item['LocationID'], 
+                cursor.callproc('AddRemoveExistingFoodItem', (
+                    item['FoodItemID'],
+                    item['LocationID'],
                     user_id,
-                    qty_in_base_units
+                    'add',
+                    qty_in_base_units,
+                    None 
                 ))
+                for result in cursor.stored_results():
+                    result.fetchall()
         
         conn.commit()
         

@@ -16,6 +16,8 @@ import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { useActiveShoppingList } from '../../../../hooks/useShoppingLists';
 import { useShoppingListItems } from '../../../../hooks/useShoppingListItems';
 import { useItemsNotOnActiveList } from '../../../../hooks/useFoodItems';
+import { TRANSACTION_COMPLETED_EVENT } from '../../../../utils/transactionEvents';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function CreateShoppingListTable() {
   const { householdId } = useCurrentUser();
@@ -35,6 +37,7 @@ export default function CreateShoppingListTable() {
     data: foodItemsData,
     error: foodItemsError,
     isLoading: foodItemsLoading,
+    refetch: refetchFoodItems,
   } = useItemsNotOnActiveList(householdId);
 
   const {
@@ -45,6 +48,27 @@ export default function CreateShoppingListTable() {
   } = useShoppingListStore();
 
   const [totalPrice, setTotalPrice] = useState(0);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handleTransactionCompleted = () => {
+      console.log('Transaction completed event received');
+      console.log('Invalidating queries for household:', householdId);
+      console.log('Invalidating shopping list items for list:', activeShoppingListData?.ShoppingListID);
+
+      refetchFoodItems();
+      queryClient.invalidateQueries(['itemsNotOnActiveList', householdId]);
+      queryClient.invalidateQueries(['shoppingLists', 'active', householdId]);
+      if (activeShoppingListData?.ShoppingListID) {
+        queryClient.invalidateQueries(['shoppingListItems', activeShoppingListData.ShoppingListID]);
+      }
+    };
+
+    window.addEventListener(TRANSACTION_COMPLETED_EVENT, handleTransactionCompleted);
+    return () => {
+      window.removeEventListener(TRANSACTION_COMPLETED_EVENT, handleTransactionCompleted);
+    };
+  }, [householdId, activeShoppingListData?.ShoppingListID, refetchFoodItems, queryClient]);
 
   useEffect(() => {
     if (Array.isArray(shoppingListItemsData) && shoppingListItemsData.length > 0) {
@@ -119,20 +143,6 @@ export default function CreateShoppingListTable() {
     setTempCreateListBelowThresholdItems(updatedItems);
   };
 
-  const handleTotalPriceChange = (itemId, newValue) => {
-    const updatedItems = tempCreateListBelowThresholdItems.map((item) => {
-      if (item.FoodItemID === itemId) {
-        const newTotalPrice = parseFloat(newValue) || 0;
-        return {
-          ...item,
-          TotalPrice: newTotalPrice,
-        };
-      }
-      return item;
-    });
-    setTempCreateListBelowThresholdItems(updatedItems);
-  };
-
   // mark as purchased
   const handleMarkAsPurchased = (itemId) => {
     const item = tempCreateListBelowThresholdItems.find((item) => item.FoodItemID === itemId);
@@ -176,8 +186,8 @@ export default function CreateShoppingListTable() {
       const originalItem = tempCreateListAtThresholdItems?.find((item) => item.FoodItemID === itemId);
       const itemForBelowList = {
         ...itemToMove,
-        NeededQty: originalItem?.NeededQty || 1,
-        TotalPrice: originalItem?.TotalPrice || itemToMove.PricePerUnit,
+        NeededQty: originalItem?.NeededQty,
+        TotalPrice: originalItem?.TotalPrice || 0,
         Status: 'active',
       };
       const updatedBelowList = [...tempCreateListBelowThresholdItems, itemForBelowList];
@@ -190,7 +200,7 @@ export default function CreateShoppingListTable() {
   const tableHeaders = [
     { label: 'Item' },
     { label: 'Price Per Package' },
-    { label: 'Restock Package Amount' },
+    { label: '# Packages to Restock' },
     { label: 'Total Price' },
     { label: 'Mark as Purchased' },
     { label: 'Remove from List' },
@@ -240,13 +250,7 @@ export default function CreateShoppingListTable() {
               </TableCell>
               {/* total price */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                <NumberController
-                  id={row.FoodItemID}
-                  value={row.TotalPrice}
-                  defaultValue={row.TotalPrice}
-                  label={'totalprice'}
-                  onBlur={(value) => handleTotalPriceChange(row.FoodItemID, value)}
-                />
+                <span>{`$${parseFloat(row.TotalPrice || 0).toFixed(2)}`}</span>
               </TableCell>
               {/* mark as purchased */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
@@ -299,13 +303,7 @@ export default function CreateShoppingListTable() {
               </TableCell>
               {/* total price */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans', color: 'gray' }}>
-                <NumberController
-                  id={row.FoodItemID}
-                  value={row.TotalPrice}
-                  defaultValue={row.TotalPrice}
-                  label={'totalprice'}
-                  disabled={true}
-                />
+                <span>{`$${parseFloat(row.TotalPrice || 0).toFixed(2)}`}</span>
               </TableCell>
               <TableCell colSpan={2} component='th' scope='row' align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 <Button

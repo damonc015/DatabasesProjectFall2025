@@ -245,7 +245,6 @@ def get_items_not_on_active_list():
                     JOIN ShoppingListItem sli ON sl.ShoppingListID = sli.ShoppingListID
                     WHERE sl.HouseholdID = %s
                       AND sl.Status = 'active'
-                      AND sli.Status = 'active'
                 )
             ORDER BY fi.Name
         """

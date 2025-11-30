@@ -102,7 +102,7 @@ export default function ModifyShoppingListTable() {
               </TableCell>
             </TableRow>
           )}
-          {data.length === 0 && <TableFallback />}
+          {data.length === 0 && <TableFallback message='You saved an empty list'/>}
         </TableBody>
       </Table>
     </TableContainer>
