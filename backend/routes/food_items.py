@@ -383,30 +383,32 @@ def update_food_item(food_item_id):
         if price_per_item is not None and effective_package_id is not None:
             try:
                 price_value = float(price_per_item)
+            except (TypeError, ValueError):
+                price_value = None
 
+            normalized_store = (store or '').strip().lower() or None
+
+            if price_value is not None:
                 cursor.execute("""
-                    SELECT PriceLogID
+                    SELECT PriceTotal, Store
                     FROM PriceLog
                     WHERE PackageID = %s
                     ORDER BY CreatedAt DESC
                     LIMIT 1
                 """, (effective_package_id,))
-                price_log_row = cursor.fetchone()
+                price_log_row = cursor.fetchone() or {}
 
-                if price_log_row:
-                    cursor.execute("""
-                        UPDATE PriceLog
-                        SET PriceTotal = %s,
-                            Store = %s
-                        WHERE PriceLogID = %s
-                    """, (price_value, store, price_log_row['PriceLogID']))
-                else:
+                latest_price = price_log_row.get('PriceTotal')
+                latest_store = (price_log_row.get('Store') or '').strip().lower() or None
+
+                price_changed = latest_price is None or latest_price != price_value
+                store_changed = latest_store != normalized_store
+
+                if price_changed or store_changed:
                     cursor.execute("""
                         INSERT INTO PriceLog (PackageID, PriceTotal, Store)
                         VALUES (%s, %s, %s)
-                    """, (effective_package_id, price_value, store))
-            except (TypeError, ValueError):
-                pass
+                    """, (effective_package_id, price_value, normalized_store))
 
         conn.commit()
 
