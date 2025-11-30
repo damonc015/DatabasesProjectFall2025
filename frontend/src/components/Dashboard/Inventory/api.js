@@ -52,5 +52,3 @@ export const archiveFoodItem = async (foodItemId) => {
 
   return response.json().catch(() => ({}));
 };
-
-

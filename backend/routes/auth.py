@@ -35,12 +35,16 @@ def _parse_session_token(token: str):
 
 
 def _set_session_cookie(response, token: str, persistent: bool = True):
+    is_production = current_app.config.get('ENV') != 'development'
+    
     response.set_cookie(
         SESSION_COOKIE_NAME,
         token,
         max_age=SESSION_MAX_AGE if persistent else None,
         httponly=True,
+        secure=is_production,  # HTTPS only in production
         samesite='Lax',
+        domain=None  # Let browser handle domain
     )
     return response
 
@@ -645,6 +649,24 @@ def _get_user_by_id(user_id: int):
             LIMIT 1
         """, (user_id,))
         return cursor.fetchone()
+
+
+# we need this to get user from session token instead of what's sent from client
+def get_current_user_from_session():
+
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
+        return None
+    
+    token_data = _parse_session_token(token)
+    if not token_data:
+        return None
+    
+    user_id = token_data.get("user_id")
+    if not user_id:
+        return None
+    
+    return _get_user_by_id(user_id)
 
 
 def add_deleted_user_placeholder(cursor, household_id):

@@ -1,35 +1,33 @@
-import React, { useState, useEffect } from "react";
-import { TextField, Button, Tabs, Tab, Box } from "@mui/material";
-import { useNavigate } from "@tanstack/react-router";
+import React, { useState, useEffect } from 'react';
+import { TextField, Button, Tabs, Tab, Box } from '@mui/material';
+import { useNavigate } from '@tanstack/react-router';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const stored = JSON.parse(localStorage.getItem("user"));
+  const stored = JSON.parse(localStorage.getItem('user'));
   const user = stored?.user;
-  const isOwner = user?.role === "owner";
+  const isOwner = user?.role === 'owner';
 
-  const [displayName, setDisplayName] = useState(user?.display_name || "");
-  const [oldPw, setOldPw] = useState("");
-  const [newPw, setNewPw] = useState("");
+  const [displayName, setDisplayName] = useState(user?.display_name || '');
+  const [oldPw, setOldPw] = useState('');
+  const [newPw, setNewPw] = useState('');
 
-  const [joinCode, setJoinCode] = useState("");
-  
-  const [householdName, setHouseholdName] = useState("");
+  const [joinCode, setJoinCode] = useState('');
+
+  const [householdName, setHouseholdName] = useState('');
 
   const [members, setMembers] = useState([]);
-  const [confirmUsername, setConfirmUsername] = useState("");
+  const [confirmUsername, setConfirmUsername] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  
+
   const [currentTab, setCurrentTab] = useState(0);
 
   // Fetch members only if owner
   useEffect(() => {
     async function loadMembers() {
-        if (!isOwner || !user?.household_id) return;
+      if (!isOwner || !user?.household_id) return;
 
-        const res = await fetch(
-          `http://localhost:5001/api/auth/members/${user.household_id}`
-        );
+      const res = await fetch(`http://localhost:5001/api/auth/members/${user.household_id}`);
       const data = await res.json();
       setMembers(data.members || []);
     }
@@ -37,11 +35,10 @@ export default function Settings() {
     loadMembers();
   }, []);
 
-
   async function handleSaveName() {
-    const res = await fetch("http://localhost:5001/api/auth/update-profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch('http://localhost:5001/api/auth/update-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         user_id: user.id,
         display_name: displayName,
@@ -49,18 +46,18 @@ export default function Settings() {
     });
 
     const data = await res.json();
-    if (!res.ok) return alert(data.error || "Error");
+    if (!res.ok) return alert(data.error || 'Error');
 
     stored.user.display_name = displayName;
-    localStorage.setItem("user", JSON.stringify(stored));
+    localStorage.setItem('user', JSON.stringify(stored));
 
-    alert("Display name updated!");
+    alert('Display name updated!');
   }
 
   async function handleUpdatePassword() {
-    const res = await fetch("http://localhost:5001/api/auth/update-profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch('http://localhost:5001/api/auth/update-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         user_id: user.id,
         old_password: oldPw,
@@ -69,17 +66,17 @@ export default function Settings() {
     });
 
     const data = await res.json();
-    if (!res.ok) return alert(data.error || "Error");
+    if (!res.ok) return alert(data.error || 'Error');
 
-    alert("Password updated!");
-    setOldPw("");
-    setNewPw("");
+    alert('Password updated!');
+    setOldPw('');
+    setNewPw('');
   }
 
   async function handleJoinHousehold() {
-    const res = await fetch("http://localhost:5001/api/auth/join-household", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch('http://localhost:5001/api/auth/join-household', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         user_id: user.id,
         join_code: joinCode,
@@ -87,21 +84,21 @@ export default function Settings() {
     });
 
     const data = await res.json();
-    if (!res.ok) return alert(data.error || "Error");
+    if (!res.ok) return alert(data.error || 'Error');
 
     stored.user.household_id = data.household_id;
     stored.user.household = data.household_name;
-    stored.user.role = "member";
-    localStorage.setItem("user", JSON.stringify(stored));
+    stored.user.role = 'member';
+    localStorage.setItem('user', JSON.stringify(stored));
 
-    alert("Joined household!");
+    alert('Joined household!');
     window.location.reload();
   }
 
   async function handleCreateHousehold() {
-    const res = await fetch("http://localhost:5001/api/auth/create-household", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch('http://localhost:5001/api/auth/create-household', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         user_id: user.id,
         household_name: householdName || null,
@@ -109,33 +106,33 @@ export default function Settings() {
     });
 
     const data = await res.json();
-    if (!res.ok) return alert(data.error || "Error");
+    if (!res.ok) return alert(data.error || 'Error');
 
     // Update localStorage
     stored.user.household_id = data.household.household_id;
     stored.user.household = data.household.household_name;
     stored.user.join_code = data.household.join_code;
-    stored.user.role = "owner";
-    localStorage.setItem("user", JSON.stringify(stored));
+    stored.user.role = 'owner';
+    localStorage.setItem('user', JSON.stringify(stored));
 
-    alert("Household created successfully!");
+    alert('Household created successfully!');
     window.location.reload();
   }
 
   async function handleRemoveUser() {
-    const dropdown = document.getElementById("removeUserSelect");
+    const dropdown = document.getElementById('removeUserSelect');
     const username = dropdown.value;
 
-    if (!username) return alert("Select a member");
+    if (!username) return alert('Select a member');
 
-    const res = await fetch("http://localhost:5001/api/auth/remove-member", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch('http://localhost:5001/api/auth/remove-member', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username }),
     });
 
     const data = await res.json();
-    if (!res.ok) return alert(data.error || "Error");
+    if (!res.ok) return alert(data.error || 'Error');
 
     alert(`User "${username}" removed.`);
 
@@ -146,144 +143,137 @@ export default function Settings() {
     if (!user?.id) return;
 
     if (confirmUsername.trim() !== user?.username) {
-      return alert("Type your username to confirm deletion.");
+      return alert('Type your username to confirm deletion.');
     }
 
-    const confirmed = window.confirm(
-      "Are you sure? This will permanently delete your account."
-    );
+    const confirmed = window.confirm('Are you sure? This will permanently delete your account.');
 
     if (!confirmed) return;
 
     setIsDeleting(true);
     try {
-      const res = await fetch(
-        `http://localhost:5001/api/auth/account/${user.id}`,
-        {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ confirm_username: confirmUsername.trim() }),
-        }
-      );
+      const res = await fetch(`http://localhost:5001/api/auth/account/${user.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ confirm_username: confirmUsername.trim() }),
+      });
 
       const data = await res.json();
       if (!res.ok) {
-        return alert(data.error || "Failed to delete account");
+        return alert(data.error || 'Failed to delete account');
       }
 
-      localStorage.removeItem("user");
-      alert("Account deleted!");
-      navigate({ to: "/login" });
+      localStorage.removeItem('user');
+      alert('Account deleted!');
+      navigate({ to: '/login' });
     } catch (error) {
-      alert("Network error");
+      alert('Network error');
     } finally {
       setIsDeleting(false);
     }
   }
 
-
   return (
-    <div style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      overflowY: "auto",
-      overflowX: "hidden",
-      backgroundColor: "#f5f5f5"
-    }}>
-      <div className="settings-page" style={{ 
-        padding: "20px", 
-        maxWidth: "900px", 
-        margin: "0 auto",
-        paddingTop: "80px",
-        minHeight: "100vh"
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        backgroundColor: '#f5f5f5',
+      }}
+    >
+      <div
+        className='settings-page'
+        style={{
+          padding: '20px',
+          maxWidth: '900px',
+          margin: '0 auto',
+          paddingTop: '80px',
+          minHeight: '100vh',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2>Settings</h2>
-          <Button 
-            variant="outlined" 
-            onClick={() => navigate({ to: "/dashboard" })}
-          >
+          <Button variant='outlined' onClick={() => navigate({ to: '/dashboard' })}>
             Back to Dashboard
           </Button>
         </div>
 
-        <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)} sx={{ marginBottom: "30px" }}>
-          <Tab label="Personal Settings" />
-          <Tab label="Household Management" />
+        <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)} sx={{ marginBottom: '30px' }}>
+          <Tab label='Personal Settings' />
+          <Tab label='Household Management' />
         </Tabs>
 
         {/* Personal Settings Tab */}
         {currentTab === 0 && (
           <Box>
-            <div style={{ marginBottom: "30px" }}>
+            <div style={{ marginBottom: '30px' }}>
               <h3>Display Name</h3>
-              <TextField
-                fullWidth
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-              />
-              <Button className='button' variant="contained" style={{ marginTop: "10px" }} onClick={handleSaveName}>
+              <TextField fullWidth value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+              <Button className='button' variant='contained' style={{ marginTop: '10px' }} onClick={handleSaveName}>
                 Save
               </Button>
             </div>
 
-            <div style={{ marginBottom: "30px" }}>
+            <div style={{ marginBottom: '30px' }}>
               <h3>Change Password</h3>
               <TextField
-                type="password"
+                type='password'
                 fullWidth
-                placeholder="Old Password"
+                placeholder='Old Password'
                 value={oldPw}
                 onChange={(e) => setOldPw(e.target.value)}
               />
               <TextField
-                type="password"
+                type='password'
                 fullWidth
-                placeholder="New Password"
-                style={{ marginTop: "10px" }}
+                placeholder='New Password'
+                style={{ marginTop: '10px' }}
                 value={newPw}
                 onChange={(e) => setNewPw(e.target.value)}
               />
-              <Button className='button' variant="contained" style={{ marginTop: "10px" }} onClick={handleUpdatePassword}>
+              <Button
+                className='button'
+                variant='contained'
+                style={{ marginTop: '10px' }}
+                onClick={handleUpdatePassword}
+              >
                 Update
               </Button>
             </div>
 
             <div
               style={{
-                marginBottom: "30px",
-                border: "1px solid #f44336",
-                borderRadius: "8px",
-                padding: "20px",
-                backgroundColor: "#fff5f5",
+                marginBottom: '30px',
+                border: '1px solid #f44336',
+                borderRadius: '8px',
+                padding: '20px',
+                backgroundColor: '#fff5f5',
               }}
             >
-              <h3 style={{ color: "#d32f2f" }}>Delete Account Permanently</h3>
-              <p style={{ color: "#555" }}>
-                Account deletion is permanent and cannot be undone.
-              </p>
+              <h3 style={{ color: '#d32f2f' }}>Delete Account Permanently</h3>
+              <p style={{ color: '#555' }}>Account deletion is permanent and cannot be undone.</p>
               <TextField
                 fullWidth
-                label="Type your username to confirm"
+                label='Type your username to confirm'
                 value={confirmUsername}
                 onChange={(e) => setConfirmUsername(e.target.value)}
-                sx={{ marginTop: "10px" }}
+                sx={{ marginTop: '10px' }}
               />
               <Button
                 className='button'
-                variant="contained"
-                color="error"
-                style={{ marginTop: "10px" }}
-                disabled={
-                  confirmUsername.trim() !== (user?.username || "") || isDeleting
-                }
+                variant='contained'
+                color='error'
+                style={{ marginTop: '10px' }}
+                disabled={confirmUsername.trim() !== (user?.username || '') || isDeleting}
                 onClick={handleDeleteAccount}
               >
-                {isDeleting ? "Deleting..." : "Delete Account"}
+                {isDeleting ? 'Deleting...' : 'Delete Account'}
               </Button>
             </div>
           </Box>
@@ -295,37 +285,33 @@ export default function Settings() {
             {!user?.household_id ? (
               // No household - show create/join options
               <>
-                <div style={{ marginBottom: "30px" }}>
+                <div style={{ marginBottom: '30px' }}>
                   <h3>Create New Household</h3>
                   <TextField
                     fullWidth
-                    label="Household Name (Optional)"
+                    label='Household Name (Optional)'
                     value={householdName}
                     onChange={(e) => setHouseholdName(e.target.value)}
-                    sx={{ marginBottom: "10px" }}
+                    sx={{ marginBottom: '10px' }}
                   />
-                  <Button
-                    className='button'
-                    variant="contained"
-                    onClick={handleCreateHousehold}
-                  >
+                  <Button className='button' variant='contained' onClick={handleCreateHousehold}>
                     Create Household
                   </Button>
                 </div>
 
-                <div style={{ marginBottom: "30px" }}>
+                <div style={{ marginBottom: '30px' }}>
                   <h3>Join Existing Household</h3>
                   <TextField
                     fullWidth
-                    placeholder="Enter Join Code"
+                    placeholder='Enter Join Code'
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value)}
-                    sx={{ marginBottom: "10px" }}
+                    sx={{ marginBottom: '10px' }}
                   />
                   <Button
                     className='button'
-                    variant="contained"
-                    disabled={joinCode.trim() === ""}
+                    variant='contained'
+                    disabled={joinCode.trim() === ''}
                     onClick={handleJoinHousehold}
                   >
                     Join Household
@@ -336,43 +322,39 @@ export default function Settings() {
               // Has household - show management options
               <>
                 {/* Create/Join options - available for both owner and member */}
-                <div style={{ marginBottom: "30px" }}>
+                <div style={{ marginBottom: '30px' }}>
                   <h3>Create New Household</h3>
-                  <p style={{ color: "gray", marginBottom: "10px" }}>
+                  <p style={{ color: 'gray', marginBottom: '10px' }}>
                     Creating a new household will automatically remove you from your current household.
                   </p>
                   <TextField
                     fullWidth
-                    label="Household Name (Optional)"
+                    label='Household Name (Optional)'
                     value={householdName}
                     onChange={(e) => setHouseholdName(e.target.value)}
-                    sx={{ marginBottom: "10px" }}
+                    sx={{ marginBottom: '10px' }}
                   />
-                  <Button
-                    className='button'
-                    variant="contained"
-                    onClick={handleCreateHousehold}
-                  >
+                  <Button className='button' variant='contained' onClick={handleCreateHousehold}>
                     Create Household
                   </Button>
                 </div>
 
-                <div style={{ marginBottom: "30px" }}>
+                <div style={{ marginBottom: '30px' }}>
                   <h3>Join Another Household</h3>
-                  <p style={{ color: "gray", marginBottom: "10px" }}>
+                  <p style={{ color: 'gray', marginBottom: '10px' }}>
                     Joining a new household will automatically remove you from your current household.
                   </p>
                   <TextField
                     fullWidth
-                    placeholder="Enter Join Code"
+                    placeholder='Enter Join Code'
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value)}
-                    sx={{ marginBottom: "10px" }}
+                    sx={{ marginBottom: '10px' }}
                   />
                   <Button
                     className='button'
-                    variant="contained"
-                    disabled={joinCode.trim() === ""}
+                    variant='contained'
+                    disabled={joinCode.trim() === ''}
                     onClick={handleJoinHousehold}
                   >
                     Join
@@ -381,17 +363,16 @@ export default function Settings() {
 
                 {/* Owner Only */}
                 {isOwner && (
-                  <div style={{ marginTop: "40px" }}>
+                  <div style={{ marginTop: '40px' }}>
                     <h3>Household Controls (Owner Only)</h3>
 
                     <p>
-                      Join Code:{" "}
-                      <strong>{user?.join_code || "N/A"}</strong>
+                      Join Code: <strong>{user?.join_code || 'N/A'}</strong>
                     </p>
 
                     <h4>Remove User</h4>
                     {members.length > 0 && (
-                      <select id="removeUserSelect" style={{ width: "100%", padding: "8px" }}>
+                      <select id='removeUserSelect' style={{ width: '100%', padding: '8px' }}>
                         {members
                           .filter((m) => Number(m.UserID) !== Number(user.id))
                           .map((m) => (
@@ -402,7 +383,12 @@ export default function Settings() {
                       </select>
                     )}
 
-                    <Button className='button' variant="contained" style={{ marginTop: "10px" }} onClick={handleRemoveUser}>
+                    <Button
+                      className='button'
+                      variant='contained'
+                      style={{ marginTop: '10px' }}
+                      onClick={handleRemoveUser}
+                    >
                       Remove
                     </Button>
                   </div>

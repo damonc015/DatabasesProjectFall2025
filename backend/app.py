@@ -19,7 +19,27 @@ def create_app(config_name='development'):
     app.version = "1.0.0"
   
     app.url_map.strict_slashes = False
-    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    
+    # Configure CORS based on environment
+    if config_name == 'production':
+        # In production, only allow your Railway domain
+        allowed_origin = os.getenv('FRONTEND_URL', 'https://your-app.up.railway.app')
+        CORS(app, 
+             resources={r"/api/*": {
+                 "origins": [allowed_origin],
+                 "supports_credentials": True,
+                 "allow_headers": ["Content-Type"],
+                 "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+             }})
+    else:
+        # Development - allow localhost
+        CORS(app, 
+             resources={r"/api/*": {
+                 "origins": ["http://localhost:5173", "http://localhost:5001"],
+                 "supports_credentials": True,
+                 "allow_headers": ["Content-Type"],
+                 "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+             }})
     
     app.register_blueprint(food_items_bp)
     app.register_blueprint(shopping_lists_bp)

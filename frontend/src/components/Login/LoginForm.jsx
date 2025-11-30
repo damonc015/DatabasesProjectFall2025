@@ -17,7 +17,7 @@ const LoginForm = () => {
       const res = await fetch('http://localhost:5001/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, remember })
+        body: JSON.stringify({ username, password, remember }),
       });
 
       const data = await res.json();
@@ -29,7 +29,6 @@ const LoginForm = () => {
 
       localStorage.setItem('user', JSON.stringify(data));
       navigate({ to: '/dashboard' });
-
     } catch (err) {
       setError('Network error');
     }
@@ -44,16 +43,23 @@ const LoginForm = () => {
       </div>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <div className='input-container'>
-        <TextField className='input' label='Username' variant='outlined' value={username} onChange={(e) => setUsername(e.target.value)} />
-        <TextField className='input' label='Password' variant='outlined' type='password' value={password} onChange={(e) => setPassword(e.target.value)} />
+        <TextField
+          className='input'
+          label='Username'
+          variant='outlined'
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+        <TextField
+          className='input'
+          label='Password'
+          variant='outlined'
+          type='password'
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
         <FormControlLabel
-          control={
-            <Checkbox
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-              color='primary'
-            />
-          }
+          control={<Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)} color='primary' />}
           label='Remember Me'
           sx={{ alignSelf: 'flex-start', mt: 1 }}
         />
