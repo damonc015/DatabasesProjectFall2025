@@ -247,75 +247,6 @@ BEGIN
     VALUES (food_item_id, l_location_id, u_user_id, total_base_qty, 'add', expiration_date);
 END;
 
--- SLH
--- sort by param - id(0), date(1), status(2), price(3)
--- ie: call getshoppinglistbyparam(0,true/false,1);
-DROP PROCEDURE IF EXISTS getShoppingListByParam;
-CREATE PROCEDURE getShoppingListByParam(
-  IN param INT,
-  IN orderbool BOOL,  
-  IN pg_num INT
-)
-BEGIN
-  DECLARE page_size INT;
-  DECLARE offset_val INT;
-  SET page_size = 10;
-  SET offset_val = (pg_num - 1) * page_size;
--- sort by id
-    IF param = 0 THEN
-        IF orderbool THEN
-            SELECT *
-            FROM ShoppingList
-            ORDER BY ShoppingListID ASC
-            LIMIT page_size OFFSET offset_val;
-        ELSE
-            SELECT *
-            FROM ShoppingList
-            ORDER BY ShoppingListID DESC
-            LIMIT page_size OFFSET offset_val;
-        END IF;
--- sort by last updated date
-    ELSEIF param = 1 THEN
-        IF orderbool THEN
-            SELECT *
-            FROM ShoppingList
-            ORDER BY LastUpdated ASC
-            LIMIT page_size OFFSET offset_val;
-        ELSE
-            SELECT *
-            FROM ShoppingList
-            ORDER BY LastUpdated DESC
-            LIMIT page_size OFFSET offset_val;
-        END IF;
--- sort by status
-    ELSEIF param = 2 THEN
-        IF orderbool THEN
-            SELECT *
-            FROM ShoppingList
-            ORDER BY Status ASC
-            LIMIT page_size OFFSET offset_val;
-        ELSE
-            SELECT *
-            FROM ShoppingList
-            ORDER BY Status DESC
-            LIMIT page_size OFFSET offset_val;
-        END IF;
--- sort by total price
-    ELSE
-        IF orderbool THEN
-            SELECT *
-            FROM ShoppingList
-            ORDER BY TotalCost ASC
-            LIMIT page_size OFFSET offset_val;
-        ELSE
-            SELECT *
-            FROM ShoppingList
-            ORDER BY TotalCost DESC
-            LIMIT page_size OFFSET offset_val;
-        END IF;
-    END IF;
-END;
-
 -- SL Updates
 DROP PROCEDURE IF EXISTS UpdateShoppingListItemsJSON;
 CREATE PROCEDURE UpdateShoppingListItemsJSON(
@@ -381,9 +312,59 @@ BEGIN
     COMMIT;
 END;
 
-
-
-
+DROP PROCEDURE IF EXISTS getShoppingListByParam;
+CREATE PROCEDURE getShoppingListByParam(
+  IN param INT,
+  IN orderbool BOOL  
+)
+BEGIN
+  DECLARE offset_val INT;
+-- sort by id
+    IF param = 0 THEN
+        IF orderbool THEN
+            SELECT *
+            FROM ShoppingList
+            ORDER BY ShoppingListID ASC;
+        ELSE
+            SELECT *
+            FROM ShoppingList
+            ORDER BY ShoppingListID DESC;
+        END IF;
+-- sort by last updated date
+    ELSEIF param = 1 THEN
+        IF orderbool THEN
+            SELECT *
+            FROM ShoppingList
+            ORDER BY LastUpdated ASC;
+        ELSE
+            SELECT *
+            FROM ShoppingList
+            ORDER BY LastUpdated DESC;
+        END IF;
+-- sort by status
+    ELSEIF param = 2 THEN
+        IF orderbool THEN
+            SELECT *
+            FROM ShoppingList
+            ORDER BY Status ASC;
+        ELSE
+            SELECT *
+            FROM ShoppingList
+            ORDER BY Status DESC;
+        END IF;
+-- sort by total price
+    ELSE
+        IF orderbool THEN
+            SELECT *
+            FROM ShoppingList
+            ORDER BY TotalCost ASC;
+        ELSE
+            SELECT *
+            FROM ShoppingList
+            ORDER BY TotalCost DESC;
+        END IF;
+    END IF;
+END
 
 
 

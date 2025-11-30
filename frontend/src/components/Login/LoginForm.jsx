@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { Box, TextField, Button, FormControlLabel, Checkbox } from '@mui/material';
 import { Link, useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import Logo from '../Logo';
+import { CURRENT_USER_QUERY_KEY } from '../../hooks/useCurrentUser';
 
 const LoginForm = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -14,10 +17,11 @@ const LoginForm = () => {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:5001/api/auth/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, remember }),
+        credentials: 'include',
+        body: JSON.stringify({ username, password, remember })
       });
 
       const data = await res.json();
@@ -27,7 +31,7 @@ const LoginForm = () => {
         return;
       }
 
-      localStorage.setItem('user', JSON.stringify(data));
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, data?.user ?? null);
       navigate({ to: '/dashboard' });
     } catch (err) {
       setError('Network error');

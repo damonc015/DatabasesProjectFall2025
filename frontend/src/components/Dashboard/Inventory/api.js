@@ -1,11 +1,12 @@
 import { dispatchTransactionCompleted } from '../../../utils/transactionEvents';
 
 export const updateFoodItem = async (foodItemId, payload) => {
-  const response = await fetch(`http://localhost:5001/api/food-items/${foodItemId}`, {
+  const response = await fetch(`/api/food-items/${foodItemId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(payload),
   });
 
@@ -18,11 +19,12 @@ export const updateFoodItem = async (foodItemId, payload) => {
 };
 
 export const createInventoryTransaction = async (payload, { notify = true } = {}) => {
-  const response = await fetch('http://localhost:5001/api/transactions/inventory/transaction', {
+  const response = await fetch('/api/transactions/inventory/transaction', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(payload),
   });
 
@@ -41,8 +43,9 @@ export const createInventoryTransaction = async (payload, { notify = true } = {}
 };
 
 export const archiveFoodItem = async (foodItemId) => {
-  const response = await fetch(`http://localhost:5001/api/food-items/${foodItemId}`, {
+  const response = await fetch(`/api/food-items/${foodItemId}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
 
   if (!response.ok) {

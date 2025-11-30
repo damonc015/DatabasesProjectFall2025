@@ -33,7 +33,9 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
     if (!open || !item) return;
     const loadDefaultExpiration = async () => {
       try {
-        const res = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`);
+        const res = await fetch(`/api/transactions/food-item/${item.FoodItemID}/latest-expiration`, {
+          credentials: 'include',
+        });
         if (res.ok) {
           const data = await res.json();
           if (data?.expiration_date) {

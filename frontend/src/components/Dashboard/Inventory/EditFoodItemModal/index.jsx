@@ -7,6 +7,10 @@ import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import TextField from '@mui/material/TextField';
+import dayjs from 'dayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { CATEGORY_EMOJI } from '../../../../utils/foodEmojis';
 import { dispatchTransactionCompleted } from '../../../../utils/transactionEvents';
@@ -165,11 +169,12 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
 
       if (latestExpiration && latestExpiration !== originalLatestExpiration) {
         try {
-          const expirationRes = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`, {
+          const expirationRes = await fetch(`/api/transactions/food-item/${item.FoodItemID}/latest-expiration`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({ expiration_date: latestExpiration }),
           });
           if (!expirationRes.ok) {
@@ -320,18 +325,28 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
                   showExpiration={false}
                 />
                 
-                <TextField
-                  label="Expiration Date"
-                  type="date"
-                  value={latestExpiration || ''}
-                  onChange={(e) => {
-                    setLatestExpiration(e.target.value);
-                    setExpirationError('');
-                  }}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  disabled={expirationLoading}
-                />
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    label="Expiration Date"
+                    value={latestExpiration ? dayjs(latestExpiration) : null}
+                    onChange={(newValue) => {
+                      if (!newValue || !newValue.isValid()) {
+                        setLatestExpiration('');
+                      } else {
+                        setLatestExpiration(newValue.format('YYYY-MM-DD'));
+                      }
+                      setExpirationError('');
+                    }}
+                    minDate={dayjs(todayISO)}
+                    disabled={expirationLoading}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        InputLabelProps: { shrink: true },
+                      },
+                    }}
+                  />
+                </LocalizationProvider>
                 {expirationError && (
                   <Typography variant="caption" color="error">
                     {expirationError}

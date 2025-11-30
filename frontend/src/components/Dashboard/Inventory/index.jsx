@@ -135,7 +135,7 @@ const Inventory = ({
             color="primary"
             size="small"
             onClick={openAddLocationModal}
-            sx={{ ml: 1, border: 1, borderColor: 'divider' }}
+            sx={{ ml: 1, border: 1}}
             aria-label="Add location"
           >
             <AddIcon fontSize="small" />
@@ -145,7 +145,7 @@ const Inventory = ({
               color="primary"
               size="small"
               onClick={handleRenameLocationClick}
-              sx={{ ml: 1, border: 1, borderColor: 'divider' }}
+              sx={{ ml: 1, border: 1 }}
               aria-label="Rename location"
             >
               <EditIcon fontSize="small" />

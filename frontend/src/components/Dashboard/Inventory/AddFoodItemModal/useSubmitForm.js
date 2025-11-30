@@ -15,11 +15,12 @@ export const useSubmitForm = (householdId, userId, onItemAdded, onClose) => {
     try {
       const targetLevelInBaseUnits = parseFloat(formData.target_level) * parseFloat(formData.package_base_unit_amt);
 
-      const response = await fetch('http://localhost:5001/api/food-items/add', {
+      const response = await fetch('/api/food-items/add', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           food_name: formData.food_name.toLowerCase().trim(),
           type: (formData.type || '').toLowerCase().trim(),

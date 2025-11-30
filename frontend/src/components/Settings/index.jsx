@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { TextField, Button, Tabs, Tab, Box } from '@mui/material';
-import { useNavigate } from '@tanstack/react-router';
+import React, { useState, useEffect, useCallback } from "react";
+import { TextField, Button, Tabs, Tab, Box } from "@mui/material";
+import { useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentUser, CURRENT_USER_QUERY_KEY } from "../../hooks/useCurrentUser";
 
 export default function Settings() {
   const navigate = useNavigate();
-  const stored = JSON.parse(localStorage.getItem('user'));
-  const user = stored?.user;
-  const isOwner = user?.role === 'owner';
+  const queryClient = useQueryClient();
+  const { user, isLoading, refreshUser } = useCurrentUser();
+  const isOwner = user?.role === "owner";
 
-  const [displayName, setDisplayName] = useState(user?.display_name || '');
-  const [oldPw, setOldPw] = useState('');
-  const [newPw, setNewPw] = useState('');
+  const [displayName, setDisplayName] = useState("");
+  const [oldPw, setOldPw] = useState("");
+  const [newPw, setNewPw] = useState("");
 
   const [joinCode, setJoinCode] = useState('');
 
@@ -22,23 +24,46 @@ export default function Settings() {
 
   const [currentTab, setCurrentTab] = useState(0);
 
-  // Fetch members only if owner
   useEffect(() => {
-    async function loadMembers() {
-      if (!isOwner || !user?.household_id) return;
+    setDisplayName(user?.display_name || "");
+  }, [user?.display_name]);
 
-      const res = await fetch(`http://localhost:5001/api/auth/members/${user.household_id}`);
-      const data = await res.json();
-      setMembers(data.members || []);
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate({ to: "/login" });
+    }
+  }, [isLoading, navigate, user]);
+
+  const loadMembers = useCallback(async () => {
+    if (!isOwner || !user?.household_id) {
+      setMembers([]);
+      return;
     }
 
+    try {
+      const res = await fetch(`/api/auth/members/${user.household_id}`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        throw new Error("Failed to fetch members");
+      }
+      const data = await res.json();
+      setMembers(data.members || []);
+    } catch (error) {
+      setMembers([]);
+    }
+  }, [isOwner, user?.household_id]);
+
+  useEffect(() => {
     loadMembers();
-  }, []);
+  }, [loadMembers]);
 
   async function handleSaveName() {
-    const res = await fetch('http://localhost:5001/api/auth/update-profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    if (!user?.id) return;
+    const res = await fetch("/api/auth/update-profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         user_id: user.id,
         display_name: displayName,
@@ -48,16 +73,16 @@ export default function Settings() {
     const data = await res.json();
     if (!res.ok) return alert(data.error || 'Error');
 
-    stored.user.display_name = displayName;
-    localStorage.setItem('user', JSON.stringify(stored));
-
-    alert('Display name updated!');
+    await refreshUser();
+    alert("Display name updated!");
   }
 
   async function handleUpdatePassword() {
-    const res = await fetch('http://localhost:5001/api/auth/update-profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    if (!user?.id) return;
+    const res = await fetch("/api/auth/update-profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         user_id: user.id,
         old_password: oldPw,
@@ -74,9 +99,11 @@ export default function Settings() {
   }
 
   async function handleJoinHousehold() {
-    const res = await fetch('http://localhost:5001/api/auth/join-household', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    if (!user?.id) return;
+    const res = await fetch("/api/auth/join-household", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         user_id: user.id,
         join_code: joinCode,
@@ -86,19 +113,18 @@ export default function Settings() {
     const data = await res.json();
     if (!res.ok) return alert(data.error || 'Error');
 
-    stored.user.household_id = data.household_id;
-    stored.user.household = data.household_name;
-    stored.user.role = 'member';
-    localStorage.setItem('user', JSON.stringify(stored));
-
-    alert('Joined household!');
-    window.location.reload();
+    await refreshUser();
+    await loadMembers();
+    setJoinCode("");
+    alert("Joined household!");
   }
 
   async function handleCreateHousehold() {
-    const res = await fetch('http://localhost:5001/api/auth/create-household', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    if (!user?.id) return;
+    const res = await fetch("/api/auth/create-household", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         user_id: user.id,
         household_name: householdName || null,
@@ -108,15 +134,10 @@ export default function Settings() {
     const data = await res.json();
     if (!res.ok) return alert(data.error || 'Error');
 
-    // Update localStorage
-    stored.user.household_id = data.household.household_id;
-    stored.user.household = data.household.household_name;
-    stored.user.join_code = data.household.join_code;
-    stored.user.role = 'owner';
-    localStorage.setItem('user', JSON.stringify(stored));
-
-    alert('Household created successfully!');
-    window.location.reload();
+    await refreshUser();
+    await loadMembers();
+    setHouseholdName("");
+    alert("Household created successfully!");
   }
 
   async function handleRemoveUser() {
@@ -125,18 +146,19 @@ export default function Settings() {
 
     if (!username) return alert('Select a member');
 
-    const res = await fetch('http://localhost:5001/api/auth/remove-member', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/auth/remove-member", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ username }),
     });
 
     const data = await res.json();
     if (!res.ok) return alert(data.error || 'Error');
 
+    await loadMembers();
+    await refreshUser();
     alert(`User "${username}" removed.`);
-
-    window.location.reload();
   }
 
   async function handleDeleteAccount() {
@@ -152,26 +174,34 @@ export default function Settings() {
 
     setIsDeleting(true);
     try {
-      const res = await fetch(`http://localhost:5001/api/auth/account/${user.id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ confirm_username: confirmUsername.trim() }),
-      });
+      const res = await fetch(
+        `/api/auth/account/${user.id}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ confirm_username: confirmUsername.trim() }),
+        }
+      );
 
       const data = await res.json();
       if (!res.ok) {
         return alert(data.error || 'Failed to delete account');
       }
 
-      localStorage.removeItem('user');
-      alert('Account deleted!');
-      navigate({ to: '/login' });
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+      alert("Account deleted!");
+      navigate({ to: "/login" });
     } catch (error) {
       alert('Network error');
     } finally {
       setIsDeleting(false);
     }
+  }
+
+
+  if (isLoading || !user) {
+    return null;
   }
 
   return (

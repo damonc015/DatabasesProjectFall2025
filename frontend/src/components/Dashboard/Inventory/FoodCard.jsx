@@ -18,7 +18,9 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
 
   const fetchLatestExpiration = async () => {
     try {
-      const res = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`);
+      const res = await fetch(`/api/transactions/food-item/${item.FoodItemID}/latest-expiration`, {
+        credentials: 'include',
+      });
       if (!res.ok) {
         await res.json().catch(() => ({}));
         return null;
