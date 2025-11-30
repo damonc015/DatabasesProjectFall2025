@@ -51,21 +51,53 @@ export const useAddShoppingListItems = () => {
   });
 };
 
+// update shopping list items
+export const useUpdateShoppingListItems = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ shoppingListId, items }) => {
+      const res = await fetch(`/api/shopping-lists/${shoppingListId}/items`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to update items');
+      }
+
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries(['shoppingListItems', variables.shoppingListId]);
+      queryClient.invalidateQueries(['shoppingLists']);
+    },
+  });
+};
+
 // mark shopping list item
 export const useMarkShoppingListItem = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: async ({ listId, itemId, status }) => {
-      const res = await fetch(`/api/shopping-lists/${listId}/items/${itemId}`, {
+    mutationFn: async ({ shoppingListId, itemId, status }) => {
+      const res = await fetch(`/api/shopping-lists/${shoppingListId}/items/${itemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
-      if (!res.ok) throw new Error('Failed to update');
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to update item status');
+      }
+
       return res.json();
     },
-    onSuccess: (_, { listId }) => {
-      queryClient.invalidateQueries(['shoppingListItems', listId]);
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries(['shoppingListItems', variables.shoppingListId]);
     },
   });
 };
@@ -73,16 +105,23 @@ export const useMarkShoppingListItem = () => {
 // remove shopping list item
 export const useRemoveShoppingListItem = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: async ({ listId, itemId }) => {
-      const res = await fetch(`/api/shopping-lists/${listId}/items/${itemId}`, {
+    mutationFn: async ({ shoppingListId, itemId }) => {
+      const res = await fetch(`/api/shopping-lists/${shoppingListId}/items/${itemId}`, {
         method: 'DELETE',
       });
-      if (!res.ok) throw new Error('Failed to delete');
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to remove item');
+      }
+
       return res.json();
     },
-    onSuccess: (_, { listId }) => {
-      queryClient.invalidateQueries(['shoppingListItems', listId]);
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries(['shoppingListItems', variables.shoppingListId]);
+      queryClient.invalidateQueries(['shoppingLists']);
     },
   });
 };

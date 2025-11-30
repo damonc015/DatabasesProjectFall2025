@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -13,20 +13,22 @@ import Button from '@mui/material/Button';
 import NumberController from '../NumberController/NumberController';
 import useShoppingListStore from '../../../../stores/useShoppingListStore';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
-import { useItemsBelowTarget, useItemsAtOrAboveTarget } from '../../../../hooks/useFoodItems';
+import { useActiveShoppingList } from '../../../../hooks/useShoppingLists';
+import { useShoppingListItems } from '../../../../hooks/useShoppingListItems';
 
 export default function CreateShoppingListTable() {
   const { householdId } = useCurrentUser();
   const {
-    data: belowThresholdData,
-    error: belowThresholdError,
-    isLoading: belowThresholdLoading,
-  } = useItemsBelowTarget(householdId);
+    data: activeShoppingListData,
+    error: activeShoppingListError,
+    isLoading: activeShoppingListLoading,
+  } = useActiveShoppingList(householdId);
+
   const {
-    data: atThresholdData,
-    error: atThresholdError,
-    isLoading: atThresholdLoading,
-  } = useItemsAtOrAboveTarget(householdId);
+    data: shoppingListItemsData,
+    error: shoppingListItemsError,
+    isLoading: shoppingListItemsLoading,
+  } = useShoppingListItems(activeShoppingListData?.ShoppingListID);
 
   const {
     tempCreateListBelowThresholdItems,
@@ -38,8 +40,8 @@ export default function CreateShoppingListTable() {
   const [totalPrice, setTotalPrice] = useState(0);
 
   useEffect(() => {
-    if (belowThresholdData) {
-      const processedData = belowThresholdData.map((item) => ({
+    if (Array.isArray(shoppingListItemsData) && shoppingListItemsData.length > 0) {
+      const processedData = shoppingListItemsData.map((item) => ({
         FoodItemID: item.FoodItemID,
         FoodItemName: item.FoodItemName,
         PricePerUnit: item.PricePerUnit,
@@ -54,8 +56,8 @@ export default function CreateShoppingListTable() {
       setTempCreateListBelowThresholdItems(processedData);
     }
 
-    if (atThresholdData) {
-      const processedData = atThresholdData.map((item) => ({
+    if (Array.isArray(shoppingListItemsData) && shoppingListItemsData.length > 0) {
+      const processedData = shoppingListItemsData.map((item) => ({
         FoodItemID: item.FoodItemID,
         FoodItemName: item.FoodItemName,
         PricePerUnit: item.PricePerUnit,
@@ -67,7 +69,12 @@ export default function CreateShoppingListTable() {
       }));
       setTempCreateListAtThresholdItems(processedData);
     }
-  }, [belowThresholdData, atThresholdData, setTempCreateListBelowThresholdItems, setTempCreateListAtThresholdItems]);
+  }, [
+    activeShoppingListData,
+    shoppingListItemsData,
+    setTempCreateListBelowThresholdItems,
+    setTempCreateListAtThresholdItems,
+  ]);
 
   useEffect(() => {
     const total = tempCreateListBelowThresholdItems.reduce((acc, item) => acc + parseFloat(item.TotalPrice), 0) || 0;
@@ -77,12 +84,12 @@ export default function CreateShoppingListTable() {
   if (!householdId) {
     return <div>No household id found</div>;
   }
-  if (belowThresholdLoading) return <div>Loading...</div>;
-  if (belowThresholdError) return <div>Error: {belowThresholdError.message}</div>;
-  if (!belowThresholdData) return <div>No items found</div>;
-  if (atThresholdLoading) return <div>Loading...</div>;
-  if (atThresholdError) return <div>Error: {atThresholdError.message}</div>;
-  if (!atThresholdData) return <div>No items found</div>;
+  if (activeShoppingListLoading) return <div>Loading...</div>;
+  if (activeShoppingListError) return <div>Error: {activeShoppingListError.message}</div>;
+  if (!activeShoppingListData) return <div>No items found</div>;
+  if (shoppingListItemsLoading) return <div>Loading...</div>;
+  if (shoppingListItemsError) return <div>Error: {shoppingListItemsError.message}</div>;
+  if (!shoppingListItemsData) return <div>No items found</div>;
 
   const handlePurchaseQtyChange = (itemId, newValue) => {
     const updatedItems = tempCreateListBelowThresholdItems.map((item) => {
@@ -153,7 +160,7 @@ export default function CreateShoppingListTable() {
     const itemToMove = tempCreateListAtThresholdItems.find((item) => item.FoodItemID === itemId);
     if (itemToMove) {
       const updatedAtList = tempCreateListAtThresholdItems.filter((item) => item.FoodItemID !== itemId);
-      const originalItem = belowThresholdData?.find((item) => item.FoodItemID === itemId);
+      const originalItem = activeShoppingListData?.find((item) => item.FoodItemID === itemId);
       const itemForBelowList = {
         ...itemToMove,
         NeededQty: originalItem?.NeededQty || 1,
@@ -176,9 +183,8 @@ export default function CreateShoppingListTable() {
     { label: 'Remove from List' },
   ];
 
-  console.log('initial belowThresholdData', belowThresholdData);
-  console.log('initial atThresholdData', atThresholdData);
-  console.log('belowThresholdData', typeof belowThresholdData[0].PurchasedQty);
+  console.log('initial activeShoppingListData', activeShoppingListData);
+  console.log('initial shoppingListItemsData', shoppingListItemsData);
   console.log('tempCreateListBelowThresholdItems', tempCreateListBelowThresholdItems);
   console.log('tempCreateListAtThresholdItems', tempCreateListAtThresholdItems);
   console.log('totalPrice', totalPrice);
@@ -230,10 +236,7 @@ export default function CreateShoppingListTable() {
               </TableCell>
               {/* mark as purchased */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                <Checkbox
-                  checked={row.Status === 'inactive'}
-                  onChange={() => handleMarkAsPurchased(row.FoodItemID)}
-                />
+                <Checkbox checked={row.Status === 'inactive'} onChange={() => handleMarkAsPurchased(row.FoodItemID)} />
               </TableCell>
               {/* remove from list */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>

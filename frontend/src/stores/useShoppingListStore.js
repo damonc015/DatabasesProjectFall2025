@@ -8,6 +8,9 @@ const useShoppingListStore = create((set) => ({
   closeModal: () => set({ isModalOpen: false }),
   toggleModal: () => set((state) => ({ isModalOpen: !state.isModalOpen })),
   setIsListHistory: (value) => set({ isListHistory: value }),
+  // mini modal for confirming save changes
+  isMiniModalOpen: false,
+  setIsMiniModalOpen: (value) => set({ isMiniModalOpen: value }),
   // create list
   tempCreateListBelowThresholdItems: [],
   setTempCreateListBelowThresholdItems: (value) => set({ tempCreateListBelowThresholdItems: value }),

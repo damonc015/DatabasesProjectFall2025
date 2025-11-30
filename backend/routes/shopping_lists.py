@@ -43,6 +43,36 @@ def create_shopping_list():
         cursor.close()
         conn.close()
 
+
+# Get active shopping list
+@document_api_route(bp, 'get', '/active', 'Get active shopping list', 'Returns the active shopping list for a household')
+@handle_db_error
+def get_active_shopping_list():
+    household_id = request.args.get('household_id')
+    
+    if not household_id:
+        return jsonify({'error': 'household_id is required'}), 400
+        
+    with db_cursor() as cursor:
+        cursor.execute("""
+            SELECT 
+                ShoppingListID,
+                HouseholdID,
+                Status,
+                LastUpdated,
+                TotalCost
+            FROM ShoppingList 
+            WHERE HouseholdID = %s AND Status = 'active'
+            ORDER BY LastUpdated DESC
+            LIMIT 1
+        """, (household_id,))
+        result = cursor.fetchone()
+        
+        if not result:
+            return jsonify(None), 200
+            
+        return jsonify(result), 200
+
 #TODO: 1.2 - needs to filter out household id
 @document_api_route(bp, 'get', '/', 'Get shopping lists', 'Get paginated shopping lists with sorting')
 @handle_db_error
@@ -99,7 +129,8 @@ def get_shopping_list_items(shopping_list_id):
                 sli.NeededQty,
                 sli.PurchasedQty,
                 sli.TotalPrice,
-                sli.Status
+                sli.Status,
+                GetCurrentStock(sli.FoodItemID) as CurrentStock
             FROM ShoppingListItem sli
             JOIN FoodItem fi ON sli.FoodItemID = fi.FoodItemID
             LEFT JOIN Location l ON sli.LocationID = l.LocationID
@@ -145,6 +176,43 @@ def add_shopping_list_items(shopping_list_id):
             'shopping_list_id': shopping_list_id,
             'total_cost': result['TotalCost']
         }), 201
+    finally:
+        cursor.close()
+        conn.close()
+
+@document_api_route(bp, 'put', '/<int:shopping_list_id>/items', 'Update shopping list items', 'Updates multiple items in a shopping list using JSON')
+@handle_db_error
+def update_shopping_list_items(shopping_list_id):
+    data = request.get_json()
+    items = data.get('items', [])
+    
+    if not items:
+        return jsonify({'error': 'items array is required'}), 400
+    
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        items_json = json.dumps(items)
+        cursor.callproc('UpdateShoppingListItemsJSON', [shopping_list_id, items_json])
+        
+        for result in cursor.stored_results():
+            result.fetchall()
+        
+        conn.commit()
+        
+        cursor.execute("""
+            SELECT TotalCost 
+            FROM ShoppingList 
+            WHERE ShoppingListID = %s
+        """, (shopping_list_id,))
+        result = cursor.fetchone()
+        
+        return jsonify({
+            'message': 'Items updated successfully',
+            'shopping_list_id': shopping_list_id,
+            'total_cost': result['TotalCost']
+        }), 200
     finally:
         cursor.close()
         conn.close()

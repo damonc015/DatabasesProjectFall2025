@@ -1,65 +1,17 @@
 import React from 'react';
 import useShoppingListStore from '../../../../stores/useShoppingListStore';
 import Button from '@mui/material/Button';
-import { useCurrentUser } from '../../../../hooks/useCurrentUser';
-import { useItemsBelowTarget, useItemsAtOrAboveTarget } from '../../../../hooks/useFoodItems';
-import { useCreateShoppingList, useAddShoppingListItems } from '../../../../hooks/useShoppingListMutations';
 
 const CreateShoppingListButton = () => {
-  const { householdId } = useCurrentUser();
-  const { closeModal, tempCreateListBelowThresholdItems } = useShoppingListStore();
-  const createShoppingListMutation = useCreateShoppingList();
-  const addItemsMutation = useAddShoppingListItems();
-  const {
-    data: belowThresholdData,
-    error: belowThresholdError,
-    isLoading: belowThresholdLoading,
-  } = useItemsBelowTarget(householdId);
-  const {
-    data: atThresholdData,
-    error: atThresholdError,
-    isLoading: atThresholdLoading,
-  } = useItemsAtOrAboveTarget(householdId);
+  const { setIsMiniModalOpen } = useShoppingListStore();
 
-  if (belowThresholdLoading || atThresholdLoading) return <div>Loading...</div>;
-  if (belowThresholdError || atThresholdError)
-    return <div>Error: {belowThresholdError.message || atThresholdError.message}</div>;
-  //  only display if no items found in either
-  if (!belowThresholdData && !atThresholdData) return <div>Cannot create a shopping list. No items found</div>;
-
-  const handleCreateShoppingList = async () => {
-    try {
-      const result = await createShoppingListMutation.mutateAsync({ household_id: householdId });
-      // add items after creating list
-      if (result && result.shopping_list_id && tempCreateListBelowThresholdItems.length > 0) {
-        // Clean and validate the items before sending
-        const cleanedItems = tempCreateListBelowThresholdItems.map((item) => ({
-          FoodItemID: item.FoodItemID,
-          LocationID: item.LocationID || null,
-          PackageID: item.PackageID || null,
-          NeededQty: parseFloat(item.NeededQty) || 0,
-          PurchasedQty: parseInt(item.PurchasedQty, 10) || 0, 
-          TotalPrice: parseFloat(item.TotalPrice) || 0,
-        }));
-
-        console.log('Sending items:', cleanedItems); 
-
-        await addItemsMutation.mutateAsync({
-          shoppingListId: result.shopping_list_id,
-          items: cleanedItems,
-        });
-      }
-      console.log('list created successfully');
-    } catch (error) {
-      console.error('Error creating shopping list:', error);
-    } finally {
-      closeModal();
-    }
+  const handleSaveUpdates = () => {
+    setIsMiniModalOpen(true);
   };
   return (
     <>
-      <Button className='button' variant='contained' color='primary' onClick={handleCreateShoppingList}>
-        Create New List
+      <Button className='button' variant='contained' color='primary' onClick={handleSaveUpdates}>
+        Save Updates
       </Button>
     </>
   );

@@ -11,10 +11,16 @@ import ShoppingList from './ShoppingList';
 import useShoppingListStore from '../../stores/useShoppingListStore';
 
 const Dashboard = () => {
-  const { openModal } = useShoppingListStore();
+  const { openModal, setTempCreateListBelowThresholdItems, setTempCreateListAtThresholdItems } = useShoppingListStore();
   const [showPackage, setShowPackage] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState([]);
+
+  const handleOpenModal = () => {
+    setTempCreateListBelowThresholdItems([]);
+    setTempCreateListAtThresholdItems([]);
+    openModal();
+  };
 
   return (
     <div className='dashboard'>
@@ -34,12 +40,7 @@ const Dashboard = () => {
           <Transactions showPackage={showPackage} />
           <Expiring showPackage={showPackage} />
           <Box className='actionButtonContainer'>
-            <Fab
-              className='actionButton'
-              color='primary'
-              aria-label='add shopping list'
-              onClick={openModal}
-            >
+            <Fab className='actionButton' color='primary' aria-label='add shopping list' onClick={handleOpenModal}>
               <AddShoppingCartIcon />
             </Fab>
           </Box>

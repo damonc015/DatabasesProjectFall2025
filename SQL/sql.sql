@@ -246,3 +246,178 @@ BEGIN
                                      ExpirationDate)
     VALUES (food_item_id, l_location_id, u_user_id, total_base_qty, 'add', expiration_date);
 END;
+
+-- SLH
+-- sort by param - id(0), date(1), status(2), price(3)
+-- ie: call getshoppinglistbyparam(0,true/false,1);
+DROP PROCEDURE IF EXISTS getShoppingListByParam;
+CREATE PROCEDURE getShoppingListByParam(
+  IN param INT,
+  IN orderbool BOOL,  
+  IN pg_num INT
+)
+BEGIN
+  DECLARE page_size INT;
+  DECLARE offset_val INT;
+  SET page_size = 10;
+  SET offset_val = (pg_num - 1) * page_size;
+-- sort by id
+    IF param = 0 THEN
+        IF orderbool THEN
+            SELECT *
+            FROM ShoppingList
+            ORDER BY ShoppingListID ASC
+            LIMIT page_size OFFSET offset_val;
+        ELSE
+            SELECT *
+            FROM ShoppingList
+            ORDER BY ShoppingListID DESC
+            LIMIT page_size OFFSET offset_val;
+        END IF;
+-- sort by last updated date
+    ELSEIF param = 1 THEN
+        IF orderbool THEN
+            SELECT *
+            FROM ShoppingList
+            ORDER BY LastUpdated ASC
+            LIMIT page_size OFFSET offset_val;
+        ELSE
+            SELECT *
+            FROM ShoppingList
+            ORDER BY LastUpdated DESC
+            LIMIT page_size OFFSET offset_val;
+        END IF;
+-- sort by status
+    ELSEIF param = 2 THEN
+        IF orderbool THEN
+            SELECT *
+            FROM ShoppingList
+            ORDER BY Status ASC
+            LIMIT page_size OFFSET offset_val;
+        ELSE
+            SELECT *
+            FROM ShoppingList
+            ORDER BY Status DESC
+            LIMIT page_size OFFSET offset_val;
+        END IF;
+-- sort by total price
+    ELSE
+        IF orderbool THEN
+            SELECT *
+            FROM ShoppingList
+            ORDER BY TotalCost ASC
+            LIMIT page_size OFFSET offset_val;
+        ELSE
+            SELECT *
+            FROM ShoppingList
+            ORDER BY TotalCost DESC
+            LIMIT page_size OFFSET offset_val;
+        END IF;
+    END IF;
+END;
+
+-- SL Updates
+DROP PROCEDURE IF EXISTS UpdateShoppingListItemsJSON;
+CREATE PROCEDURE UpdateShoppingListItemsJSON(
+    IN sl_id INT,
+    IN sl_items JSON
+)
+BEGIN
+    DECLARE i INT DEFAULT 0;
+    DECLARE n INT DEFAULT JSON_LENGTH(sl_items);
+
+    DECLARE food_item_id INT;
+    DECLARE location_id INT;
+    DECLARE package_id INT;
+    DECLARE needed_qty DECIMAL(10,2);
+    DECLARE purchased_qty DECIMAL(10,2);
+    DECLARE total_price DECIMAL(10,2);
+
+    DECLARE item_total DECIMAL(10,2) DEFAULT 0;
+    DECLARE list_total DECIMAL(10,2) DEFAULT 0;
+
+    START TRANSACTION;
+
+    -- make temp table for new items
+    CREATE TEMPORARY TABLE IF NOT EXISTS TempSyncItems (
+        FoodItemID INT,
+        LocationID INT,
+        PackageID INT
+    );
+
+    -- clear temp table if it exists
+    TRUNCATE TempSyncItems;
+
+    WHILE i < n DO
+
+        SET food_item_id   = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].FoodItemID'));
+        SET location_id    = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].LocationID'));
+        SET package_id     = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].PackageID'));
+        SET needed_qty     = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].NeededQuantity'));
+        SET purchased_qty  = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].PurchasedQuantity'));
+        SET total_price    = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].TotalPrice'));
+
+        INSERT INTO TempSyncItems VALUES (food_item_id, location_id, package_id);
+
+        IF EXISTS (
+            SELECT 1 FROM ShoppingListItem
+            WHERE ShoppingListID = sl_id
+              AND FoodItemID = food_item_id
+              AND LocationID = location_id
+              AND PackageID = package_id
+        ) THEN
+            UPDATE ShoppingListItem
+            SET NeededQty = needed_qty,
+                PurchasedQty = purchased_qty,
+                TotalPrice = total_price,
+                Status = 'Active'
+            WHERE ShoppingListID = sl_id
+              AND FoodItemID = food_item_id
+              AND LocationID = location_id
+              AND PackageID = package_id;
+        ELSE
+            INSERT INTO ShoppingListItem (
+                ShoppingListID,
+                FoodItemID,
+                LocationID,
+                PackageID,
+                NeededQty,
+                PurchasedQty,
+                TotalPrice,
+                Status
+            ) VALUES (
+                sl_id, food_item_id, location_id, package_id,
+                needed_qty, purchased_qty, total_price, 'Active'
+            );
+        END IF;
+
+        SET item_total = purchased_qty * total_price;
+        SET list_total = list_total + item_total;
+
+        SET i = i + 1;
+    END WHILE;
+
+    DELETE FROM ShoppingListItem
+    WHERE ShoppingListID = sl_id
+      AND (FoodItemID, LocationID, PackageID)
+          NOT IN (SELECT FoodItemID, LocationID, PackageID FROM TempSyncItems);
+
+    UPDATE ShoppingList
+    SET TotalCost = list_total,
+        LastUpdated = CURRENT_TIMESTAMP
+    WHERE ShoppingListID = sl_id;
+
+    COMMIT;
+
+END;
+
+
+
+
+
+
+
+
+
+
+
