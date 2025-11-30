@@ -17,9 +17,9 @@ const getEndpoint = ({ householdId, target, mode }) => {
     if (!target?.LocationID) {
       throw new Error('Missing location information.');
     }
-    return `http://localhost:5001/api/households/${householdId}/locations/${target.LocationID}`;
+    return `/api/households/${householdId}/locations/${target.LocationID}`;
   }
-  return `http://localhost:5001/api/households/${householdId}/locations`;
+  return `/api/households/${householdId}/locations`;
 };
 
 const getMethod = (mode) => (mode === 'rename' ? 'PUT' : 'POST');
@@ -73,6 +73,7 @@ const LocationModal = ({
       const response = await fetch(endpoint, {
         method: getMethod(mode),
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ location_name: trimmed }),
       });
       if (!response.ok) {

@@ -1,14 +1,61 @@
-from flask import jsonify, request, current_app
-from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error
+from flask import jsonify, request, current_app, g
+from flask_login import (
+    current_user,
+    login_user as flask_login_user,
+    logout_user as flask_logout_user,
+    UserMixin,
+)
+from extensions import (
+    db_cursor,
+    create_api_blueprint,
+    document_api_route,
+    handle_db_error,
+    login_manager,
+)
 import mysql.connector
 import uuid
 import bcrypt
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
-SESSION_COOKIE_NAME = "session"
-SESSION_MAX_AGE = 60 * 60 * 24 * 30  # 30 days
+AUTH_EXEMPT_ENDPOINTS = {
+    'auth.login_user',
+    'auth.register_user',
+    'auth.get_session',
+}
 
 bp = create_api_blueprint('auth', '/api/auth')
+
+
+class AuthenticatedUser(UserMixin):
+    def __init__(self, row):
+        self.row = row or {}
+        self.id = str(self.row.get("UserID"))
+
+
+def _serialize_user(row):
+    if not row:
+        return None
+    return {
+        "id": row["UserID"],
+        "username": row["UserName"],
+        "display_name": row["DisplayName"],
+        "role": row["RoleName"],
+        "household_id": row["HouseholdID"],
+        "household": row["HouseholdName"],
+        "join_code": row["JoinCode"],
+    }
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    if not user_id:
+        return None
+    try:
+        user = _get_user_by_id(int(user_id))
+    except (ValueError, TypeError):
+        return None
+    if not user:
+        return None
+    return AuthenticatedUser(user)
 
 def get_write_conn():
     return mysql.connector.connect(
@@ -19,38 +66,6 @@ def get_write_conn():
         database=current_app.config['MYSQL_DATABASE'],
         unix_socket=current_app.config.get('MYSQL_UNIX_SOCKET')
     )
-
-def _create_session_token(user_id: int, remember: bool = True) -> str:
-    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='auth-session')
-    return serializer.dumps({"user_id": user_id, "remember": bool(remember)})
-
-
-def _parse_session_token(token: str):
-    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='auth-session')
-    try:
-        data = serializer.loads(token, max_age=SESSION_MAX_AGE)
-        return data
-    except (BadSignature, SignatureExpired):
-        return None
-
-
-def _set_session_cookie(response, token: str, persistent: bool = True):
-    response.set_cookie(
-        SESSION_COOKIE_NAME,
-        token,
-        max_age=SESSION_MAX_AGE if persistent else None,
-        httponly=True,
-        samesite='Lax',
-    )
-    return response
-
-
-def _clear_session_cookie(response):
-    response.delete_cookie(
-        SESSION_COOKIE_NAME,
-        samesite='Lax',
-    )
-    return response
 
 
 @document_api_route(bp, 'post', '/login', 'Login user', 'Validate user credentials')
@@ -97,23 +112,12 @@ def login_user():
         except (ValueError, TypeError):
             return jsonify({'error': 'Invalid username or password'}), 401
 
-    session_token = _create_session_token(user["UserID"], remember=remember)
+    flask_login_user(AuthenticatedUser(user), remember=remember)
 
-    response = jsonify({
+    return jsonify({
         "message": "Login successful",
-        "user": {
-            "id": user["UserID"],
-            "username": user["UserName"],
-            "display_name": user["DisplayName"],
-            "role": user["RoleName"],
-            "household_id": user["HouseholdID"],
-            "household": user["HouseholdName"],
-            "join_code": user["JoinCode"]
-        }
-    })
-    _set_session_cookie(response, session_token, persistent=remember)
-
-    return response, 200
+        "user": _serialize_user(user)
+    }), 200
 
 
 @document_api_route(bp, 'post', '/register', 'Register new user', 'Create user and automatically create household if no join_code provided') 
@@ -196,23 +200,12 @@ def register_user():
     cursor.close()
     conn.close()
 
-    session_token = _create_session_token(user["UserID"], remember=remember)
+    flask_login_user(AuthenticatedUser(user), remember=remember)
 
-    response = jsonify({
+    return jsonify({
         "message": "Registration successful",
-        "user": {
-            "id": user["UserID"],
-            "username": user["UserName"],
-            "display_name": user["DisplayName"],
-            "role": user["RoleName"],
-            "household_id": user["HouseholdID"],
-            "household": user["HouseholdName"],
-            "join_code": user["JoinCode"]
-        }
-    })
-    _set_session_cookie(response, session_token, persistent=remember)
-
-    return response, 200
+        "user": _serialize_user(user)
+    }), 200
 
 
 @document_api_route(bp, 'get', '/members/<int:household_id>',
@@ -622,9 +615,8 @@ def delete_account(user_id: int):
         cursor.close()
         conn.close()
 
-    response = jsonify({"message": "Account deleted"})
-    _clear_session_cookie(response)
-    return response, 200
+    flask_logout_user()
+    return jsonify({"message": "Account deleted"}), 200
 
 
 def _get_user_by_id(user_id: int):
@@ -714,40 +706,13 @@ def _ensure_deleted_user_household(cursor):
 )
 @handle_db_error
 def get_session():
-    token = request.cookies.get(SESSION_COOKIE_NAME)
-    if not token:
+    if not current_user.is_authenticated:
         return jsonify({"error": "Not authenticated"}), 401
 
-    token_data = _parse_session_token(token)
-    if not token_data:
-        response = jsonify({"error": "Session expired"})
-        _clear_session_cookie(response)
-        return response, 401
-
-    user_id = token_data.get("user_id")
-    remember = bool(token_data.get("remember", True))
-
-    user = _get_user_by_id(user_id)
-    if not user:
-        response = jsonify({"error": "User not found"})
-        _clear_session_cookie(response)
-        return response, 404
-
-    session_token = _create_session_token(user_id, remember=remember)
-    response = jsonify({
+    return jsonify({
         "message": "Session active",
-        "user": {
-            "id": user["UserID"],
-            "username": user["UserName"],
-            "display_name": user["DisplayName"],
-            "role": user["RoleName"],
-            "household_id": user["HouseholdID"],
-            "household": user["HouseholdName"],
-            "join_code": user["JoinCode"]
-        }
-    })
-    _set_session_cookie(response, session_token, persistent=remember)
-    return response, 200
+        "user": _serialize_user(current_user.row)
+    }), 200
 
 
 @document_api_route(
@@ -756,6 +721,12 @@ def get_session():
     'Clear session cookie and log user out'
 )
 def logout_user():
-    response = jsonify({"message": "Logged out"})
-    _clear_session_cookie(response)
-    return response, 200
+    flask_logout_user()
+    return jsonify({"message": "Logged out"}), 200
+
+
+def authorize_request():
+    if current_user.is_authenticated:
+        g.current_user = current_user.row
+        return None
+    return jsonify({"error": "Not authenticated"}), 401

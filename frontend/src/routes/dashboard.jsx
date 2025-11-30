@@ -1,43 +1,21 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useEffect } from 'react';
 import Dashboard from '../components/Dashboard';
-import { useEffect, useState } from 'react';
-import { restoreSessionFromCookie } from '../utils/session';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 
 function DashboardWrapper() {
   const navigate = useNavigate();
-  const [isChecking, setIsChecking] = useState(true);
-  
+  const { user, isLoading } = useCurrentUser();
+
   useEffect(() => {
-    let isMounted = true;
-
-    async function ensureUser() {
-      const stored = JSON.parse(localStorage.getItem("user"));
-      const user = stored?.user;
-      
-      if (user?.id) {
-        if (isMounted) setIsChecking(false);
-        return;
-      }
-
-      const restored = await restoreSessionFromCookie();
-      if (!isMounted) return;
-
-      if (restored?.id) {
-        setIsChecking(false);
-        return;
-      }
-
-      navigate({ to: "/register" });
+    if (!isLoading && !user) {
+      navigate({ to: '/login' });
     }
+  }, [isLoading, navigate, user]);
 
-    ensureUser();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [navigate]);
-  
-  if (isChecking) return null;
+  if (isLoading || !user) {
+    return null;
+  }
 
   return <Dashboard />;
 }

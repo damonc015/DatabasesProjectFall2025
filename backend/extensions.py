@@ -3,6 +3,7 @@ from functools import wraps
 import mysql.connector
 from flask import current_app, jsonify
 from apiflask import APIBlueprint
+from flask_login import LoginManager
 
 
 def get_db():
@@ -55,3 +56,6 @@ def handle_db_error(f):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     return decorated_function
+
+
+login_manager = LoginManager()
