@@ -5,12 +5,18 @@ import Button from '@mui/material/Button';
 import useShoppingListStore from '../../../../stores/useShoppingListStore';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { useActiveShoppingList } from '../../../../hooks/useShoppingLists';
-import { useUpdateShoppingListItems } from '../../../../hooks/useShoppingListMutations';
+import { useUpdateShoppingListItems, useCompleteActiveShoppingList } from '../../../../hooks/useShoppingListMutations';
 
 const SaveModal = () => {
-  const { householdId } = useCurrentUser();
-  const { closeModal, tempCreateListBelowThresholdItems, isMiniModalOpen, setIsMiniModalOpen } = useShoppingListStore();
+  const { householdId, user } = useCurrentUser();
+  const {
+    closeModal,
+    tempCreateListBelowThresholdItems,
+    isMiniModalOpen,
+    setIsMiniModalOpen,
+  } = useShoppingListStore();
   const updateItemsMutation = useUpdateShoppingListItems();
+  const completeActiveListMutation = useCompleteActiveShoppingList();
 
   const {
     data: activeShoppingListData,
@@ -22,54 +28,47 @@ const SaveModal = () => {
   if (activeShoppingListError) return <div>Error: {activeShoppingListError.message}</div>;
   if (!activeShoppingListData) return <div>No items found</div>;
 
-  const handleCreateOrUpdateShoppingList = async () => {
+  const handleUpdateActiveShoppingList = async () => {
     try {
-      let shoppingListId = activeShoppingListData?.ShoppingListID;
+      const itemsToList = [...tempCreateListBelowThresholdItems];
 
-      // 1. Create list if it doesn't exist
-      if (!shoppingListId) {
-        const result = await createShoppingListMutation.mutateAsync({ household_id: householdId });
-        shoppingListId = result.shopping_list_id;
-      }
-
-      // 2. Prepare items from both lists (below and at threshold)
-      const allItems = [...tempCreateListBelowThresholdItems, ...tempCreateListAtThresholdItems];
-
-      if (shoppingListId && allItems.length > 0) {
-        // Clean and validate the items before sending
-        const cleanedItems = allItems.map((item) => ({
+      if (itemsToList.length > 0) {
+        const cleanedItems = itemsToList.map((item) => ({
           FoodItemID: item.FoodItemID,
           LocationID: item.LocationID || null,
           PackageID: item.PackageID || null,
-          NeededQuantity: parseFloat(item.NeededQty) || 0,
+          NeededQuantity: parseFloat(item.NeededQty),
           PurchasedQuantity: parseInt(item.PurchasedQty, 10) || 0,
           TotalPrice: parseFloat(item.TotalPrice) || 0,
         }));
 
         console.log('Sending items to update:', cleanedItems);
 
-        // 3. Update the items (using the new PUT /items route)
         await updateItemsMutation.mutateAsync({
-          shoppingListId: shoppingListId,
+          household_id: householdId,
           items: cleanedItems,
         });
       }
       console.log('List updated successfully');
     } catch (error) {
       console.error('Error creating/updating shopping list:', error);
-    } finally {
-      closeModal();
     }
   };
-  const handleSaveLeaveList = () => {
-    // handleCreateOrUpdateShoppingList();
-    // setIsMiniModalOpen(false);
+  const handleSaveLeaveList = async () => {
+    await handleUpdateActiveShoppingList();
+    setIsMiniModalOpen(false);
     console.log('saved changes left list open');
   };
-  const handleSaveCloseList = () => {
-    // setIsMiniModalOpen(false);
-    // closeModal();
-    console.log('saved changes closed list');
+  const handleSaveCloseList = async () => {
+    await handleUpdateActiveShoppingList();
+    try {
+      await completeActiveListMutation.mutateAsync({ household_id: householdId, user_id: user?.id });
+      console.log('saved changes closed list');
+    } catch (error) {
+      console.error('Failed to close list:', error);
+    }
+    setIsMiniModalOpen(false);
+    closeModal();
   };
 
   return (

@@ -28,13 +28,27 @@ export const useFoodItems = () => {
 //   });
 // };
 
-export const useItemsAtOrAboveTarget = (householdId) => {
+// export const useItemsAtOrAboveTarget = (householdId) => {
+//   return useQuery({
+//     queryKey: ['itemsAtOrAboveTarget', householdId],
+//     queryFn: async () => {
+//       const res = await fetch(`/api/food-items/at-or-above-target?household_id=${householdId}`);
+//       if (!res.ok) {
+//         throw new Error('Failed to fetch items at or above target');
+//       }
+//       return res.json();
+//     },
+//     enabled: !!householdId,
+//   });
+// };
+
+export const useItemsNotOnActiveList = (householdId) => {
   return useQuery({
-    queryKey: ['itemsAtOrAboveTarget', householdId],
+    queryKey: ['itemsNotOnActiveList', householdId],
     queryFn: async () => {
-      const res = await fetch(`/api/food-items/at-or-above-target?household_id=${householdId}`);
+      const res = await fetch(`/api/food-items/not-on-active-list?household_id=${householdId}`);
       if (!res.ok) {
-        throw new Error('Failed to fetch items at or above target');
+        throw new Error('Failed to fetch items not on active list');
       }
       return res.json();
     },

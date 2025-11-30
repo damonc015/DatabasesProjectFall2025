@@ -73,6 +73,85 @@ def get_active_shopping_list():
             
         return jsonify(result), 200
 
+@document_api_route(bp, 'post', '/complete-active', 'Complete active list and create new', 'Marks active list as completed, creates a new one, and generates inventory transactions')
+@handle_db_error
+def complete_active_shopping_list():
+    data = request.get_json()
+    household_id = data.get('household_id')
+    user_id = data.get('user_id')
+    
+    if not household_id:
+        return jsonify({'error': 'household_id is required'}), 400
+    if not user_id:
+        return jsonify({'error': 'user_id is required for inventory transactions'}), 400
+        
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # Finds active list
+        cursor.execute("""
+            SELECT ShoppingListID 
+            FROM ShoppingList 
+            WHERE HouseholdID = %s AND Status = 'active'
+            ORDER BY ShoppingListID DESC
+            LIMIT 1
+        """, (household_id,))
+        active_list = cursor.fetchone()
+        
+        completed_list_id = None
+        if active_list:
+            completed_list_id = active_list['ShoppingListID']
+            # Marks active list as completed
+            cursor.execute("""
+                UPDATE ShoppingList 
+                SET Status = 'completed', LastUpdated = NOW() 
+                WHERE ShoppingListID = %s
+            """, (completed_list_id,))
+            
+        # Creates new active list
+        cursor.execute("""
+            INSERT INTO ShoppingList (HouseholdID, Status, LastUpdated)
+            VALUES (%s, 'active', NOW())
+        """, (household_id,))
+        new_list_id = cursor.lastrowid
+        
+        # Process Inventory Transactions for purchased items
+        if completed_list_id:
+            cursor.execute("""
+                SELECT sli.FoodItemID, sli.LocationID, sli.PackageID, sli.PurchasedQty, p.BaseUnitAmt
+                FROM ShoppingListItem sli
+                JOIN Package p ON sli.PackageID = p.PackageID
+                WHERE sli.ShoppingListID = %s AND sli.PurchasedQty > 0
+            """, (completed_list_id,))
+            purchased_items = cursor.fetchall()
+            
+            for item in purchased_items:
+                qty_in_base_units = float(item['PurchasedQty']) * float(item['BaseUnitAmt'])
+                
+                cursor.execute("""
+                    INSERT INTO InventoryTransaction 
+                    (FoodItemID, LocationID, UserID, QtyInBaseUnits, TransactionType, CreatedAt)
+                    VALUES (%s, %s, %s, %s, 'purchase', NOW())
+                """, (
+                    item['FoodItemID'], 
+                    item['LocationID'], 
+                    user_id,
+                    qty_in_base_units
+                ))
+        
+        conn.commit()
+        
+        return jsonify({
+            'message': 'Active list completed, inventory updated, and new list created',
+            'completed_list_id': completed_list_id,
+            'new_active_list_id': new_list_id
+        }), 201
+    finally:
+        cursor.close()
+        conn.close()
+
+
 #TODO: 1.2 - needs to filter out household id
 @document_api_route(bp, 'get', '/', 'Get shopping lists', 'Get paginated shopping lists with sorting')
 @handle_db_error
@@ -126,15 +205,27 @@ def get_shopping_list_items(shopping_list_id):
                 l.LocationName,
                 sli.PackageID,
                 p.Label AS PackageLabel,
-                sli.NeededQty,
+                CEILING(sli.NeededQty / p.BaseUnitAmt) AS NeededQty,
                 sli.PurchasedQty,
                 sli.TotalPrice,
                 sli.Status,
-                GetCurrentStock(sli.FoodItemID) as CurrentStock
+                ROUND(GetCurrentStock(sli.FoodItemID) / p.BaseUnitAmt, 2) as CurrentStock,
+                IFNULL(pl.PriceTotal, 0) as PricePerUnit,
+                ROUND(IFNULL(sl.TargetLevel, 0) / p.BaseUnitAmt, 2) as TargetLevel
             FROM ShoppingListItem sli
             JOIN FoodItem fi ON sli.FoodItemID = fi.FoodItemID
             LEFT JOIN Location l ON sli.LocationID = l.LocationID
             LEFT JOIN Package p ON sli.PackageID = p.PackageID
+            LEFT JOIN StockLevel sl ON sli.FoodItemID = sl.FoodItemID
+            LEFT JOIN (
+                SELECT pl1.PackageID, pl1.PriceTotal
+                FROM PriceLog pl1
+                INNER JOIN (
+                    SELECT PackageID, MAX(CreatedAt) AS MaxCreatedAt
+                    FROM PriceLog
+                    GROUP BY PackageID
+                ) pl2 ON pl1.PackageID = pl2.PackageID AND pl1.CreatedAt = pl2.MaxCreatedAt
+            ) pl ON sli.PackageID = pl.PackageID
             WHERE sli.ShoppingListID = %s
         """
         cursor.execute(query, (shopping_list_id,))
@@ -176,6 +267,57 @@ def add_shopping_list_items(shopping_list_id):
             'shopping_list_id': shopping_list_id,
             'total_cost': result['TotalCost']
         }), 201
+    finally:
+        cursor.close()
+        conn.close()
+
+@document_api_route(bp, 'put', '/active/items', 'Update active shopping list items', 'Updates items in the currently active shopping list for a household')
+@handle_db_error
+def update_active_shopping_list_items():
+    data = request.get_json()
+    household_id = data.get('household_id')
+    items = data.get('items', [])
+    
+    if not household_id:
+        return jsonify({'error': 'household_id is required'}), 400
+    if not items:
+        return jsonify({'error': 'items array is required'}), 400
+        
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # Find the active list ID
+        cursor.execute("""
+            SELECT ShoppingListID 
+            FROM ShoppingList 
+            WHERE HouseholdID = %s AND Status = 'active'
+            ORDER BY ShoppingListID DESC
+            LIMIT 1
+        """, (household_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            return jsonify({'error': 'No active shopping list found for this household'}), 404
+            
+        shopping_list_id = row['ShoppingListID']
+        
+        items_json = json.dumps(items)
+        cursor.callproc('UpdateShoppingListItemsJSON', [shopping_list_id, items_json])
+        
+        for result in cursor.stored_results():
+            result.fetchall()
+            
+        conn.commit()
+        
+        cursor.execute("SELECT TotalCost FROM ShoppingList WHERE ShoppingListID = %s", (shopping_list_id,))
+        result = cursor.fetchone()
+        
+        return jsonify({
+            'message': 'Items updated successfully',
+            'shopping_list_id': shopping_list_id,
+            'total_cost': result['TotalCost']
+        }), 200
     finally:
         cursor.close()
         conn.close()

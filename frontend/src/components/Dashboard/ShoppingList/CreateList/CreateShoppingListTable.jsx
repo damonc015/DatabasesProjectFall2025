@@ -15,6 +15,7 @@ import useShoppingListStore from '../../../../stores/useShoppingListStore';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { useActiveShoppingList } from '../../../../hooks/useShoppingLists';
 import { useShoppingListItems } from '../../../../hooks/useShoppingListItems';
+import { useItemsNotOnActiveList } from '../../../../hooks/useFoodItems';
 
 export default function CreateShoppingListTable() {
   const { householdId } = useCurrentUser();
@@ -29,6 +30,12 @@ export default function CreateShoppingListTable() {
     error: shoppingListItemsError,
     isLoading: shoppingListItemsLoading,
   } = useShoppingListItems(activeShoppingListData?.ShoppingListID);
+
+  const {
+    data: foodItemsData,
+    error: foodItemsError,
+    isLoading: foodItemsLoading,
+  } = useItemsNotOnActiveList(householdId);
 
   const {
     tempCreateListBelowThresholdItems,
@@ -47,39 +54,38 @@ export default function CreateShoppingListTable() {
         PricePerUnit: item.PricePerUnit,
         PurchasedQty: item.PurchasedQty,
         NeededQty: parseFloat(item.NeededQty),
-        TotalPrice: parseFloat(item.TotalPrice),
+        TotalPrice: parseFloat(item.TotalPrice) || 0,
         Status: item.Status,
         CurrentStock: item.CurrentStock,
         LocationID: item.LocationID,
         PackageID: item.PackageID,
+        TargetLevel: item.TargetLevel,
       }));
       setTempCreateListBelowThresholdItems(processedData);
     }
 
-    if (Array.isArray(shoppingListItemsData) && shoppingListItemsData.length > 0) {
-      const processedData = shoppingListItemsData.map((item) => ({
+    if (Array.isArray(foodItemsData) && foodItemsData.length > 0) {
+      const processedData = foodItemsData.map((item) => ({
         FoodItemID: item.FoodItemID,
         FoodItemName: item.FoodItemName,
         PricePerUnit: item.PricePerUnit,
         PurchasedQty: item.PurchasedQty,
         NeededQty: parseFloat(item.NeededQty),
-        TotalPrice: parseFloat(item.TotalPrice),
+        TotalPrice: parseFloat(item.TotalPrice) || 0,
         Status: item.Status,
         CurrentStock: item.CurrentStock,
+        LocationID: item.LocationID,
+        PackageID: item.PackageID,
+        TargetLevel: item.TargetLevel,
       }));
       setTempCreateListAtThresholdItems(processedData);
     }
-  }, [
-    activeShoppingListData,
-    shoppingListItemsData,
-    setTempCreateListBelowThresholdItems,
-    setTempCreateListAtThresholdItems,
-  ]);
+  }, [shoppingListItemsData, foodItemsData]);
 
   useEffect(() => {
     const total = tempCreateListBelowThresholdItems.reduce((acc, item) => acc + parseFloat(item.TotalPrice), 0) || 0;
     setTotalPrice(total);
-  }, [tempCreateListBelowThresholdItems]);
+  }, [shoppingListItemsData, foodItemsData, tempCreateListBelowThresholdItems, tempCreateListAtThresholdItems]);
 
   if (!householdId) {
     return <div>No household id found</div>;
@@ -90,14 +96,21 @@ export default function CreateShoppingListTable() {
   if (shoppingListItemsLoading) return <div>Loading...</div>;
   if (shoppingListItemsError) return <div>Error: {shoppingListItemsError.message}</div>;
   if (!shoppingListItemsData) return <div>No items found</div>;
+  if (foodItemsLoading) return <div>Loading...</div>;
+  if (foodItemsError) return <div>Error: {foodItemsError.message}</div>;
+  if (!foodItemsData) return <div>No items found</div>;
 
   const handlePurchaseQtyChange = (itemId, newValue) => {
     const updatedItems = tempCreateListBelowThresholdItems.map((item) => {
       if (item.FoodItemID === itemId) {
-        const newQty = parseFloat(newValue) || 0;
+        let newQty = parseFloat(newValue) || 0;
+        newQty = Math.floor(newQty); // Ensure whole number
+
+        const newTotalPrice = newQty * (parseFloat(item.PricePerUnit) || 0);
         return {
           ...item,
           PurchasedQty: newQty,
+          TotalPrice: newTotalPrice.toFixed(2),
         };
       }
       return item;
@@ -160,7 +173,7 @@ export default function CreateShoppingListTable() {
     const itemToMove = tempCreateListAtThresholdItems.find((item) => item.FoodItemID === itemId);
     if (itemToMove) {
       const updatedAtList = tempCreateListAtThresholdItems.filter((item) => item.FoodItemID !== itemId);
-      const originalItem = activeShoppingListData?.find((item) => item.FoodItemID === itemId);
+      const originalItem = tempCreateListAtThresholdItems?.find((item) => item.FoodItemID === itemId);
       const itemForBelowList = {
         ...itemToMove,
         NeededQty: originalItem?.NeededQty || 1,
@@ -176,8 +189,8 @@ export default function CreateShoppingListTable() {
 
   const tableHeaders = [
     { label: 'Item' },
-    { label: 'Price Per Unit' },
-    { label: 'Purchase Amount' },
+    { label: 'Price Per Package' },
+    { label: 'Restock Package Amount' },
     { label: 'Total Price' },
     { label: 'Mark as Purchased' },
     { label: 'Remove from List' },
@@ -185,6 +198,7 @@ export default function CreateShoppingListTable() {
 
   console.log('initial activeShoppingListData', activeShoppingListData);
   console.log('initial shoppingListItemsData', shoppingListItemsData);
+  console.log('initial foodItemsData', foodItemsData);
   console.log('tempCreateListBelowThresholdItems', tempCreateListBelowThresholdItems);
   console.log('tempCreateListAtThresholdItems', tempCreateListAtThresholdItems);
   console.log('totalPrice', totalPrice);
@@ -276,8 +290,8 @@ export default function CreateShoppingListTable() {
                 <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                   <NumberController
                     id={row.FoodItemID}
-                    value={row.CurrentStock}
-                    defaultValue={row.CurrentStock}
+                    value={row.PurchasedQty || 0}
+                    defaultValue={row.PurchasedQty || 0}
                     disabled={true}
                   />{' '}
                   <span style={{ marginLeft: '0.2rem' }}>{'/' + row.NeededQty}</span>

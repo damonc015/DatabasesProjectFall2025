@@ -7,7 +7,6 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import TableFallback from '../TableFallback';
-import NumberController from '../NumberController/NumberController';
 import { useShoppingListItems } from '../../../../hooks/useShoppingListItems';
 import useShoppingListStore from '../../../../stores/useShoppingListStore';
 
@@ -22,7 +21,7 @@ export default function ModifyShoppingListTable() {
       const total = data.reduce((acc, item) => acc + parseFloat(item.TotalPrice), 0) || 0;
       setTotalPrice(total);
     }
-  }, []);
+  }, [data]);
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
@@ -63,12 +62,11 @@ export default function ModifyShoppingListTable() {
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                   <span>{row.PurchasedQty}</span>
-                  <span style={{ marginLeft: '0.2rem' }}>{'/' + row.NeededQty}</span>
                 </div>{' '}
               </TableCell>
               {/* total price */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                <span>${row.TotalPrice?.toFixed(2)}</span>
+                <span>${parseFloat(row.TotalPrice || 0).toFixed(2)}</span>
               </TableCell>
             </TableRow>
           ))}

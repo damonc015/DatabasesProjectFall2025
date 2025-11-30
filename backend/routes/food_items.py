@@ -98,10 +98,10 @@ def get_items_below_target():
                 fi.Name AS FoodItemName,
                 IFNULL(pl.PriceTotal, 0) AS PricePerUnit,
                 0 AS PurchasedQty,
-                (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) AS NeededQty,
+                CEILING((sl.TargetLevel - getCurrentStock(fi.FoodItemID)) / IFNULL(pp.BaseUnitAmt, 1)) AS NeededQty,
                 (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) * IFNULL(pl.PriceTotal, 0) AS TotalPrice,
                 'active' AS Status,
-                getCurrentStock(fi.FoodItemID) AS CurrentStock,
+                ROUND(getCurrentStock(fi.FoodItemID) / IFNULL(pp.BaseUnitAmt, 1), 2) AS CurrentStock,
                 loc.LocationID AS LocationID,
                 pp.PackageID AS PackageID
             FROM StockLevel sl
@@ -188,6 +188,69 @@ def get_items_at_or_above_target():
         """
         
         cursor.execute(query, (household_id,))
+        results = cursor.fetchall()
+        
+        return jsonify(results), 200
+
+# get items not on active list
+@document_api_route(bp, 'get', '/not-on-active-list', 'Get items not on active list', 'Returns food items that are not currently on the active shopping list')
+@handle_db_error
+def get_items_not_on_active_list():
+    household_id = request.args.get('household_id')
+    
+    if not household_id:
+        return jsonify({'error': 'household_id is required'}), 400
+    
+    with db_cursor() as cursor:
+        query = """
+            SELECT 
+                fi.FoodItemID AS FoodItemID,
+                fi.Name AS FoodItemName,
+                IFNULL(pl.PriceTotal, 0) AS PricePerUnit,
+                0 AS PurchasedQty,
+                0 AS NeededQty,
+                0 AS TotalPrice,
+                'active' AS Status,
+                ROUND(getCurrentStock(fi.FoodItemID) / IFNULL(pp.BaseUnitAmt, 1), 2) AS CurrentStock,
+                loc.LocationID AS LocationID,
+                pp.PackageID AS PackageID,
+                ROUND(IFNULL(sl.TargetLevel, 0) / IFNULL(pp.BaseUnitAmt, 1), 2) AS TargetLevel
+            FROM FoodItem fi
+            LEFT JOIN StockLevel sl ON fi.FoodItemID = sl.FoodItemID
+            LEFT JOIN Package pp ON fi.PreferredPackageID = pp.PackageID
+                AND (pp.IsArchived = 0 OR pp.IsArchived IS NULL)
+            LEFT JOIN (
+                SELECT pl1.PackageID, pl1.PriceTotal
+                FROM PriceLog pl1
+                INNER JOIN (
+                    SELECT PackageID, MAX(CreatedAt) AS MaxCreatedAt
+                    FROM PriceLog
+                    GROUP BY PackageID
+                ) pl2 ON pl1.PackageID = pl2.PackageID AND pl1.CreatedAt = pl2.MaxCreatedAt
+            ) pl ON pp.PackageID = pl.PackageID
+            LEFT JOIN (
+                SELECT l1.LocationID, l1.HouseholdID
+                FROM Location l1
+                INNER JOIN (
+                    SELECT HouseholdID, MIN(LocationID) AS MinLocationID
+                    FROM Location
+                    GROUP BY HouseholdID
+                ) l2 ON l1.HouseholdID = l2.HouseholdID AND l1.LocationID = l2.MinLocationID
+            ) loc ON fi.HouseholdID = loc.HouseholdID
+            WHERE fi.HouseholdID = %s
+                AND fi.IsArchived = 0
+                AND fi.FoodItemID NOT IN (
+                    SELECT sli.FoodItemID
+                    FROM ShoppingList sl
+                    JOIN ShoppingListItem sli ON sl.ShoppingListID = sli.ShoppingListID
+                    WHERE sl.HouseholdID = %s
+                      AND sl.Status = 'active'
+                      AND sli.Status = 'active'
+                )
+            ORDER BY fi.Name
+        """
+        
+        cursor.execute(query, (household_id, household_id))
         results = cursor.fetchall()
         
         return jsonify(results), 200

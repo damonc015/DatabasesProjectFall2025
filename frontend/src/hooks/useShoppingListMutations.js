@@ -56,11 +56,11 @@ export const useUpdateShoppingListItems = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ shoppingListId, items }) => {
-      const res = await fetch(`/api/shopping-lists/${shoppingListId}/items`, {
+    mutationFn: async ({ household_id, items }) => {
+      const res = await fetch(`/api/shopping-lists/active/items`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ household_id, items }),
       });
 
       if (!res.ok) {
@@ -70,9 +70,35 @@ export const useUpdateShoppingListItems = () => {
 
       return res.json();
     },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries(['shoppingListItems', variables.shoppingListId]);
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(['shoppingListItems', data.shopping_list_id]);
       queryClient.invalidateQueries(['shoppingLists']);
+    },
+  });
+};
+
+// complete active list
+export const useCompleteActiveShoppingList = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ household_id, user_id }) => {
+      const res = await fetch('/api/shopping-lists/complete-active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ household_id, user_id }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to complete active list');
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['shoppingLists']);
+      queryClient.invalidateQueries(['activeShoppingList']);
     },
   });
 };

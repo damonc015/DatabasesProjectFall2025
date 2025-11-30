@@ -111,7 +111,11 @@ export default function ShoppingHistoryTable() {
               key={row.ShoppingListID}
               onClick={() => {
                 setActiveListId(row.ShoppingListID);
-                setIsListHistory('modifylist');
+                if (row.Status && row.Status.toString().toUpperCase() === 'ACTIVE') {
+                  setIsListHistory('createlist');
+                } else {
+                  setIsListHistory('modifylist');
+                }
               }}
               sx={{
                 '&:last-child td, &:last-child th': { border: 0 },

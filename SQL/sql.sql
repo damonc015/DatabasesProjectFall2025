@@ -391,8 +391,7 @@ BEGIN
             );
         END IF;
 
-        SET item_total = purchased_qty * total_price;
-        SET list_total = list_total + item_total;
+        SET list_total = list_total + total_price;
 
         SET i = i + 1;
     END WHILE;
