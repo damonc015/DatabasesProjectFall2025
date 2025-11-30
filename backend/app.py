@@ -22,7 +22,6 @@ def create_app(config_name='development'):
     
     # Configure CORS based on environment
     if config_name == 'production':
-        # In production, only allow your Railway domain
         allowed_origin = os.getenv('FRONTEND_URL', 'https://your-app.up.railway.app')
         CORS(app, 
              resources={r"/api/*": {
@@ -32,7 +31,6 @@ def create_app(config_name='development'):
                  "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
              }})
     else:
-        # Development - allow localhost
         CORS(app, 
              resources={r"/api/*": {
                  "origins": ["http://localhost:5173", "http://localhost:5001"],
