@@ -5,7 +5,9 @@ export const useFoodItems = () => {
   return useQuery({
     queryKey: ['foodItems'],
     queryFn: async () => {
-      const res = await fetch('/api/food-items');
+      const res = await fetch('/api/food-items', {
+        credentials: 'include',
+      });
       if (!res.ok) {
         throw new Error('Failed to fetch food items');
       }
@@ -18,7 +20,9 @@ export const useItemsBelowTarget = (householdId) => {
   return useQuery({
     queryKey: ['itemsBelowTarget', householdId],
     queryFn: async () => {
-      const res = await fetch(`/api/food-items/below-target?household_id=${householdId}`);
+      const res = await fetch('/api/food-items/below-target', {
+        credentials: 'include',
+      });
       if (!res.ok) {
         throw new Error('Failed to fetch items below target');
       }
@@ -32,7 +36,9 @@ export const useItemsAtOrAboveTarget = (householdId) => {
   return useQuery({
     queryKey: ['itemsAtOrAboveTarget', householdId],
     queryFn: async () => {
-      const res = await fetch(`/api/food-items/at-or-above-target?household_id=${householdId}`);
+      const res = await fetch('/api/food-items/at-or-above-target', {
+        credentials: 'include',
+      });
       if (!res.ok) {
         throw new Error('Failed to fetch items at or above target');
       }

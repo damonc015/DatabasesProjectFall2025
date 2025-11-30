@@ -15,7 +15,9 @@ export const useLocations = (householdId) => {
 
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:5001/api/households/${householdId}/locations`);
+      const res = await fetch(`/api/households/${householdId}/locations`, {
+        credentials: 'include',
+      });
       if (!res.ok) {
         throw new Error('Failed to load locations');
       }

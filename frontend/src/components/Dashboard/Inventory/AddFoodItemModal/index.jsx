@@ -15,15 +15,14 @@ import { validateForm } from './validation';
 import { LeftColumnFields, RightColumnFields } from './FormFields';
 
 const AddFoodItemModal = ({ open, onClose, onItemAdded }) => {
-  const { householdId, user } = useCurrentUser();
-  const userId = user?.id;
+  const { householdId } = useCurrentUser();
   
   const [formData, setFormData] = useState(INITIAL_FORM_STATE);
   const [error, setError] = useState('');
   const [addAnother, setAddAnother] = useState(false);
 
   const { locations, baseUnits, packageLabels } = useFormData(open, householdId);
-  const { submitForm, loading, error: submitError, setError: setSubmitError } = useSubmitForm(householdId, userId, onItemAdded, onClose);
+  const { submitForm, loading, error: submitError, setError: setSubmitError } = useSubmitForm(onItemAdded, onClose);
 
   const categories = Object.keys(CATEGORY_EMOJI);
 

@@ -1,4 +1,6 @@
-from flask import jsonify, request, current_app
+from functools import wraps
+from dataclasses import dataclass
+from flask import jsonify, request, current_app, g
 from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error
 import mysql.connector
 import uuid
@@ -7,8 +9,100 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 SESSION_COOKIE_NAME = "session"
 SESSION_MAX_AGE = 60 * 60 * 24 * 30  # 30 days
+SESSION_SALT = 'auth-session'
 
 bp = create_api_blueprint('auth', '/api/auth')
+
+
+@dataclass
+class SessionData:
+    user: dict
+    remember: bool = True
+
+
+class SessionError(Exception):
+    def __init__(self, message, status=401, clear_cookie=False):
+        super().__init__(message)
+        self.message = message
+        self.status = status
+        self.clear_cookie = clear_cookie
+
+
+class SessionManager:
+    cookie_name = SESSION_COOKIE_NAME
+    max_age = SESSION_MAX_AGE
+
+    @staticmethod
+    def _serializer():
+        return URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt=SESSION_SALT)
+
+    @classmethod
+    def create_token(cls, user_id: int, remember: bool = True) -> str:
+        return cls._serializer().dumps({"user_id": user_id, "remember": bool(remember)})
+
+    @classmethod
+    def parse_token(cls, token: str):
+        try:
+            return cls._serializer().loads(token, max_age=cls.max_age)
+        except (BadSignature, SignatureExpired):
+            raise SessionError("Session expired", 401, clear_cookie=True)
+
+    @classmethod
+    def set_cookie(cls, response, token: str, persistent: bool = True):
+        response.set_cookie(
+            cls.cookie_name,
+            token,
+            max_age=cls.max_age if persistent else None,
+            httponly=True,
+            samesite='Strict',
+            secure=bool(current_app.config.get('SESSION_COOKIE_SECURE', False)),
+            path='/'
+        )
+        return response
+
+    @classmethod
+    def clear_cookie(cls, response):
+        response.delete_cookie(
+            cls.cookie_name,
+            samesite='Strict',
+            path='/'
+        )
+        return response
+
+    @classmethod
+    def attach_user_session(cls, response, user_id: int, remember: bool = True):
+        token = cls.create_token(user_id, remember=remember)
+        return cls.set_cookie(response, token, persistent=remember)
+
+    @classmethod
+    def resolve_session(cls) -> SessionData:
+        token = request.cookies.get(cls.cookie_name)
+        if not token:
+            raise SessionError("Not authenticated", 401)
+        data = cls.parse_token(token)
+        user_id = data.get("user_id")
+        if not user_id:
+            raise SessionError("Session expired", 401, clear_cookie=True)
+        user = _get_user_by_id(user_id)
+        if not user:
+            raise SessionError("User not found", 404, clear_cookie=True)
+        remember = bool(data.get("remember", True))
+        return SessionData(user=user, remember=remember)
+
+    @classmethod
+    def ensure_context(cls) -> SessionData:
+        session = cls.resolve_session()
+        g.current_user = session.user
+        g.session_remember = session.remember
+        return session
+
+    @classmethod
+    def error_response(cls, exc: SessionError):
+        response = jsonify({"error": exc.message})
+        if exc.clear_cookie:
+            cls.clear_cookie(response)
+        return response, exc.status
+
 
 def get_write_conn():
     return mysql.connector.connect(
@@ -20,37 +114,76 @@ def get_write_conn():
         unix_socket=current_app.config.get('MYSQL_UNIX_SOCKET')
     )
 
-def _create_session_token(user_id: int, remember: bool = True) -> str:
-    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='auth-session')
-    return serializer.dumps({"user_id": user_id, "remember": bool(remember)})
 
-
-def _parse_session_token(token: str):
-    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='auth-session')
-    try:
-        data = serializer.loads(token, max_age=SESSION_MAX_AGE)
-        return data
-    except (BadSignature, SignatureExpired):
+def authorize_request():
+    if getattr(g, 'current_user', None):
         return None
 
+    try:
+        SessionManager.ensure_context()
+    except SessionError as exc:
+        return SessionManager.error_response(exc)
 
-def _set_session_cookie(response, token: str, persistent: bool = True):
-    response.set_cookie(
-        SESSION_COOKIE_NAME,
-        token,
-        max_age=SESSION_MAX_AGE if persistent else None,
-        httponly=True,
-        samesite='Lax',
-    )
-    return response
+    return None
 
 
-def _clear_session_cookie(response):
-    response.delete_cookie(
-        SESSION_COOKIE_NAME,
-        samesite='Lax',
-    )
-    return response
+def require_auth(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        auth_error = authorize_request()
+        if auth_error:
+            return auth_error
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def get_current_user():
+    return getattr(g, 'current_user', None)
+
+
+def get_current_user_id():
+    user = get_current_user()
+    return user.get("UserID") if user else None
+
+
+def get_current_household_id():
+    user = get_current_user()
+    return user.get("HouseholdID") if user else None
+
+
+def require_household(target_household_id=None):
+    household_id = get_current_household_id()
+    if not household_id:
+        return None, (jsonify({'error': 'User is not associated with a household'}), 403)
+
+    if target_household_id is not None:
+        try:
+            requested = int(target_household_id)
+        except (TypeError, ValueError):
+            return None, (jsonify({'error': 'Invalid household_id'}), 400)
+
+        if int(household_id) != requested:
+            return None, (jsonify({'error': 'Error 403'}), 403)
+
+        return requested, None
+
+    return int(household_id), None
+
+
+def _serialize_user(user):
+    if not user:
+        return None
+
+    return {
+        "id": user["UserID"],
+        "username": user["UserName"],
+        "display_name": user["DisplayName"],
+        "role": user["RoleName"],
+        "household_id": user["HouseholdID"],
+        "household": user["HouseholdName"],
+        "join_code": user["JoinCode"]
+    }
 
 
 @document_api_route(bp, 'post', '/login', 'Login user', 'Validate user credentials')
@@ -97,21 +230,11 @@ def login_user():
         except (ValueError, TypeError):
             return jsonify({'error': 'Invalid username or password'}), 401
 
-    session_token = _create_session_token(user["UserID"], remember=remember)
-
     response = jsonify({
         "message": "Login successful",
-        "user": {
-            "id": user["UserID"],
-            "username": user["UserName"],
-            "display_name": user["DisplayName"],
-            "role": user["RoleName"],
-            "household_id": user["HouseholdID"],
-            "household": user["HouseholdName"],
-            "join_code": user["JoinCode"]
-        }
+        "user": _serialize_user(user)
     })
-    _set_session_cookie(response, session_token, persistent=remember)
+    SessionManager.attach_user_session(response, user["UserID"], remember=remember)
 
     return response, 200
 
@@ -196,21 +319,11 @@ def register_user():
     cursor.close()
     conn.close()
 
-    session_token = _create_session_token(user["UserID"], remember=remember)
-
     response = jsonify({
         "message": "Registration successful",
-        "user": {
-            "id": user["UserID"],
-            "username": user["UserName"],
-            "display_name": user["DisplayName"],
-            "role": user["RoleName"],
-            "household_id": user["HouseholdID"],
-            "household": user["HouseholdName"],
-            "join_code": user["JoinCode"]
-        }
+        "user": _serialize_user(user)
     })
-    _set_session_cookie(response, session_token, persistent=remember)
+    SessionManager.attach_user_session(response, user["UserID"], remember=remember)
 
     return response, 200
 
@@ -219,7 +332,12 @@ def register_user():
                     'Get household members',
                     'Return all users in this household')
 @handle_db_error
+@require_auth
 def get_household_members(household_id):
+    user = get_current_user()
+    if not user or not user.get("HouseholdID") or int(user["HouseholdID"]) != int(household_id):
+        return jsonify({"error": "Error 403"}), 403
+
     with db_cursor() as cursor:
         cursor.execute("""
             SELECT UserID, UserName, DisplayName
@@ -236,13 +354,16 @@ def get_household_members(household_id):
     'User enters join code to join household'
 )
 @handle_db_error
+@require_auth
 def join_household():
     data = request.get_json() or {}
-    user_id = data.get("user_id")
     join_code = data.get("join_code")
 
-    if not user_id or not join_code:
-        return jsonify({"error": "user_id and join_code required"}), 400
+    if not join_code:
+        return jsonify({"error": "join_code required"}), 400
+
+    current_user = get_current_user()
+    user_id = current_user["UserID"]
 
     conn = get_write_conn()
     cursor = conn.cursor(dictionary=True)
@@ -290,10 +411,15 @@ def join_household():
     cursor.close()
     conn.close()
 
+    updated_user = _get_user_by_id(user_id)
+    if updated_user:
+        g.current_user = updated_user
+
     return jsonify({
         "message": "Joined household successfully",
         "household_id": h["HouseholdID"],
-        "household_name": h["HouseholdName"]
+        "household_name": h["HouseholdName"],
+        "user": _serialize_user(updated_user)
     }), 200
 
 
@@ -303,13 +429,13 @@ def join_household():
     'User creates a new household and becomes owner. If user is already in a household, they will be removed from it.'
 )
 @handle_db_error
+@require_auth
 def create_household():
     data = request.get_json() or {}
-    user_id = data.get("user_id")
     household_name = data.get("household_name", "")
 
-    if not user_id:
-        return jsonify({"error": "user_id required"}), 400
+    current_user = get_current_user()
+    user_id = current_user["UserID"]
 
     conn = get_write_conn()
     cursor = conn.cursor(dictionary=True)
@@ -381,13 +507,18 @@ def create_household():
     cursor.close()
     conn.close()
 
+    updated_user = _get_user_by_id(user_id)
+    if updated_user:
+        g.current_user = updated_user
+
     return jsonify({
         "message": "Household created successfully",
         "household": {
             "household_id": household["HouseholdID"],
             "household_name": household["HouseholdName"],
             "join_code": household["JoinCode"]
-        }
+        },
+        "user": _serialize_user(updated_user)
     }), 200
 
 
@@ -395,12 +526,21 @@ def create_household():
                     'Remove user from household',
                     'Remove an existing household member and auto-create a new household for them')
 @handle_db_error
+@require_auth
 def remove_member():
     data = request.get_json() or {}
     username = data.get("username")
 
     if not username:
         return jsonify({"error": "username required"}), 400
+
+    current_user = get_current_user()
+    if current_user.get("RoleName") != "owner":
+        return jsonify({"error": "Only household owners can remove members"}), 403
+
+    owner_household_id = current_user.get("HouseholdID")
+    if not owner_household_id:
+        return jsonify({"error": "Owner must belong to a household"}), 400
 
     conn = get_write_conn()
     cursor = conn.cursor(dictionary=True)
@@ -413,10 +553,10 @@ def remove_member():
     """, (username,))
     user = cursor.fetchone()
 
-    if not user:
+    if not user or user.get("HouseholdID") != owner_household_id:
         cursor.close()
         conn.close()
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found in your household"}), 404
 
     user_id = user["UserID"]
     
@@ -462,15 +602,15 @@ def remove_member():
     'User updates their own display name or password'
 )
 @handle_db_error
+@require_auth
 def update_profile():
     data = request.get_json() or {}
-    user_id = data.get("user_id")
     new_name = data.get("display_name")
     old_password = data.get("old_password")
     new_password = data.get("new_password")
 
-    if not user_id:
-        return jsonify({"error": "user_id required"}), 400
+    current_user = get_current_user()
+    user_id = current_user["UserID"]
 
     if not new_name and not new_password:
         return jsonify({"error": "Nothing to update"}), 400
@@ -549,7 +689,14 @@ def update_profile():
     cursor.close()
     conn.close()
 
-    return jsonify({"message": "Profile updated successfully"}), 200
+    updated_user = _get_user_by_id(user_id)
+    if updated_user:
+        g.current_user = updated_user
+
+    return jsonify({
+        "message": "Profile updated successfully",
+        "user": _serialize_user(updated_user)
+    }), 200
 
 
 @document_api_route(
@@ -558,12 +705,17 @@ def update_profile():
     'Remove a user account and clean up associated ownership/transaction references'
 )
 @handle_db_error
+@require_auth
 def delete_account(user_id: int):
     data = request.get_json() or {}
     confirm_username = (data.get("confirm_username") or "").strip()
 
     if not confirm_username:
         return jsonify({"error": "confirm_username required"}), 400
+
+    current_user = get_current_user()
+    if not current_user or current_user["UserID"] != user_id:
+        return jsonify({"error": "You can only delete your own account"}), 403
 
     conn = get_write_conn()
     cursor = conn.cursor(dictionary=True)
@@ -623,7 +775,7 @@ def delete_account(user_id: int):
         conn.close()
 
     response = jsonify({"message": "Account deleted"})
-    _clear_session_cookie(response)
+    SessionManager.clear_cookie(response)
     return response, 200
 
 
@@ -714,39 +866,17 @@ def _ensure_deleted_user_household(cursor):
 )
 @handle_db_error
 def get_session():
-    token = request.cookies.get(SESSION_COOKIE_NAME)
-    if not token:
-        return jsonify({"error": "Not authenticated"}), 401
+    auth_error = authorize_request()
+    if auth_error:
+        return auth_error
 
-    token_data = _parse_session_token(token)
-    if not token_data:
-        response = jsonify({"error": "Session expired"})
-        _clear_session_cookie(response)
-        return response, 401
-
-    user_id = token_data.get("user_id")
-    remember = bool(token_data.get("remember", True))
-
-    user = _get_user_by_id(user_id)
-    if not user:
-        response = jsonify({"error": "User not found"})
-        _clear_session_cookie(response)
-        return response, 404
-
-    session_token = _create_session_token(user_id, remember=remember)
+    user = get_current_user()
+    remember = bool(getattr(g, 'session_remember', True))
     response = jsonify({
         "message": "Session active",
-        "user": {
-            "id": user["UserID"],
-            "username": user["UserName"],
-            "display_name": user["DisplayName"],
-            "role": user["RoleName"],
-            "household_id": user["HouseholdID"],
-            "household": user["HouseholdName"],
-            "join_code": user["JoinCode"]
-        }
+        "user": _serialize_user(user)
     })
-    _set_session_cookie(response, session_token, persistent=remember)
+    SessionManager.attach_user_session(response, user["UserID"], remember=remember)
     return response, 200
 
 
@@ -757,5 +887,5 @@ def get_session():
 )
 def logout_user():
     response = jsonify({"message": "Logged out"})
-    _clear_session_cookie(response)
+    SessionManager.clear_cookie(response)
     return response, 200

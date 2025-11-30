@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Box, TextField, Button } from '@mui/material';
 import { useNavigate } from '@tanstack/react-router';
 import Logo from '../Logo';
+import { setSessionUser } from '../../utils/session';
 
 
 const RegisterForm = () => {
@@ -42,7 +43,7 @@ const RegisterForm = () => {
         return;
       }
 
-      localStorage.setItem('user', JSON.stringify(data));
+      setSessionUser(data.user);
       navigate({ to: '/dashboard' });
 
     } catch (err) {

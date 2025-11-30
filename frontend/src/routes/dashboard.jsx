@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import Dashboard from '../components/Dashboard';
 import { useEffect, useState } from 'react';
-import { restoreSessionFromCookie } from '../utils/session';
+import { getCachedUser, restoreSessionFromCookie } from '../utils/session';
 
 function DashboardWrapper() {
   const navigate = useNavigate();
@@ -11,10 +11,8 @@ function DashboardWrapper() {
     let isMounted = true;
 
     async function ensureUser() {
-      const stored = JSON.parse(localStorage.getItem("user"));
-      const user = stored?.user;
-      
-      if (user?.id) {
+      const cached = getCachedUser();
+      if (cached?.id) {
         if (isMounted) setIsChecking(false);
         return;
       }

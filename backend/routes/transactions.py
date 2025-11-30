@@ -2,12 +2,44 @@ from datetime import datetime,time
 import pytz
 from flask import jsonify, request
 from extensions import db_cursor, get_db, create_api_blueprint, document_api_route, handle_db_error
+from routes.auth import (
+    authorize_request,
+    get_current_user_id,
+    require_household,
+)
 
 bp = create_api_blueprint('transactions', '/api/transactions')
+
+
+@bp.before_request
+def require_transactions_auth():
+    return authorize_request()
+
+
+def _ensure_food_item_access(cursor, food_item_id, household_id):
+    cursor.execute("""
+        SELECT HouseholdID
+        FROM FoodItem
+        WHERE FoodItemID = %s
+          AND IsArchived = 0
+    """, (food_item_id,))
+    row = cursor.fetchone()
+
+    if not row:
+        return jsonify({'error': 'Food item not found'}), 404
+
+    if int(row['HouseholdID']) != int(household_id):
+        return jsonify({'error': 'Error 403'}), 403
+
+    return None
 
 @document_api_route(bp, 'get', '/<int:household_id>', 'Get transactions by household and page', 'Returns a list of transactions (paged)')
 @handle_db_error
 def db_get_transactions_paged(household_id):
+    resolved_household_id, error = require_household(household_id)
+    if error:
+        return error
+
     page = int(request.args.get('page', 0))
     limit = int(request.args.get('limit', 5))
     offset = page * limit
@@ -21,7 +53,7 @@ def db_get_transactions_paged(household_id):
             WHERE u.HouseholdID = %s
               AND tx.TransactionType != 'transfer_in'
         """
-        cursor.execute(count_query, (household_id,))
+        cursor.execute(count_query, (resolved_household_id,))
         total = cursor.fetchone()['total']
 
         # Get paged data
@@ -59,7 +91,7 @@ def db_get_transactions_paged(household_id):
             ORDER BY tx.CreatedAt DESC
             LIMIT %s OFFSET %s
         """
-        cursor.execute(query, (household_id, limit, offset))
+        cursor.execute(query, (resolved_household_id, limit, offset))
         results = cursor.fetchall()
         
         # set New York Time Zone
@@ -94,6 +126,10 @@ def db_get_transactions_paged(household_id):
 @document_api_route(bp,'get','/expiring/<int:household_id>','Get transactions expiring in 7 days by household','Returns a list of expiring transactions (paged)')
 @handle_db_error
 def db_get_expiring_transactions(household_id):
+    resolved_household_id, error = require_household(household_id)
+    if error:
+        return error
+
     page = int(request.args.get('page', 0))
     limit = int(request.args.get('limit', 5))
     offset = page * limit
@@ -126,7 +162,7 @@ def db_get_expiring_transactions(household_id):
                 DATE(tx.ExpirationDate) > CURDATE() AND 
                 DATE(tx.ExpirationDate) <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)
         """
-        cursor.execute(count_query, (household_id, household_id))
+        cursor.execute(count_query, (resolved_household_id, resolved_household_id))
         total = cursor.fetchone()['total']
 
         # Get paged data
@@ -181,7 +217,7 @@ def db_get_expiring_transactions(household_id):
             ORDER BY tx.ExpirationDate
             LIMIT %s OFFSET %s
         """
-        cursor.execute(query, (household_id, household_id, limit, offset))
+        cursor.execute(query, (resolved_household_id, resolved_household_id, limit, offset))
         results = cursor.fetchall()
 
         # set New York Time Zone
@@ -222,13 +258,17 @@ def db_get_expiring_transactions(household_id):
                         'Returns inventory totals for all food items in household')
 @handle_db_error
 def get_inventory_totals(household_id):
+    resolved_household_id, error = require_household(household_id)
+    if error:
+        return error
+
     search_query = request.args.get('search', None)
 
     if search_query == '':
         search_query = None
     
     with db_cursor() as cursor:
-        cursor.callproc('GetHouseholdInventory', (household_id, search_query))
+        cursor.callproc('GetHouseholdInventory', (resolved_household_id, search_query))
         results = []
         for result in cursor.stored_results():
             results = result.fetchall()
@@ -251,13 +291,17 @@ def get_inventory_totals(household_id):
                         'Returns food items filtered by location')
 @handle_db_error
 def get_inventory_by_location(household_id, location_id):
+    resolved_household_id, error = require_household(household_id)
+    if error:
+        return error
+
     search_query = request.args.get('search', None)
 
     if search_query == '':
         search_query = None
     
     with db_cursor() as cursor:
-        cursor.callproc('GetInventoryByLocation', (household_id, location_id, search_query))
+        cursor.callproc('GetInventoryByLocation', (resolved_household_id, location_id, search_query))
         results = []
         for result in cursor.stored_results():
             results = result.fetchall()
@@ -282,15 +326,22 @@ def get_inventory_by_location(household_id, location_id):
 @handle_db_error
 def create_inventory_transaction():
     data = request.get_json()
+
+    household_id, error = require_household()
+    if error:
+        return error
+
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
     
-    required_fields = ['food_item_id', 'location_id', 'user_id', 'transaction_type', 'quantity']
+    required_fields = ['food_item_id', 'location_id', 'transaction_type', 'quantity']
     for field in required_fields:
         if field not in data:
             return jsonify({'error': f'Missing required field: {field}'}), 400
     
     food_item_id = data['food_item_id']
     location_id = data['location_id']
-    user_id = data['user_id']
     transaction_type = data['transaction_type']
     quantity = float(data['quantity'])
     expiration_date = data.get('expiration_date')
@@ -301,6 +352,11 @@ def create_inventory_transaction():
     cursor = conn.cursor(dictionary=True)
     
     try:
+        ownership_error = _ensure_food_item_access(cursor, food_item_id, household_id)
+        if ownership_error:
+            conn.rollback()
+            return ownership_error
+
         cursor.callproc('AddRemoveExistingFoodItem', (
             food_item_id,
             location_id,
@@ -327,7 +383,15 @@ def create_inventory_transaction():
 @document_api_route(bp, 'get', '/food-item/<int:food_item_id>/latest-expiration', 'Get latest upcoming expiration', 'Returns the latest non-expired expiration date for a food item')
 @handle_db_error
 def get_latest_expiration(food_item_id):
+    household_id, error = require_household()
+    if error:
+        return error
+
     with db_cursor() as cursor:
+        ownership_error = _ensure_food_item_access(cursor, food_item_id, household_id)
+        if ownership_error:
+            return ownership_error
+
         cursor.execute("""
             SELECT ExpirationDate
             FROM InventoryTransaction
@@ -354,6 +418,10 @@ def update_latest_expiration(food_item_id):
     data = request.get_json() or {}
     new_expiration = data.get('expiration_date')
 
+    household_id, error = require_household()
+    if error:
+        return error
+
     if not new_expiration:
         return jsonify({'error': 'expiration_date is required'}), 400
 
@@ -366,6 +434,11 @@ def update_latest_expiration(food_item_id):
     cursor = conn.cursor(dictionary=True)
 
     try:
+        ownership_error = _ensure_food_item_access(cursor, food_item_id, household_id)
+        if ownership_error:
+            conn.rollback()
+            return ownership_error
+
         cursor.execute("""
             SELECT ExpirationDate
             FROM InventoryTransaction

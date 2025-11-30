@@ -21,8 +21,7 @@ import { updateFoodItem, createInventoryTransaction, archiveFoodItem } from '../
 import { useFoodItemDetails, useInventoryAdjustment } from './hooks';
 
 const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
-  const { householdId, user } = useCurrentUser();
-  const userId = user?.id;
+  const { householdId } = useCurrentUser();
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -93,7 +92,6 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
       await createInventoryTransaction({
         food_item_id: item.FoodItemID,
         location_id: targetLocationId,
-        user_id: userId,
         transaction_type: 'expire',
         quantity: quantityToExpire,
       });
@@ -119,11 +117,6 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
     const validationError = validateForm(formData, { requireBaseUnitId: false });
     if (validationError) {
       setError(validationError);
-      return;
-    }
-
-    if (!userId) {
-      setError('Missing user information. Please log in again to update quantities.');
       return;
     }
 
@@ -169,11 +162,12 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
 
       if (latestExpiration && latestExpiration !== originalLatestExpiration) {
         try {
-          const expirationRes = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`, {
+          const expirationRes = await fetch(`/api/transactions/food-item/${item.FoodItemID}/latest-expiration`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({ expiration_date: latestExpiration }),
           });
           if (!expirationRes.ok) {
@@ -195,14 +189,12 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
           await createInventoryTransaction({
             food_item_id: item.FoodItemID,
             location_id: originalLocationId,
-            user_id: userId,
             transaction_type: 'transfer_out',
             quantity: qtyToMove,
           }, { notify: false });
           await createInventoryTransaction({
             food_item_id: item.FoodItemID,
             location_id: targetLocationId,
-            user_id: userId,
             transaction_type: 'transfer_in',
             quantity: qtyToMove,
           }, { notify: false });
@@ -210,7 +202,6 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
           await createInventoryTransaction({
             food_item_id: item.FoodItemID,
             location_id: targetLocationId,
-            user_id: userId,
             transaction_type: 'transfer_in',
             quantity: 0,
           }, { notify: false });
@@ -223,7 +214,6 @@ const EditFoodItemModal = ({ open, onClose, item, onItemUpdated }) => {
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
           location_id: targetLocationId,
-          user_id: userId,
           transaction_type: deltaBaseUnits > 0 ? 'add' : 'remove',
           quantity: Math.abs(deltaBaseUnits),
         }, { notify: false });

@@ -16,8 +16,8 @@ export const useInventoryData = (householdId, locationFilter, searchQuery) => {
     setLoading(true);
     const baseUrl =
       locationFilter === null
-        ? `http://localhost:5001/api/transactions/inventory/${householdId}`
-        : `http://localhost:5001/api/transactions/inventory/${householdId}/location/${locationFilter}`;
+        ? `/api/transactions/inventory/${householdId}`
+        : `/api/transactions/inventory/${householdId}/location/${locationFilter}`;
 
     const url =
       searchQuery && searchQuery.trim() !== ''
@@ -25,7 +25,9 @@ export const useInventoryData = (householdId, locationFilter, searchQuery) => {
         : baseUrl;
 
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        credentials: 'include',
+      });
       if (!res.ok) {
         throw new Error('Failed to load inventory');
       }

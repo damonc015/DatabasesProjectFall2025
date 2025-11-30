@@ -6,13 +6,23 @@ from extensions import (
     handle_db_error,
     get_db,
 )
+from routes.auth import authorize_request, require_household
 
 bp = create_api_blueprint('households', '/api/households')
+
+
+@bp.before_request
+def require_household_auth():
+    return authorize_request()
 
 
 @document_api_route(bp, 'get', '/<int:household_id>', 'Get household by ID', 'Returns household information including member and food item counts')
 @handle_db_error
 def get_household(household_id):
+    _, error = require_household(household_id)
+    if error:
+        return error
+
     with db_cursor() as cursor:
         query = """
             SELECT 
@@ -39,6 +49,10 @@ def get_household(household_id):
 @document_api_route(bp, 'get', '/<int:household_id>/locations', 'Get locations by household', 'Returns all locations for a household')
 @handle_db_error
 def get_household_locations(household_id):
+    _, error = require_household(household_id)
+    if error:
+        return error
+
     with db_cursor() as cursor:
         query = """
             SELECT LocationID, LocationName
@@ -55,6 +69,10 @@ def get_household_locations(household_id):
 @document_api_route(bp, 'post', '/<int:household_id>/locations', 'Create household location', 'Adds a new storage location for a household')
 @handle_db_error
 def create_household_location(household_id):
+    _, error = require_household(household_id)
+    if error:
+        return error
+
     data = request.get_json() or {}
     location_name = (data.get('location_name') or '').strip()
 
@@ -105,6 +123,10 @@ def create_household_location(household_id):
 @document_api_route(bp, 'put', '/<int:household_id>/locations/<int:location_id>', 'Rename household location', 'Updates the name of a storage location')
 @handle_db_error
 def update_household_location(household_id, location_id):
+    _, error = require_household(household_id)
+    if error:
+        return error
+
     data = request.get_json() or {}
     new_name = (data.get('location_name') or '').strip()
 

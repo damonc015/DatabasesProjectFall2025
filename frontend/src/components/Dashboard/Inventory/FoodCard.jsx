@@ -13,12 +13,14 @@ import { FoodIcon } from '../../../utils/foodEmojis';
 import { capitalizeWords } from '../../../utils/formatters';
 import { createInventoryTransaction } from './api';
 
-const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete, onEdit, onRestock }) => {
+const FoodCard = ({ item, showPackage, locationId, onTransactionComplete, onEdit, onRestock }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchLatestExpiration = async () => {
     try {
-      const res = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`);
+      const res = await fetch(`/api/transactions/food-item/${item.FoodItemID}/latest-expiration`, {
+        credentials: 'include',
+      });
       if (!res.ok) {
         await res.json().catch(() => ({}));
         return null;
@@ -38,12 +40,6 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
   };
 
   const handleTransaction = async (transactionType) => {
-    if (!userId) {
-      alert('Error: User ID is missing. Please log in again.');
-      console.error('Missing userId');
-      return;
-    }
-    
     if (!locationId) {
       alert('Error: Location ID is missing. Please select a location.');
       console.error('Missing locationId');
@@ -68,7 +64,6 @@ const FoodCard = ({ item, showPackage, userId, locationId, onTransactionComplete
       const payload = {
         food_item_id: item.FoodItemID,
         location_id: locationId,
-        user_id: userId,
         transaction_type: transactionType,
         quantity,
         ...(transactionType === 'add' && expirationDate ? { expiration_date: expirationDate } : {})

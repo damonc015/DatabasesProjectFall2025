@@ -1,36 +1,45 @@
 from datetime import datetime, timedelta
 from flask import jsonify, request
 from extensions import db_cursor, get_db, create_api_blueprint, document_api_route, handle_db_error
+from routes.auth import (
+    authorize_request,
+    get_current_user_id,
+    require_household,
+)
 
 bp = create_api_blueprint('food_items', '/api/food-items')
 
 
-@document_api_route(bp, 'get', '/', 'Get all food items', 'Returns a list of food items')
-@handle_db_error
-def db_test_get_food_items():
-    with db_cursor() as cursor:
-        query = """
-            SELECT 
-                fi.FoodItemID,
-                fi.Name,
-                fi.Type,
-                fi.Category,
-                fi.BaseUnitID,
-                fi.HouseholdID,
-                fi.PreferredPackageID,
-                bu.Abbreviation AS BaseUnit
-            FROM FoodItem fi
-            JOIN BaseUnit bu ON fi.BaseUnitID = bu.UnitID
-            WHERE fi.IsArchived = 0
-        """
-        cursor.execute(query)
-        results = cursor.fetchall()
-        return jsonify(results), 200
+@bp.before_request
+def require_food_items_auth():
+    return authorize_request()
+
+
+def _check_item_belongs_to_household(cursor, food_item_id, household_id):
+    cursor.execute("""
+        SELECT HouseholdID
+        FROM FoodItem
+        WHERE FoodItemID = %s
+          AND IsArchived = 0
+        """, (food_item_id,))
+    row = cursor.fetchone()
+
+    if not row:
+        return jsonify({'error': 'Food item not found'}), 404
+
+    if int(row['HouseholdID']) != int(household_id):
+        return jsonify({'error': 'Error 403'}), 403
+
+    return None
 
 
 @document_api_route(bp, 'get', '/<int:food_item_id>', 'Get food item by ID', 'Returns a single food item by its ID')
 @handle_db_error
 def get_food_item(food_item_id):
+    household_id, error = require_household()
+    if error:
+        return error
+
     with db_cursor() as cursor:
         query = """
             SELECT 
@@ -78,7 +87,7 @@ def get_food_item(food_item_id):
         cursor.execute(query, (food_item_id,))
         result = cursor.fetchone()
         
-        if not result:
+        if not result or int(result.get('HouseholdID')) != int(household_id):
             return jsonify({'error': 'Food item not found'}), 404
         
         return jsonify(result), 200
@@ -86,10 +95,10 @@ def get_food_item(food_item_id):
 @document_api_route(bp, 'get', '/below-target', 'Get items below target level', 'Returns food items where current stock is below target level')
 @handle_db_error
 def get_items_below_target():
-    household_id = request.args.get('household_id')
-    
-    if not household_id:
-        return jsonify({'error': 'household_id is required'}), 400
+    requested_household = request.args.get('household_id')
+    household_id, error = require_household(requested_household)
+    if error:
+        return error
     
     with db_cursor() as cursor:
         query = """
@@ -141,10 +150,10 @@ def get_items_below_target():
 @document_api_route(bp, 'get', '/at-or-above-target', 'Get items at or above target', 'Returns food items where current stock is at or above target level')
 @handle_db_error  
 def get_items_at_or_above_target():
-    household_id = request.args.get('household_id')
-    
-    if not household_id:
-        return jsonify({'error': 'household_id is required'}), 400
+    requested_household = request.args.get('household_id')
+    household_id, error = require_household(requested_household)
+    if error:
+        return error
     
     with db_cursor() as cursor:
         query = """
@@ -211,10 +220,10 @@ def get_base_units():
                     'Get unique package labels by household', 'Returns a list of unique package labels for a specific household')
 @handle_db_error
 def get_package_labels():
-    household_id = request.args.get('household_id')
-    
-    if not household_id:
-        return jsonify({'error': 'household_id is required'}), 400
+    requested_household = request.args.get('household_id')
+    household_id, error = require_household(requested_household)
+    if error:
+        return error
     
     with db_cursor() as cursor:
         query = """
@@ -238,6 +247,14 @@ def get_package_labels():
 def add_new_food_item():
     data = request.get_json()
 
+    household_id, error = require_household()
+    if error:
+        return error
+
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+
     expiration_date = data.get('expiration_date')
     if not expiration_date:
         expiration_date = (datetime.utcnow() + timedelta(days=14)).date().isoformat()
@@ -251,13 +268,13 @@ def add_new_food_item():
             data.get('type') or '',
             data.get('category'),
             data.get('base_unit_id'),
-            data.get('household_id'),
+            household_id,
             data.get('package_label'),
             data.get('package_base_unit_amt'),
             data.get('location_id'),
             data.get('target_level'),
             data.get('quantity'),
-            data.get('user_id'),
+            user_id,
             expiration_date,
             data.get('price_per_item'),
             data.get('store')
@@ -279,10 +296,19 @@ def add_new_food_item():
 def update_food_item(food_item_id):
     data = request.get_json()
 
+    household_id, error = require_household()
+    if error:
+        return error
+
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
 
     try:
+        ownership_error = _check_item_belongs_to_household(cursor, food_item_id, household_id)
+        if ownership_error:
+            conn.rollback()
+            return ownership_error
+
         cursor.execute("""
             UPDATE FoodItem
             SET Name = %s,
@@ -424,10 +450,19 @@ def update_food_item(food_item_id):
 @document_api_route(bp, 'delete', '/<int:food_item_id>', 'Archive food item', 'Soft deletes a food item and packages')
 @handle_db_error
 def archive_food_item(food_item_id):
+    household_id, error = require_household()
+    if error:
+        return error
+
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
 
     try:
+        ownership_error = _check_item_belongs_to_household(cursor, food_item_id, household_id)
+        if ownership_error:
+            conn.rollback()
+            return ownership_error
+
         cursor.execute("""
             UPDATE FoodItem
             SET IsArchived = 1

@@ -9,6 +9,7 @@ export const useCreateShoppingList = () => {
       const res = await fetch('/api/shopping-lists', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ household_id }),
       });
 
@@ -34,6 +35,7 @@ export const useAddShoppingListItems = () => {
       const res = await fetch(`/api/shopping-lists/${shoppingListId}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ items }),
       });
 
@@ -59,6 +61,7 @@ export const useMarkShoppingListItem = () => {
       const res = await fetch(`/api/shopping-lists/${listId}/items/${itemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error('Failed to update');
@@ -77,6 +80,7 @@ export const useRemoveShoppingListItem = () => {
     mutationFn: async ({ listId, itemId }) => {
       const res = await fetch(`/api/shopping-lists/${listId}/items/${itemId}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Failed to delete');
       return res.json();

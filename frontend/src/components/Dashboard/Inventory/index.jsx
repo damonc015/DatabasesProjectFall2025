@@ -38,7 +38,6 @@ const Inventory = ({
   const { addItemOpen, edit, restock, location: locationModal } = modals;
   
   const { householdId, user } = useCurrentUser();
-  const userId = user?.id;
   const { locations, refreshLocations } = useLocations(householdId);
   const { inventory, refreshInventory } = useInventoryData(householdId, locationFilter, searchQuery);
 
@@ -227,7 +226,6 @@ const Inventory = ({
                 <FoodCard
                   item={item}
                   showPackage={showPackage}
-                  userId={userId}
                   locationId={item.LocationID}
                   onTransactionComplete={refreshInventory}
                   onEdit={(itm) => {

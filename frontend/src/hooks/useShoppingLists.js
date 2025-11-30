@@ -10,7 +10,9 @@ export const useShoppingLists = ({ param = 0, order = 'asc' } = {}) => {
         order
       });
 
-      const res = await fetch(`/api/shopping-lists?${queryParams}`);
+      const res = await fetch(`/api/shopping-lists?${queryParams}`, {
+        credentials: 'include',
+      });
 
       if (!res.ok) {
         throw new Error('Failed to fetch shopping lists');
@@ -26,7 +28,9 @@ export const useCompletedShoppingLists = () => {
   return useQuery({
     queryKey: ['shoppingLists', 'completed'],
     queryFn: async () => {
-      const res = await fetch('/api/shopping-lists/completed');
+      const res = await fetch('/api/shopping-lists/completed', {
+        credentials: 'include',
+      });
 
       if (!res.ok) {
         throw new Error('Failed to fetch completed shopping lists');

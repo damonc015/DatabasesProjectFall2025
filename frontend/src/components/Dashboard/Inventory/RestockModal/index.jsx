@@ -8,15 +8,11 @@ import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
-import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { dispatchTransactionCompleted } from '../../../../utils/transactionEvents';
 import { createInventoryTransaction, updateFoodItem } from '../api';
 import { packagesToBaseUnits } from '../utils';
 
 const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
-  const { user } = useCurrentUser();
-  const userId = user?.id;
-
   const [form, setForm] = useState({
     transactionType: 'add',
     quantityPackages: 1,
@@ -33,7 +29,9 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
     if (!open || !item) return;
     const loadDefaultExpiration = async () => {
       try {
-        const res = await fetch(`http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`);
+        const res = await fetch(`/api/transactions/food-item/${item.FoodItemID}/latest-expiration`, {
+          credentials: 'include',
+        });
         if (res.ok) {
           const data = await res.json();
           if (data?.expiration_date) {
@@ -79,7 +77,7 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!item || !userId) return;
+    if (!item) return;
 
     if (allowExpiration && lockedExpiration && form.expirationDate !== lockedExpiration) {
       setError('Expiration date is locked to the latest batch for this item.');
@@ -141,7 +139,6 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
           location_id: sourceLocationId,
-          user_id: userId,
           transaction_type: 'transfer_out',
           quantity: quantityBaseUnits,
         }, { notify: false });
@@ -149,7 +146,6 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
           location_id: destinationLocationId,
-          user_id: userId,
           transaction_type: 'transfer_in',
           quantity: quantityBaseUnits,
         }, { notify: false });
@@ -157,7 +153,6 @@ const RestockModal = ({ open, onClose, item, onRestocked, locations = [] }) => {
         await createInventoryTransaction({
           food_item_id: item.FoodItemID,
           location_id: destinationLocationId,
-          user_id: userId,
           transaction_type: form.transactionType,
           quantity: quantityBaseUnits,
           expiration_date: allowExpiration && form.expirationDate ? form.expirationDate : undefined,

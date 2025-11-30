@@ -58,7 +58,9 @@ export const useFoodItemDetails = ({ open, item, categories = [] }) => {
 
     const loadDetails = async () => {
       try {
-        const response = await fetch(`http://localhost:5001/api/food-items/${item.FoodItemID}`);
+        const response = await fetch(`/api/food-items/${item.FoodItemID}`, {
+          credentials: 'include',
+        });
         if (!response.ok) {
           throw new Error('Failed to load item details');
         }
@@ -120,7 +122,8 @@ export const useFoodItemDetails = ({ open, item, categories = [] }) => {
       setExpirationError('');
       try {
         const res = await fetch(
-          `http://localhost:5001/api/transactions/food-item/${item.FoodItemID}/latest-expiration`
+          `/api/transactions/food-item/${item.FoodItemID}/latest-expiration`,
+          { credentials: 'include' }
         );
         if (!res.ok) throw new Error('Could not fetch expiration date');
         const data = await res.json();

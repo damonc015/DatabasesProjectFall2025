@@ -1,8 +1,14 @@
 from flask import jsonify, request, Response, render_template
 from extensions import db_cursor, create_api_blueprint, document_api_route, handle_db_error, get_db
+from routes.auth import authorize_request, require_household
 import json
 
 bp = create_api_blueprint('shopping_lists', '/api/shopping-lists')
+
+
+@bp.before_request
+def require_shopping_list_auth():
+    return authorize_request()
 
 # Shopping List 
 #TODO: 1.1
@@ -10,10 +16,10 @@ bp = create_api_blueprint('shopping_lists', '/api/shopping-lists')
 @handle_db_error
 def create_shopping_list():
     data = request.get_json()
-    household_id = data.get('household_id')
-    
-    if not household_id:
-        return jsonify({'error': 'household_id is required'}), 400
+    requested_household = data.get('household_id')
+    household_id, error = require_household(requested_household)
+    if error:
+        return error
     
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
