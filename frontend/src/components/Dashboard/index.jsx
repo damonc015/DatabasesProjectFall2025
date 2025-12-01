@@ -58,8 +58,10 @@ const Dashboard = () => {
           />
         </div>
         <div className='monitorsContainer'>
-          <Transactions showPackage={showPackage} />
-          <Expiring showPackage={showPackage} />
+          <Box className='monitorSubContainer'>
+            <Transactions showPackage={showPackage} />
+            <Expiring showPackage={showPackage} />
+          </Box>
           <Box className='actionButtonContainer'>
             <Fab className='actionButton' color='primary' aria-label='add shopping list' onClick={handleOpenModal}>
               <AddShoppingCartIcon />

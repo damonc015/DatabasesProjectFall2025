@@ -27,13 +27,13 @@ const Header = () => {
   const householdName = user?.household || 'No Household';
 
   return (
-    <div className='headerContainer' style={{ alignItems: 'baseline', maxHeight: '14vh' }}>
+    <div className='headerContainer'>
       {/* --- Left Area --- */}
-      <div style={{ align: 'center', display: 'flex', alignItems: 'baseline'}}>
+      <div>
         <StaticLogo />
         {householdName && householdName !== 'No Household' && (
           <span style={{
-            marginLeft: '80px',
+            marginLeft: '4.25rem',
             position: 'relative',
             top: '-2px'
           }}>
@@ -42,7 +42,7 @@ const Header = () => {
         )}
       </div>
       {/* --- Right Area --- */}
-      <div style={{ align: 'center', display: 'flex', alignItems: 'center' }}>
+      <div>
         <span>Welcome back, {username}</span>
         <SettingsIcon
           style={{
