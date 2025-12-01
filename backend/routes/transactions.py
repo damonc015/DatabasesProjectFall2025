@@ -1,6 +1,7 @@
 from datetime import datetime,time
 import pytz
 from flask import jsonify, request, g
+from flask import jsonify, request, g
 from extensions import db_cursor, get_db, create_api_blueprint, document_api_route, handle_db_error
 
 bp = create_api_blueprint('transactions', '/api/transactions')
@@ -12,13 +13,10 @@ def _ensure_household_access(target_household_id: int):
         return jsonify({"error": "Not authenticated"}), 401
 
     current_household_id = user.get("HouseholdID")
-    try:
-        current_household_id = int(current_household_id) if current_household_id is not None else None
-        target_household_id = int(target_household_id)
-    except (TypeError, ValueError):
+    if current_household_id is None or target_household_id is None:
         return jsonify({"error": "Forbidden"}), 403
 
-    if current_household_id is None or current_household_id != target_household_id:
+    if current_household_id != target_household_id:
         return jsonify({"error": "Forbidden"}), 403
 
     return None
@@ -33,10 +31,12 @@ def _location_belongs_to_household(location_id: int, household_id: int) -> bool:
         row = cursor.fetchone()
     if not row:
         return False
-    try:
-        return int(row.get("HouseholdID")) == int(household_id)
-    except (TypeError, ValueError):
-        return False
+    location_household_id = row.get("HouseholdID")
+    return (
+        location_household_id is not None
+        and household_id is not None
+        and location_household_id == household_id
+    )
 
 
 def _ensure_location_access(household_id: int, location_id: int):
@@ -55,11 +55,8 @@ def _ensure_location_access_for_current_user(location_id: int):
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
     household_id = user.get("HouseholdID")
-    try:
-        household_id = int(household_id)
-    except (TypeError, ValueError):
+    if household_id is None:
         return jsonify({"error": "Forbidden"}), 403
-
     if not _location_belongs_to_household(location_id, household_id):
         return jsonify({"error": "Forbidden"}), 403
 
@@ -68,6 +65,9 @@ def _ensure_location_access_for_current_user(location_id: int):
 @document_api_route(bp, 'get', '/<int:household_id>', 'Get transactions by household and page', 'Returns a list of transactions (paged)')
 @handle_db_error
 def db_get_transactions_paged(household_id):
+    unauthorized = _ensure_household_access(household_id)
+    if unauthorized:
+        return unauthorized
     unauthorized = _ensure_household_access(household_id)
     if unauthorized:
         return unauthorized
@@ -157,6 +157,9 @@ def db_get_transactions_paged(household_id):
 @document_api_route(bp,'get','/expiring/<int:household_id>','Get transactions expiring in 7 days by household','Returns a list of expiring transactions (paged)')
 @handle_db_error
 def db_get_expiring_transactions(household_id):
+    unauthorized = _ensure_household_access(household_id)
+    if unauthorized:
+        return unauthorized
     unauthorized = _ensure_household_access(household_id)
     if unauthorized:
         return unauthorized
@@ -291,6 +294,9 @@ def get_inventory_totals(household_id):
     unauthorized = _ensure_household_access(household_id)
     if unauthorized:
         return unauthorized
+    unauthorized = _ensure_household_access(household_id)
+    if unauthorized:
+        return unauthorized
     search_query = request.args.get('search', None)
 
     if search_query == '':
@@ -320,6 +326,9 @@ def get_inventory_totals(household_id):
                         'Returns food items filtered by location')
 @handle_db_error
 def get_inventory_by_location(household_id, location_id):
+    unauthorized = _ensure_location_access(household_id, location_id)
+    if unauthorized:
+        return unauthorized
     unauthorized = _ensure_location_access(household_id, location_id)
     if unauthorized:
         return unauthorized
@@ -368,6 +377,11 @@ def create_inventory_transaction():
     expiration_date = data.get('expiration_date')
     if transaction_type not in ('add', 'purchase', 'transfer_in'):
         expiration_date = None
+    
+    unauthorized = _ensure_location_access_for_current_user(location_id)
+    if unauthorized:
+        return unauthorized
+
     
     unauthorized = _ensure_location_access_for_current_user(location_id)
     if unauthorized:

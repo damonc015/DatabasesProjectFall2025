@@ -1,19 +1,17 @@
 from datetime import datetime, timedelta
 from flask import jsonify, request, g
+from flask import jsonify, request, g
 from extensions import db_cursor, get_db, create_api_blueprint, document_api_route, handle_db_error
 
 bp = create_api_blueprint('food_items', '/api/food-items')
-
-
 
 
 def _get_current_user_household():
     user = getattr(g, 'current_user', None)
     if not user:
         return None, (jsonify({"error": "Not authenticated"}), 401)
-    try:
-        household_id = int(user.get("HouseholdID"))
-    except (TypeError, ValueError):
+    household_id = user.get("HouseholdID")
+    if household_id is None:
         return None, (jsonify({"error": "Forbidden"}), 403)
     return household_id, None
 
@@ -36,11 +34,9 @@ def _ensure_food_item_access(food_item_id):
     if not row:
         return jsonify({'error': 'Food item not found'}), 404
 
-    try:
-        item_household_id = int(row.get("HouseholdID"))
-    except (TypeError, ValueError):
+    item_household_id = row.get("HouseholdID")
+    if item_household_id is None or household_id is None:
         return jsonify({"error": "Forbidden"}), 403
-
     if item_household_id != household_id:
         return jsonify({"error": "Forbidden"}), 403
 
@@ -51,6 +47,10 @@ def _ensure_food_item_access(food_item_id):
 @document_api_route(bp, 'get', '/<int:food_item_id>', 'Get food item by ID', 'Returns a single food item by its ID')
 @handle_db_error
 def get_food_item(food_item_id):
+    unauthorized = _ensure_food_item_access(food_item_id)
+    if unauthorized:
+        return unauthorized
+
     unauthorized = _ensure_food_item_access(food_item_id)
     if unauthorized:
         return unauthorized
@@ -107,64 +107,10 @@ def get_food_item(food_item_id):
         
         return jsonify(result), 200
 
-@document_api_route(bp, 'get', '/below-target', 'Get items below target level', 'Returns food items where current stock is below target level')
+# get items not on active list
+@document_api_route(bp, 'get', '/not-on-active-list', 'Get items not on active list', 'Returns food items that are not currently on the active shopping list')
 @handle_db_error
-def get_items_below_target():
-    household_id = request.args.get('household_id')
-    
-    if not household_id:
-        return jsonify({'error': 'household_id is required'}), 400
-    
-    with db_cursor() as cursor:
-        query = """
-            SELECT 
-                fi.FoodItemID AS FoodItemID,
-                fi.Name AS FoodItemName,
-                IFNULL(pl.PriceTotal, 0) AS PricePerUnit,
-                0 AS PurchasedQty,
-                (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) AS NeededQty,
-                (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) * IFNULL(pl.PriceTotal, 0) AS TotalPrice,
-                'active' AS Status,
-                getCurrentStock(fi.FoodItemID) AS CurrentStock,
-                loc.LocationID AS LocationID,
-                pp.PackageID AS PackageID
-            FROM StockLevel sl
-            JOIN FoodItem fi ON sl.FoodItemID = fi.FoodItemID
-            LEFT JOIN Package pp ON fi.PreferredPackageID = pp.PackageID
-                AND (pp.IsArchived = 0 OR pp.IsArchived IS NULL)
-            LEFT JOIN (
-                SELECT pl1.PackageID, pl1.PriceTotal
-                FROM PriceLog pl1
-                INNER JOIN (
-                    SELECT PackageID, MAX(CreatedAt) AS MaxCreatedAt
-                    FROM PriceLog
-                    GROUP BY PackageID
-                ) pl2 ON pl1.PackageID = pl2.PackageID AND pl1.CreatedAt = pl2.MaxCreatedAt
-            ) pl ON pp.PackageID = pl.PackageID
-            LEFT JOIN (
-                SELECT l1.LocationID, l1.HouseholdID
-                FROM Location l1
-                INNER JOIN (
-                    SELECT HouseholdID, MIN(LocationID) AS MinLocationID
-                    FROM Location
-                    GROUP BY HouseholdID
-                ) l2 ON l1.HouseholdID = l2.HouseholdID AND l1.LocationID = l2.MinLocationID
-            ) loc ON fi.HouseholdID = loc.HouseholdID
-            WHERE fi.HouseholdID = %s
-                AND fi.IsArchived = 0
-                AND getCurrentStock(fi.FoodItemID) < sl.TargetLevel
-            ORDER BY (sl.TargetLevel - getCurrentStock(fi.FoodItemID)) DESC
-        """
-        
-        cursor.execute(query, (household_id,))
-        results = cursor.fetchall()
-        
-        return jsonify(results), 200
-
-
-@document_api_route(bp, 'get', '/at-or-above-target', 'Get items at or above target', 'Returns food items where current stock is at or above target level')
-@handle_db_error  
-def get_items_at_or_above_target():
+def get_items_not_on_active_list():
     household_id = request.args.get('household_id')
     
     if not household_id:
@@ -180,11 +126,12 @@ def get_items_at_or_above_target():
                 0 AS NeededQty,
                 0 AS TotalPrice,
                 'active' AS Status,
-                getCurrentStock(fi.FoodItemID) AS CurrentStock,
+                ROUND(getCurrentStock(fi.FoodItemID) / IFNULL(pp.BaseUnitAmt, 1), 2) AS CurrentStock,
                 loc.LocationID AS LocationID,
-                pp.PackageID AS PackageID
-            FROM StockLevel sl
-            JOIN FoodItem fi ON sl.FoodItemID = fi.FoodItemID
+                pp.PackageID AS PackageID,
+                ROUND(IFNULL(sl.TargetLevel, 0) / IFNULL(pp.BaseUnitAmt, 1), 2) AS TargetLevel
+            FROM FoodItem fi
+            LEFT JOIN StockLevel sl ON fi.FoodItemID = sl.FoodItemID
             LEFT JOIN Package pp ON fi.PreferredPackageID = pp.PackageID
                 AND (pp.IsArchived = 0 OR pp.IsArchived IS NULL)
             LEFT JOIN (
@@ -207,11 +154,17 @@ def get_items_at_or_above_target():
             ) loc ON fi.HouseholdID = loc.HouseholdID
             WHERE fi.HouseholdID = %s
                 AND fi.IsArchived = 0
-                AND getCurrentStock(fi.FoodItemID) >= sl.TargetLevel
+                AND fi.FoodItemID NOT IN (
+                    SELECT sli.FoodItemID
+                    FROM ShoppingList sl
+                    JOIN ShoppingListItem sli ON sl.ShoppingListID = sli.ShoppingListID
+                    WHERE sl.HouseholdID = %s
+                      AND sl.Status = 'active'
+                )
             ORDER BY fi.Name
         """
         
-        cursor.execute(query, (household_id,))
+        cursor.execute(query, (household_id, household_id))
         results = cursor.fetchall()
         
         return jsonify(results), 200
@@ -301,6 +254,10 @@ def add_new_food_item():
 @document_api_route(bp, 'put', '/<int:food_item_id>', 'Update food item metadata', 'Updates basic fields for an existing food item and its preferred package')
 @handle_db_error
 def update_food_item(food_item_id):
+    unauthorized = _ensure_food_item_access(food_item_id)
+    if unauthorized:
+        return unauthorized
+
     unauthorized = _ensure_food_item_access(food_item_id)
     if unauthorized:
         return unauthorized
@@ -415,9 +372,15 @@ def update_food_item(food_item_id):
                 price_value = None
 
             normalized_store = (store or '').strip().lower() or None
+            except (TypeError, ValueError):
+                price_value = None
+
+            normalized_store = (store or '').strip().lower() or None
 
             if price_value is not None:
+            if price_value is not None:
                 cursor.execute("""
+                    SELECT PriceTotal, Store
                     SELECT PriceTotal, Store
                     FROM PriceLog
                     WHERE PackageID = %s
@@ -433,9 +396,19 @@ def update_food_item(food_item_id):
                 store_changed = latest_store != normalized_store
 
                 if price_changed or store_changed:
+                price_log_row = cursor.fetchone() or {}
+
+                latest_price = price_log_row.get('PriceTotal')
+                latest_store = (price_log_row.get('Store') or '').strip().lower() or None
+
+                price_changed = latest_price is None or latest_price != price_value
+                store_changed = latest_store != normalized_store
+
+                if price_changed or store_changed:
                     cursor.execute("""
                         INSERT INTO PriceLog (PackageID, PriceTotal, Store)
                         VALUES (%s, %s, %s)
+                    """, (effective_package_id, price_value, normalized_store))
                     """, (effective_package_id, price_value, normalized_store))
 
         conn.commit()
@@ -452,6 +425,10 @@ def update_food_item(food_item_id):
 @document_api_route(bp, 'delete', '/<int:food_item_id>', 'Archive food item', 'Soft deletes a food item and packages')
 @handle_db_error
 def archive_food_item(food_item_id):
+    unauthorized = _ensure_food_item_access(food_item_id)
+    if unauthorized:
+        return unauthorized
+
     unauthorized = _ensure_food_item_access(food_item_id)
     if unauthorized:
         return unauthorized

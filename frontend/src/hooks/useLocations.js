@@ -56,5 +56,3 @@ export const useLocations = (householdId) => {
     refreshLocations: fetchLocations,
   };
 };
-
-

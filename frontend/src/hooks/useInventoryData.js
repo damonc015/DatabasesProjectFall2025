@@ -64,5 +64,3 @@ export const useInventoryData = (householdId, locationFilter, searchQuery) => {
     refreshInventory: fetchInventory,
   };
 };
-
-

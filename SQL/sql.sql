@@ -246,3 +246,129 @@ BEGIN
                                      ExpirationDate)
     VALUES (food_item_id, l_location_id, u_user_id, total_base_qty, 'add', expiration_date);
 END;
+
+-- SL Updates
+DROP PROCEDURE IF EXISTS UpdateShoppingListItemsJSON;
+CREATE PROCEDURE UpdateShoppingListItemsJSON(
+    IN sl_id INT,
+    IN sl_items JSON
+)
+BEGIN
+    DECLARE i INT DEFAULT 0;
+    DECLARE n INT DEFAULT JSON_LENGTH(sl_items);
+
+    DECLARE food_item_id INT;
+    DECLARE location_id INT;
+    DECLARE package_id INT;
+    DECLARE needed_qty DECIMAL(10,2);
+    DECLARE purchased_qty DECIMAL(10,2);
+    DECLARE total_price DECIMAL(10,2);
+    DECLARE status_val VARCHAR(20);
+
+    DECLARE list_total DECIMAL(10,2) DEFAULT 0;
+
+    -- Disable safe updates to allow deletion by ShoppingListID
+    SET SQL_SAFE_UPDATES = 0;
+
+    START TRANSACTION;
+
+    -- Remove all items from the current list
+    DELETE FROM ShoppingListItem WHERE ShoppingListID = sl_id;
+
+    -- Re-insert all items from JSON
+    WHILE i < n DO
+        SET food_item_id   = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].FoodItemID'));
+        SET location_id    = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].LocationID'));
+        SET package_id     = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].PackageID'));
+        SET needed_qty     = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].NeededQuantity'));
+        SET purchased_qty  = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].PurchasedQuantity'));
+        SET total_price    = JSON_EXTRACT(sl_items, CONCAT('$[', i, '].TotalPrice'));
+        SET status_val     = JSON_UNQUOTE(JSON_EXTRACT(sl_items, CONCAT('$[', i, '].Status')));
+
+        INSERT INTO ShoppingListItem (
+            ShoppingListID,
+            FoodItemID,
+            LocationID,
+            PackageID,
+            NeededQty,
+            PurchasedQty,
+            TotalPrice,
+            Status
+        ) VALUES (
+            sl_id, food_item_id, location_id, package_id,
+            needed_qty, purchased_qty, total_price, IFNULL(status_val, 'active')
+        );
+
+        SET list_total = list_total + total_price;
+        SET i = i + 1;
+    END WHILE;
+
+    -- Update Shopping List totals
+    UPDATE ShoppingList
+    SET TotalCost = list_total,
+        LastUpdated = CURRENT_TIMESTAMP
+    WHERE ShoppingListID = sl_id;
+
+    COMMIT;
+END;
+
+DROP PROCEDURE IF EXISTS getShoppingListByParam;
+CREATE PROCEDURE getShoppingListByParam(
+  IN param INT,
+  IN orderbool BOOL  
+)
+BEGIN
+  DECLARE offset_val INT;
+-- sort by id
+    IF param = 0 THEN
+        IF orderbool THEN
+            SELECT *
+            FROM ShoppingList
+            ORDER BY ShoppingListID ASC;
+        ELSE
+            SELECT *
+            FROM ShoppingList
+            ORDER BY ShoppingListID DESC;
+        END IF;
+-- sort by last updated date
+    ELSEIF param = 1 THEN
+        IF orderbool THEN
+            SELECT *
+            FROM ShoppingList
+            ORDER BY LastUpdated ASC;
+        ELSE
+            SELECT *
+            FROM ShoppingList
+            ORDER BY LastUpdated DESC;
+        END IF;
+-- sort by status
+    ELSEIF param = 2 THEN
+        IF orderbool THEN
+            SELECT *
+            FROM ShoppingList
+            ORDER BY Status ASC;
+        ELSE
+            SELECT *
+            FROM ShoppingList
+            ORDER BY Status DESC;
+        END IF;
+-- sort by total price
+    ELSE
+        IF orderbool THEN
+            SELECT *
+            FROM ShoppingList
+            ORDER BY TotalCost ASC;
+        ELSE
+            SELECT *
+            FROM ShoppingList
+            ORDER BY TotalCost DESC;
+        END IF;
+    END IF;
+END
+
+
+
+
+
+
+

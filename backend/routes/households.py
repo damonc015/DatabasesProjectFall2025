@@ -1,4 +1,4 @@
-from flask import jsonify, request
+from flask import jsonify, request, g
 from extensions import (
     db_cursor,
     create_api_blueprint,
@@ -8,6 +8,21 @@ from extensions import (
 )
 
 bp = create_api_blueprint('households', '/api/households')
+
+
+def _ensure_household_access(household_id: int):
+    user = getattr(g, 'current_user', None)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    current_household_id = user.get("HouseholdID")
+    if current_household_id is None or household_id is None:
+        return jsonify({"error": "Forbidden"}), 403
+
+    if current_household_id != household_id:
+        return jsonify({"error": "Forbidden"}), 403
+
+    return None
 
 
 @document_api_route(bp, 'get', '/<int:household_id>', 'Get household by ID', 'Returns household information including member and food item counts')
@@ -39,6 +54,10 @@ def get_household(household_id):
 @document_api_route(bp, 'get', '/<int:household_id>/locations', 'Get locations by household', 'Returns all locations for a household')
 @handle_db_error
 def get_household_locations(household_id):
+    unauthorized = _ensure_household_access(household_id)
+    if unauthorized:
+        return unauthorized
+
     with db_cursor() as cursor:
         query = """
             SELECT LocationID, LocationName
@@ -55,6 +74,10 @@ def get_household_locations(household_id):
 @document_api_route(bp, 'post', '/<int:household_id>/locations', 'Create household location', 'Adds a new storage location for a household')
 @handle_db_error
 def create_household_location(household_id):
+    unauthorized = _ensure_household_access(household_id)
+    if unauthorized:
+        return unauthorized
+
     data = request.get_json() or {}
     location_name = (data.get('location_name') or '').strip()
 
@@ -105,6 +128,10 @@ def create_household_location(household_id):
 @document_api_route(bp, 'put', '/<int:household_id>/locations/<int:location_id>', 'Rename household location', 'Updates the name of a storage location')
 @handle_db_error
 def update_household_location(household_id, location_id):
+    unauthorized = _ensure_household_access(household_id)
+    if unauthorized:
+        return unauthorized
+
     data = request.get_json() or {}
     new_name = (data.get('location_name') or '').strip()
 

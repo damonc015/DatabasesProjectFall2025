@@ -33,7 +33,6 @@ const LoginForm = () => {
 
       queryClient.setQueryData(CURRENT_USER_QUERY_KEY, data?.user ?? null);
       navigate({ to: '/dashboard' });
-
     } catch (err) {
       setError('Network error');
     }
@@ -48,16 +47,23 @@ const LoginForm = () => {
       </div>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <div className='input-container'>
-        <TextField className='input' label='Username' variant='outlined' value={username} onChange={(e) => setUsername(e.target.value)} />
-        <TextField className='input' label='Password' variant='outlined' type='password' value={password} onChange={(e) => setPassword(e.target.value)} />
+        <TextField
+          className='input'
+          label='Username'
+          variant='outlined'
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+        <TextField
+          className='input'
+          label='Password'
+          variant='outlined'
+          type='password'
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
         <FormControlLabel
-          control={
-            <Checkbox
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-              color='primary'
-            />
-          }
+          control={<Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)} color='primary' />}
           label='Remember Me'
           sx={{ alignSelf: 'flex-start', mt: 1 }}
         />

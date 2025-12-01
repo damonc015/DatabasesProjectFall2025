@@ -10,6 +10,8 @@ export const useSubmitForm = (householdId, userId, onItemAdded, onClose) => {
     setError('');
     setLoading(true);
 
+    console.log(formData);
+
     try {
       const targetLevelInBaseUnits = parseFloat(formData.target_level) * parseFloat(formData.package_base_unit_amt);
 

@@ -637,6 +637,24 @@ def _get_user_by_id(user_id: int):
         return cursor.fetchone()
 
 
+# we need this to get user from session token instead of what's sent from client
+def get_current_user_from_session():
+
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
+        return None
+    
+    token_data = _parse_session_token(token)
+    if not token_data:
+        return None
+    
+    user_id = token_data.get("user_id")
+    if not user_id:
+        return None
+    
+    return _get_user_by_id(user_id)
+
+
 def add_deleted_user_placeholder(cursor, household_id):
     target_household_id = household_id or _ensure_deleted_user_household(cursor)
     username = f"deleted_user_{target_household_id}"

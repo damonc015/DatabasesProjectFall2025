@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -13,20 +13,32 @@ import Button from '@mui/material/Button';
 import NumberController from '../NumberController/NumberController';
 import useShoppingListStore from '../../../../stores/useShoppingListStore';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
-import { useItemsBelowTarget, useItemsAtOrAboveTarget } from '../../../../hooks/useFoodItems';
+import { useActiveShoppingList } from '../../../../hooks/useShoppingLists';
+import { useShoppingListItems } from '../../../../hooks/useShoppingListItems';
+import { useItemsNotOnActiveList } from '../../../../hooks/useFoodItems';
+import { TRANSACTION_COMPLETED_EVENT } from '../../../../utils/transactionEvents';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function CreateShoppingListTable() {
   const { householdId } = useCurrentUser();
   const {
-    data: belowThresholdData,
-    error: belowThresholdError,
-    isLoading: belowThresholdLoading,
-  } = useItemsBelowTarget(householdId);
+    data: activeShoppingListData,
+    error: activeShoppingListError,
+    isLoading: activeShoppingListLoading,
+  } = useActiveShoppingList(householdId);
+
   const {
-    data: atThresholdData,
-    error: atThresholdError,
-    isLoading: atThresholdLoading,
-  } = useItemsAtOrAboveTarget(householdId);
+    data: shoppingListItemsData,
+    error: shoppingListItemsError,
+    isLoading: shoppingListItemsLoading,
+  } = useShoppingListItems(activeShoppingListData?.ShoppingListID);
+
+  const {
+    data: foodItemsData,
+    error: foodItemsError,
+    isLoading: foodItemsLoading,
+    refetch: refetchFoodItems,
+  } = useItemsNotOnActiveList(householdId);
 
   const {
     tempCreateListBelowThresholdItems,
@@ -36,80 +48,98 @@ export default function CreateShoppingListTable() {
   } = useShoppingListStore();
 
   const [totalPrice, setTotalPrice] = useState(0);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (belowThresholdData) {
-      const processedData = belowThresholdData.map((item) => ({
+    const handleTransactionCompleted = () => {
+      // console.log('Transaction completed event received');
+      // console.log('Invalidating queries for household:', householdId);
+      // console.log('Invalidating shopping list items for list:', activeShoppingListData?.ShoppingListID);
+
+      refetchFoodItems();
+      queryClient.invalidateQueries(['itemsNotOnActiveList', householdId]);
+      queryClient.invalidateQueries(['shoppingLists', 'active', householdId]);
+      if (activeShoppingListData?.ShoppingListID) {
+        queryClient.invalidateQueries(['shoppingListItems', activeShoppingListData.ShoppingListID]);
+      }
+    };
+
+    window.addEventListener(TRANSACTION_COMPLETED_EVENT, handleTransactionCompleted);
+    return () => {
+      window.removeEventListener(TRANSACTION_COMPLETED_EVENT, handleTransactionCompleted);
+    };
+  }, [activeShoppingListData?.ShoppingListID, refetchFoodItems, queryClient]);
+
+  useEffect(() => {
+    if (Array.isArray(shoppingListItemsData) && shoppingListItemsData.length > 0) {
+      const processedData = shoppingListItemsData.map((item) => ({
         FoodItemID: item.FoodItemID,
         FoodItemName: item.FoodItemName,
         PricePerUnit: item.PricePerUnit,
         PurchasedQty: item.PurchasedQty,
         NeededQty: parseFloat(item.NeededQty),
-        TotalPrice: parseFloat(item.TotalPrice),
+        TotalPrice: parseFloat(item.TotalPrice) || 0,
         Status: item.Status,
         CurrentStock: item.CurrentStock,
         LocationID: item.LocationID,
         PackageID: item.PackageID,
+        TargetLevel: item.TargetLevel,
       }));
       setTempCreateListBelowThresholdItems(processedData);
     }
 
-    if (atThresholdData) {
-      const processedData = atThresholdData.map((item) => ({
+    if (Array.isArray(foodItemsData) && foodItemsData.length > 0) {
+      const processedData = foodItemsData.map((item) => ({
         FoodItemID: item.FoodItemID,
         FoodItemName: item.FoodItemName,
         PricePerUnit: item.PricePerUnit,
         PurchasedQty: item.PurchasedQty,
         NeededQty: parseFloat(item.NeededQty),
-        TotalPrice: parseFloat(item.TotalPrice),
+        TotalPrice: parseFloat(item.TotalPrice) || 0,
         Status: item.Status,
         CurrentStock: item.CurrentStock,
+        LocationID: item.LocationID,
+        PackageID: item.PackageID,
+        TargetLevel: item.TargetLevel,
       }));
       setTempCreateListAtThresholdItems(processedData);
     }
-  }, [belowThresholdData, atThresholdData, setTempCreateListBelowThresholdItems, setTempCreateListAtThresholdItems]);
+  }, [shoppingListItemsData, foodItemsData]);
 
   useEffect(() => {
     const total = tempCreateListBelowThresholdItems.reduce((acc, item) => acc + parseFloat(item.TotalPrice), 0) || 0;
     setTotalPrice(total);
-  }, [tempCreateListBelowThresholdItems]);
+  }, [shoppingListItemsData, foodItemsData, tempCreateListBelowThresholdItems, tempCreateListAtThresholdItems]);
 
   if (!householdId) {
     return <div>No household id found</div>;
   }
-  if (belowThresholdLoading) return <div>Loading...</div>;
-  if (belowThresholdError) return <div>Error: {belowThresholdError.message}</div>;
-  if (!belowThresholdData) return <div>No items found</div>;
-  if (atThresholdLoading) return <div>Loading...</div>;
-  if (atThresholdError) return <div>Error: {atThresholdError.message}</div>;
-  if (!atThresholdData) return <div>No items found</div>;
+  if (activeShoppingListLoading) return <div>Loading...</div>;
+  if (activeShoppingListError) return <div>Error: {activeShoppingListError.message}</div>;
+  if (!activeShoppingListData) return <div>No items found</div>;
+  if (shoppingListItemsLoading) return <div>Loading...</div>;
+  if (shoppingListItemsError) return <div>Error: {shoppingListItemsError.message}</div>;
+  if (!shoppingListItemsData) return <div>No items found</div>;
+  if (foodItemsLoading) return <div>Loading...</div>;
+  if (foodItemsError) return <div>Error: {foodItemsError.message}</div>;
+  if (!foodItemsData) return <div>No items found</div>;
 
   const handlePurchaseQtyChange = (itemId, newValue) => {
     const updatedItems = tempCreateListBelowThresholdItems.map((item) => {
       if (item.FoodItemID === itemId) {
-        const newQty = parseFloat(newValue) || 0;
+        let newQty = parseFloat(newValue) || 0;
+        newQty = Math.floor(newQty); // Ensure whole number
+
+        const newTotalPrice = newQty * (parseFloat(item.PricePerUnit) || 0);
         return {
           ...item,
           PurchasedQty: newQty,
+          TotalPrice: newTotalPrice.toFixed(2),
         };
       }
       return item;
     });
 
-    setTempCreateListBelowThresholdItems(updatedItems);
-  };
-
-  const handleTotalPriceChange = (itemId, newValue) => {
-    const updatedItems = tempCreateListBelowThresholdItems.map((item) => {
-      if (item.FoodItemID === itemId) {
-        const newTotalPrice = parseFloat(newValue) || 0;
-        return {
-          ...item,
-          TotalPrice: newTotalPrice,
-        };
-      }
-      return item;
-    });
     setTempCreateListBelowThresholdItems(updatedItems);
   };
 
@@ -153,11 +183,11 @@ export default function CreateShoppingListTable() {
     const itemToMove = tempCreateListAtThresholdItems.find((item) => item.FoodItemID === itemId);
     if (itemToMove) {
       const updatedAtList = tempCreateListAtThresholdItems.filter((item) => item.FoodItemID !== itemId);
-      const originalItem = belowThresholdData?.find((item) => item.FoodItemID === itemId);
+      const originalItem = tempCreateListAtThresholdItems?.find((item) => item.FoodItemID === itemId);
       const itemForBelowList = {
         ...itemToMove,
-        NeededQty: originalItem?.NeededQty || 1,
-        TotalPrice: originalItem?.TotalPrice || itemToMove.PricePerUnit,
+        NeededQty: originalItem?.NeededQty,
+        TotalPrice: originalItem?.TotalPrice || 0,
         Status: 'active',
       };
       const updatedBelowList = [...tempCreateListBelowThresholdItems, itemForBelowList];
@@ -169,22 +199,19 @@ export default function CreateShoppingListTable() {
 
   const tableHeaders = [
     { label: 'Item' },
-    { label: 'Price Per Unit' },
-    { label: 'Purchase Amount' },
+    { label: 'Price Per Package' },
+    { label: '# Packages to Restock' },
     { label: 'Total Price' },
     { label: 'Mark as Purchased' },
     { label: 'Remove from List' },
   ];
 
-  console.log('initial belowThresholdData', belowThresholdData);
-  console.log('initial atThresholdData', atThresholdData);
-  console.log(
-    'belowThresholdData',
-    belowThresholdData?.length ? typeof belowThresholdData[0].PurchasedQty : 'no data'
-  );
-  console.log('tempCreateListBelowThresholdItems', tempCreateListBelowThresholdItems);
-  console.log('tempCreateListAtThresholdItems', tempCreateListAtThresholdItems);
-  console.log('totalPrice', totalPrice);
+  // console.log('initial activeShoppingListData', activeShoppingListData);
+  // console.log('initial shoppingListItemsData', shoppingListItemsData);
+  // console.log('initial foodItemsData', foodItemsData);
+  // console.log('tempCreateListBelowThresholdItems', tempCreateListBelowThresholdItems);
+  // console.log('tempCreateListAtThresholdItems', tempCreateListAtThresholdItems);
+  // console.log('totalPrice', totalPrice);
   return (
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 650 }} aria-label='simple table'>
@@ -223,20 +250,11 @@ export default function CreateShoppingListTable() {
               </TableCell>
               {/* total price */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                <NumberController
-                  id={row.FoodItemID}
-                  value={row.TotalPrice}
-                  defaultValue={row.TotalPrice}
-                  label={'totalprice'}
-                  onBlur={(value) => handleTotalPriceChange(row.FoodItemID, value)}
-                />
+                <span>{`$${parseFloat(row.TotalPrice || 0).toFixed(2)}`}</span>
               </TableCell>
               {/* mark as purchased */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
-                <Checkbox
-                  checked={row.Status === 'inactive'}
-                  onChange={() => handleMarkAsPurchased(row.FoodItemID)}
-                />
+                <Checkbox checked={row.Status === 'inactive'} onChange={() => handleMarkAsPurchased(row.FoodItemID)} />
               </TableCell>
               {/* remove from list */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
@@ -276,8 +294,8 @@ export default function CreateShoppingListTable() {
                 <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                   <NumberController
                     id={row.FoodItemID}
-                    value={row.CurrentStock}
-                    defaultValue={row.CurrentStock}
+                    value={row.PurchasedQty || 0}
+                    defaultValue={row.PurchasedQty || 0}
                     disabled={true}
                   />{' '}
                   <span style={{ marginLeft: '0.2rem' }}>{'/' + row.NeededQty}</span>
@@ -285,13 +303,7 @@ export default function CreateShoppingListTable() {
               </TableCell>
               {/* total price */}
               <TableCell align='center' sx={{ fontFamily: 'Balsamiq Sans', color: 'gray' }}>
-                <NumberController
-                  id={row.FoodItemID}
-                  value={row.TotalPrice}
-                  defaultValue={row.TotalPrice}
-                  label={'totalprice'}
-                  disabled={true}
-                />
+                <span>{`$${parseFloat(row.TotalPrice || 0).toFixed(2)}`}</span>
               </TableCell>
               <TableCell colSpan={2} component='th' scope='row' align='center' sx={{ fontFamily: 'Balsamiq Sans' }}>
                 <Button

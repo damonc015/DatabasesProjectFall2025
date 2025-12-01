@@ -1,6 +1,6 @@
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Modal from '@mui/material/Modal';
+import SaveModal from './CreateList/SaveModal';
 import useShoppingListStore from '../../../stores/useShoppingListStore';
 import CreateShoppingListHeader from './CreateList/CreateShoppingListHeader';
 import CreateShoppingListTable from './CreateList/CreateShoppingListTable';
@@ -11,7 +11,8 @@ import ShoppingHistoryHeader from './ShopHistory/ShoppingHistoryHeader';
 import ShoppingHistoryTable from './ShopHistory/ShoppingHistoryTable';
 
 export default function ModalContainer() {
-  const { isModalOpen, closeModal, isListHistory, setIsListHistory } = useShoppingListStore();
+  const { isModalOpen, closeModal, isListHistory, setIsListHistory, isMiniModalOpen, setIsMiniModalOpen } =
+    useShoppingListStore();
   const displayModalContent = () => {
     switch (isListHistory) {
       case 'history':
@@ -38,17 +39,6 @@ export default function ModalContainer() {
               <ModifyShoppingListHeader />
               <ModifyShoppingListTable />
             </div>
-            <Button
-              className='button'
-              variant='contained'
-              color='primary'
-              onClick={() => {
-                closeModal();
-                setIsListHistory('createlist');
-              }}
-            >
-              Save Changes
-            </Button>
           </Box>
         );
       default:
@@ -56,17 +46,20 @@ export default function ModalContainer() {
     }
   };
   return (
-    <Modal
-      open={isModalOpen}
-      onClose={() => {
-        closeModal();
-        setIsListHistory('createlist');
-      }}
-      className='modalContainer'
-      aria-labelledby='modal-modal-title'
-      aria-describedby='modal-modal-description'
-    >
-      {displayModalContent()}
-    </Modal>
+    <>
+      <Modal
+        open={isModalOpen}
+        onClose={() => {
+          closeModal();
+          setIsListHistory('createlist');
+        }}
+        className='modalContainer'
+        aria-labelledby='modal-modal-title'
+        aria-describedby='modal-modal-description'
+      >
+        {displayModalContent()}
+      </Modal>
+      {isMiniModalOpen && <SaveModal />}
+    </>
   );
 }
