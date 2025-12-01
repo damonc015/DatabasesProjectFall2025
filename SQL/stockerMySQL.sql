@@ -1,5 +1,255 @@
+CREATE DATABASE IF NOT EXISTS stocker;
+USE stocker;
+CREATE TABLE Household (
+    HouseholdID INT AUTO_INCREMENT PRIMARY KEY,
+    HouseholdName VARCHAR(100) NOT NULL,
+    JoinCode VARCHAR(10) NOT NULL UNIQUE
+);
+
+CREATE TABLE Users (
+    UserID INT AUTO_INCREMENT PRIMARY KEY,
+    HouseholdID INT,
+    UserName VARCHAR(100) NOT NULL,
+    DisplayName VARCHAR(100) NOT NULL,
+    RoleName VARCHAR(20),
+    PasswordHash VARCHAR(255),
+    IsArchived BOOLEAN NOT NULL DEFAULT FALSE,
+    FOREIGN KEY (HouseholdID) REFERENCES Household(HouseholdID) 
+);
+
+CREATE TABLE Location (
+    LocationID INT AUTO_INCREMENT PRIMARY KEY,
+    HouseholdID INT NOT NULL,
+    LocationName VARCHAR(100) NOT NULL,
+    IsArchived BOOLEAN NOT NULL DEFAULT FALSE,
+    FOREIGN KEY (HouseholdID) REFERENCES Household(HouseholdID)
+);
+
+CREATE TABLE BaseUnit (
+    UnitID INT AUTO_INCREMENT PRIMARY KEY,
+    MeasurementType VARCHAR(50),
+    Abbreviation VARCHAR(10)
+);
+
+CREATE TABLE FoodItem (
+    FoodItemID INT AUTO_INCREMENT PRIMARY KEY,
+    BaseUnitID INT NOT NULL,
+    HouseholdID INT NOT NULL,
+    Name VARCHAR(100) NOT NULL,
+    Type VARCHAR(100),
+    Category VARCHAR(100),
+    PreferredPackageID INT NULL,
+    IsArchived BOOLEAN NOT NULL DEFAULT FALSE,
+    FOREIGN KEY (HouseholdID) REFERENCES Household(HouseholdID),
+    FOREIGN KEY (BaseUnitID) REFERENCES BaseUnit(UnitID),
+    CONSTRAINT unique_food UNIQUE (Name, Type, HouseholdID)
+);
+
+CREATE TABLE Package (
+    PackageID INT AUTO_INCREMENT PRIMARY KEY,
+    FoodItemID INT NOT NULL,
+    Label VARCHAR(100),
+    BaseUnitAmt DECIMAL(9,2),
+    IsArchived BOOLEAN NOT NULL DEFAULT FALSE,
+    FOREIGN KEY (FoodItemID) REFERENCES FoodItem(FoodItemID)
+);
+
+CREATE TABLE StockLevel (
+    FoodItemID INT NOT NULL,
+    TargetLevel DECIMAL(9,2),
+    PRIMARY KEY (FoodItemID),
+    FOREIGN KEY (FoodItemID) REFERENCES FoodItem(FoodItemID)
+);
+
+CREATE TABLE ShoppingList (
+    ShoppingListID INT AUTO_INCREMENT PRIMARY KEY,
+    HouseholdID INT NOT NULL,
+    Status VARCHAR(20) DEFAULT 'active',
+    LastUpdated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    TotalCost DECIMAL(10, 2),
+    FOREIGN KEY (HouseholdID) REFERENCES Household(HouseholdID)
+);
+
+CREATE TABLE ShoppingListItem (
+    ShoppingListItemID INT AUTO_INCREMENT PRIMARY KEY,
+    ShoppingListID INT NOT NULL,
+    FoodItemID INT NOT NULL,
+    LocationID INT,
+    PackageID INT,
+    NeededQty DECIMAL(9,2),
+    PurchasedQty INT,
+    TotalPrice DECIMAL(10, 2),
+    Status VARCHAR(20) DEFAULT 'active',
+    FOREIGN KEY (ShoppingListID) REFERENCES ShoppingList(ShoppingListID),
+    FOREIGN KEY (LocationID) REFERENCES Location(LocationID),
+    FOREIGN KEY (PackageID) REFERENCES Package(PackageID),
+    FOREIGN KEY (FoodItemID) REFERENCES FoodItem(FoodItemID)
+);
+
+CREATE TABLE PriceLog (
+    PriceLogID INT AUTO_INCREMENT PRIMARY KEY,
+    PackageID INT NOT NULL,
+    PriceTotal DECIMAL(10, 2),
+    Store VARCHAR(100),
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (PackageID) REFERENCES Package(PackageID)
+);
+CREATE TABLE InventoryTransaction (
+    TransactionID INT AUTO_INCREMENT PRIMARY KEY,
+    FoodItemID INT NOT NULL,
+    LocationID INT NOT NULL,
+    UserID INT NOT NULL,
+    QtyInBaseUnits DECIMAL(9,2),
+    TransactionType VARCHAR(20) NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ExpirationDate DATE,
+    FOREIGN KEY (FoodItemID) REFERENCES FoodItem(FoodItemID),
+    FOREIGN KEY (LocationID) REFERENCES Location(LocationID),
+    FOREIGN KEY (UserID) REFERENCES Users(UserID)
+);
+
+
+DROP TRIGGER IF EXISTS update_shoppinglist_event;
+
+DELIMITER $$
+CREATE TRIGGER update_shoppinglist_event
+AFTER INSERT ON InventoryTransaction
+FOR EACH ROW
+BEGIN
+  DECLARE household_id        INT;
+  DECLARE shopping_list_id    INT;
+  DECLARE target_level        DECIMAL(10,2);
+  DECLARE needed_qty          DECIMAL(10,2);
+  DECLARE calculated_qty      DECIMAL(10,2);
+  DECLARE p_package_id        INT;
+  DECLARE shopping_item_count INT;
+
+  SET household_id = (
+    SELECT l.HouseholdID
+    FROM Location l
+    WHERE l.LocationID = NEW.LocationID
+    LIMIT 1
+  );
+
+  SET shopping_list_id = (
+    SELECT sl.ShoppingListID
+    FROM ShoppingList sl
+    WHERE sl.HouseholdID = household_id
+      AND sl.Status = 'active'
+    ORDER BY sl.ShoppingListID DESC
+    LIMIT 1
+  );
+
+  IF shopping_list_id IS NULL THEN
+    INSERT INTO ShoppingList (HouseholdID, Status, LastUpdated)
+    VALUES (household_id, 'active', NOW());
+  
+    SET shopping_list_id = (
+      SELECT ShoppingListID
+      FROM ShoppingList
+      WHERE HouseholdID = household_id
+        AND Status = 'active'
+      ORDER BY ShoppingListID DESC
+      LIMIT 1
+    );
+  END IF;
+
+  SET target_level = (
+    SELECT st.TargetLevel
+    FROM StockLevel st
+    WHERE st.FoodItemID = NEW.FoodItemID
+    LIMIT 1
+  );
+
+  IF target_level IS NOT NULL THEN
+    SET calculated_qty = (
+      SELECT SUM(
+        CASE
+          WHEN TransactionType IN ('add','purchase','transfer_in') THEN QtyInBaseUnits
+          WHEN TransactionType IN ('remove','expire','transfer_out') THEN -QtyInBaseUnits
+          ELSE 0
+        END
+      )
+      FROM InventoryTransaction
+      WHERE FoodItemID = NEW.FoodItemID
+        AND LocationID = NEW.LocationID
+    );
+
+    IF calculated_qty IS NULL THEN
+      SET calculated_qty = 0;
+    END IF;
+
+    IF target_level - calculated_qty > 0 THEN
+      SET needed_qty = target_level - calculated_qty;
+    ELSE
+      SET needed_qty = 0;
+    END IF;
+
+    IF needed_qty > 0 THEN
+      SET p_package_id = (
+        SELECT PreferredPackageID
+        FROM FoodItem
+        WHERE FoodItemID = NEW.FoodItemID
+        LIMIT 1
+      );
+
+      IF p_package_id IS NULL THEN
+        SET p_package_id = (
+          SELECT p.PackageID
+          FROM Package p
+          WHERE p.FoodItemID = NEW.FoodItemID
+          ORDER BY p.PackageID DESC
+          LIMIT 1
+        );
+      END IF;
+
+      SET shopping_item_count = (
+        SELECT COUNT(*)
+        FROM ShoppingListItem s
+        WHERE s.ShoppingListID = shopping_list_id
+          AND s.FoodItemID     = NEW.FoodItemID
+          AND s.LocationID     = NEW.LocationID
+      );
+
+      IF shopping_item_count > 0 THEN
+        IF p_package_id IS NOT NULL THEN
+          UPDATE ShoppingListItem s
+          SET s.NeededQty = needed_qty,
+              s.Status    = 'active',
+              s.PackageID = p_package_id
+          WHERE s.ShoppingListID = shopping_list_id
+            AND s.FoodItemID     = NEW.FoodItemID
+            AND s.LocationID     = NEW.LocationID;
+        ELSE
+          UPDATE ShoppingListItem s
+          SET s.NeededQty = needed_qty,
+              s.Status    = 'active'
+          WHERE s.ShoppingListID = shopping_list_id
+            AND s.FoodItemID     = NEW.FoodItemID
+            AND s.LocationID     = NEW.LocationID;
+        END IF;
+      ELSE
+        INSERT INTO ShoppingListItem
+          (ShoppingListID,  FoodItemID,      LocationID,     PackageID,    NeededQty, Status)
+        VALUES
+          (shopping_list_id, NEW.FoodItemID, NEW.LocationID, p_package_id, needed_qty, 'active');
+      END IF;
+
+    ELSE
+      DELETE FROM ShoppingListItem
+      WHERE ShoppingListID = shopping_list_id
+        AND FoodItemID     = NEW.FoodItemID
+        AND LocationID     = NEW.LocationID
+        AND Status         = 'active';
+    END IF;
+  END IF;
+END$$
+DELIMITER ;
+
+
 DROP FUNCTION IF EXISTS GetCurrentStock;
 
+DELIMITER $$
 CREATE FUNCTION GetCurrentStock(p_food_id INT)
 RETURNS DECIMAL(9,2)
 READS SQL DATA
@@ -23,9 +273,12 @@ BEGIN
   END IF;
 
   RETURN current_qty;
-END;
+END$$
+DELIMITER ;
 
 DROP PROCEDURE IF EXISTS GetHouseholdInventory;
+
+DELIMITER $$
 CREATE PROCEDURE GetHouseholdInventory(IN p_HouseholdID INT, IN p_SearchQuery VARCHAR(255))
 BEGIN
     SELECT 
@@ -54,9 +307,12 @@ BEGIN
       AND f.IsArchived = 0
       AND (p_SearchQuery IS NULL OR p_SearchQuery = '' OR LOWER(f.Name) LIKE CONCAT('%', LOWER(p_SearchQuery), '%'))
     ORDER BY f.FoodItemID DESC;
-END;
+END$$
+DELIMITER ;
 
 DROP PROCEDURE IF EXISTS GetInventoryByLocation;
+
+DELIMITER $$
 CREATE PROCEDURE GetInventoryByLocation(IN p_HouseholdID INT, IN p_LocationID INT, IN p_SearchQuery VARCHAR(255))
 BEGIN
     SELECT 
@@ -107,8 +363,12 @@ BEGIN
     GROUP BY f.FoodItemID, f.Name, f.Type, f.Category, p.Label, p.BaseUnitAmt, bu.Abbreviation
     HAVING TotalQtyInBaseUnits > 0
     ORDER BY f.FoodItemID DESC;
-END;
+END$$
+DELIMITER ;
+
 DROP PROCEDURE IF EXISTS AddRemoveExistingFoodItem;
+
+DELIMITER $$
 CREATE PROCEDURE AddRemoveExistingFoodItem(
     IN f_FoodItemID INT,
     IN l_LocationID INT,
@@ -169,9 +429,12 @@ BEGIN
     );
 
     COMMIT;
-END;
+END$$
+DELIMITER ;
 
 DROP PROCEDURE IF EXISTS AddNewFoodItem;
+
+DELIMITER $$
 CREATE PROCEDURE AddNewFoodItem(
     IN f_food_name VARCHAR(100),
     IN f_type VARCHAR(100),
@@ -245,10 +508,28 @@ BEGIN
                                      TransactionType,
                                      ExpirationDate)
     VALUES (food_item_id, l_location_id, u_user_id, total_base_qty, 'add', expiration_date);
-END;
+END$$
+DELIMITER ;
+
+
+INSERT INTO BaseUnit (MeasurementType, Abbreviation)
+VALUES
+('Mass', 'g'),
+('Volume', 'ml'),
+('Count', 'pc'),
+('Mass', 'mg'),
+('Mass', 'kg'),
+('Mass', 'oz'),
+('Mass', 'lb'),
+('Volume', 'L'),
+('Volume', 'cup'),
+('Count', 'pack');
+
 
 -- SL Updates
 DROP PROCEDURE IF EXISTS UpdateShoppingListItemsJSON;
+
+DELIMITER $$
 CREATE PROCEDURE UpdateShoppingListItemsJSON(
     IN sl_id INT,
     IN sl_items JSON
@@ -310,9 +591,12 @@ BEGIN
     WHERE ShoppingListID = sl_id;
 
     COMMIT;
-END;
+END$$
+DELIMITER ;
 
 DROP PROCEDURE IF EXISTS getShoppingListByParam;
+
+DELIMITER $$
 CREATE PROCEDURE getShoppingListByParam(
   IN param INT,
   IN orderbool BOOL  
@@ -364,11 +648,31 @@ BEGIN
             ORDER BY TotalCost DESC;
         END IF;
     END IF;
-END
+END$$
+DELIMITER ;
 
+DROP USER IF EXISTS 'stocker_app'@'localhost';
 
+CREATE USER IF NOT EXISTS 'stocker_app'@'localhost' IDENTIFIED BY '2zC4ngpg2b6F';
+GRANT SELECT ON stocker.* TO 'stocker_app'@'localhost';
+GRANT INSERT, UPDATE ON stocker.FoodItem TO 'stocker_app'@'localhost';
+GRANT INSERT, UPDATE ON stocker.Household TO 'stocker_app'@'localhost';
+GRANT INSERT, UPDATE ON stocker.InventoryTransaction TO 'stocker_app'@'localhost';
+GRANT INSERT, UPDATE ON stocker.Location TO 'stocker_app'@'localhost';
+GRANT INSERT, UPDATE ON stocker.Package TO 'stocker_app'@'localhost';
+GRANT INSERT, UPDATE ON stocker.PriceLog TO 'stocker_app'@'localhost';
+GRANT INSERT, UPDATE ON stocker.ShoppingList TO 'stocker_app'@'localhost';
+GRANT INSERT, UPDATE ON stocker.StockLevel TO 'stocker_app'@'localhost';
+GRANT INSERT, UPDATE ON stocker.Users TO 'stocker_app'@'localhost';
+GRANT INSERT, UPDATE ON stocker.ShoppingListItem TO 'stocker_app'@'localhost';
+GRANT DELETE ON stocker.ShoppingListItem TO 'stocker_app'@'localhost';
+GRANT DELETE ON stocker.Users           TO 'stocker_app'@'localhost';
 
-
-
-
-
+GRANT EXECUTE ON PROCEDURE stocker.AddNewFoodItem TO 'stocker_app'@'localhost';
+GRANT EXECUTE ON PROCEDURE stocker.AddRemoveExistingFoodItem TO 'stocker_app'@'localhost';
+GRANT EXECUTE ON PROCEDURE stocker.GetHouseholdInventory TO 'stocker_app'@'localhost';
+GRANT EXECUTE ON PROCEDURE stocker.GetInventoryByLocation TO 'stocker_app'@'localhost';
+GRANT EXECUTE ON PROCEDURE stocker.getShoppingListByParam TO 'stocker_app'@'localhost';
+GRANT EXECUTE ON PROCEDURE stocker.UpdateShoppingListItemsJSON TO 'stocker_app'@'localhost';
+GRANT EXECUTE ON FUNCTION stocker.GetCurrentStock TO 'stocker_app'@'localhost';
+SHOW GRANTS FOR 'stocker_app'@'localhost';
