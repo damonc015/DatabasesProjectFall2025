@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { TextField, Button, Tabs, Tab, Box } from "@mui/material";
 import { useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentUser, CURRENT_USER_QUERY_KEY } from "../../hooks/useCurrentUser";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser, CURRENT_USER_QUERY_KEY } from "../../hooks/useCurrentUser";
 
@@ -8,8 +11,11 @@ export default function Settings() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, isLoading, refreshUser } = useCurrentUser();
+  const queryClient = useQueryClient();
+  const { user, isLoading, refreshUser } = useCurrentUser();
   const isOwner = user?.role === "owner";
 
+  const [displayName, setDisplayName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [oldPw, setOldPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -29,6 +35,20 @@ export default function Settings() {
   }, [user?.display_name]);
 
   useEffect(() => {
+    setDisplayName(user?.display_name || "");
+  }, [user?.display_name]);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate({ to: "/login" });
+    }
+  }, [isLoading, navigate, user]);
+
+  const loadMembers = useCallback(async () => {
+    if (!isOwner || !user?.household_id) {
+      setMembers([]);
+      return;
+    }
     if (!isLoading && !user) {
       navigate({ to: "/login" });
     }
@@ -47,13 +67,24 @@ export default function Settings() {
       if (!res.ok) {
         throw new Error("Failed to fetch members");
       }
+    try {
+      const res = await fetch(`/api/auth/members/${user.household_id}`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        throw new Error("Failed to fetch members");
+      }
       const data = await res.json();
       setMembers(data.members || []);
     } catch (error) {
       setMembers([]);
+    } catch (error) {
+      setMembers([]);
     }
   }, [isOwner, user?.household_id]);
+  }, [isOwner, user?.household_id]);
 
+  useEffect(() => {
   useEffect(() => {
     loadMembers();
   }, [loadMembers]);
@@ -61,8 +92,11 @@ export default function Settings() {
   async function handleSaveName() {
     if (!user?.id) return;
     const res = await fetch("/api/auth/update-profile", {
+    if (!user?.id) return;
+    const res = await fetch("/api/auth/update-profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       credentials: "include",
       body: JSON.stringify({
         user_id: user.id,
@@ -74,14 +108,18 @@ export default function Settings() {
     if (!res.ok) return alert(data.error || 'Error');
 
     await refreshUser();
+    await refreshUser();
     alert("Display name updated!");
   }
 
   async function handleUpdatePassword() {
     if (!user?.id) return;
     const res = await fetch("/api/auth/update-profile", {
+    if (!user?.id) return;
+    const res = await fetch("/api/auth/update-profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       credentials: "include",
       body: JSON.stringify({
         user_id: user.id,
@@ -101,8 +139,11 @@ export default function Settings() {
   async function handleJoinHousehold() {
     if (!user?.id) return;
     const res = await fetch("/api/auth/join-household", {
+    if (!user?.id) return;
+    const res = await fetch("/api/auth/join-household", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       credentials: "include",
       body: JSON.stringify({
         user_id: user.id,
@@ -116,14 +157,20 @@ export default function Settings() {
     await refreshUser();
     await loadMembers();
     setJoinCode("");
+    await refreshUser();
+    await loadMembers();
+    setJoinCode("");
     alert("Joined household!");
   }
 
   async function handleCreateHousehold() {
     if (!user?.id) return;
     const res = await fetch("/api/auth/create-household", {
+    if (!user?.id) return;
+    const res = await fetch("/api/auth/create-household", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       credentials: "include",
       body: JSON.stringify({
         user_id: user.id,
@@ -137,6 +184,9 @@ export default function Settings() {
     await refreshUser();
     await loadMembers();
     setHouseholdName("");
+    await refreshUser();
+    await loadMembers();
+    setHouseholdName("");
     alert("Household created successfully!");
   }
 
@@ -147,8 +197,10 @@ export default function Settings() {
     if (!username) return alert('Select a member');
 
     const res = await fetch("/api/auth/remove-member", {
+    const res = await fetch("/api/auth/remove-member", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       credentials: "include",
       body: JSON.stringify({ username }),
     });
@@ -156,6 +208,8 @@ export default function Settings() {
     const data = await res.json();
     if (!res.ok) return alert(data.error || 'Error');
 
+    await loadMembers();
+    await refreshUser();
     await loadMembers();
     await refreshUser();
     alert(`User "${username}" removed.`);
@@ -176,6 +230,7 @@ export default function Settings() {
     try {
       const res = await fetch(
         `/api/auth/account/${user.id}`,
+        `/api/auth/account/${user.id}`,
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
@@ -190,6 +245,7 @@ export default function Settings() {
       }
 
       queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
       alert("Account deleted!");
       navigate({ to: "/login" });
     } catch (error) {
@@ -199,6 +255,10 @@ export default function Settings() {
     }
   }
 
+
+  if (isLoading || !user) {
+    return null;
+  }
 
   if (isLoading || !user) {
     return null;
