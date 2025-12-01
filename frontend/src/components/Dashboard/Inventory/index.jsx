@@ -108,9 +108,7 @@ const Inventory = ({
   })();
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-      </Box>
+    <Box sx={{ width: '84%', margin: '0 auto' }}>
       <Box
         sx={{
           display: 'flex',
