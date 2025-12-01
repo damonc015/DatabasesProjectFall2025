@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from flask import jsonify, request, g
-from flask import jsonify, request, g
 from extensions import db_cursor, get_db, create_api_blueprint, document_api_route, handle_db_error
 
 bp = create_api_blueprint('food_items', '/api/food-items')
@@ -47,10 +46,6 @@ def _ensure_food_item_access(food_item_id):
 @document_api_route(bp, 'get', '/<int:food_item_id>', 'Get food item by ID', 'Returns a single food item by its ID')
 @handle_db_error
 def get_food_item(food_item_id):
-    unauthorized = _ensure_food_item_access(food_item_id)
-    if unauthorized:
-        return unauthorized
-
     unauthorized = _ensure_food_item_access(food_item_id)
     if unauthorized:
         return unauthorized
@@ -258,10 +253,6 @@ def update_food_item(food_item_id):
     if unauthorized:
         return unauthorized
 
-    unauthorized = _ensure_food_item_access(food_item_id)
-    if unauthorized:
-        return unauthorized
-
     data = request.get_json()
 
     conn = get_db()
@@ -372,15 +363,9 @@ def update_food_item(food_item_id):
                 price_value = None
 
             normalized_store = (store or '').strip().lower() or None
-            except (TypeError, ValueError):
-                price_value = None
 
-            normalized_store = (store or '').strip().lower() or None
-
-            if price_value is not None:
             if price_value is not None:
                 cursor.execute("""
-                    SELECT PriceTotal, Store
                     SELECT PriceTotal, Store
                     FROM PriceLog
                     WHERE PackageID = %s
@@ -396,19 +381,9 @@ def update_food_item(food_item_id):
                 store_changed = latest_store != normalized_store
 
                 if price_changed or store_changed:
-                price_log_row = cursor.fetchone() or {}
-
-                latest_price = price_log_row.get('PriceTotal')
-                latest_store = (price_log_row.get('Store') or '').strip().lower() or None
-
-                price_changed = latest_price is None or latest_price != price_value
-                store_changed = latest_store != normalized_store
-
-                if price_changed or store_changed:
                     cursor.execute("""
                         INSERT INTO PriceLog (PackageID, PriceTotal, Store)
                         VALUES (%s, %s, %s)
-                    """, (effective_package_id, price_value, normalized_store))
                     """, (effective_package_id, price_value, normalized_store))
 
         conn.commit()
@@ -425,10 +400,6 @@ def update_food_item(food_item_id):
 @document_api_route(bp, 'delete', '/<int:food_item_id>', 'Archive food item', 'Soft deletes a food item and packages')
 @handle_db_error
 def archive_food_item(food_item_id):
-    unauthorized = _ensure_food_item_access(food_item_id)
-    if unauthorized:
-        return unauthorized
-
     unauthorized = _ensure_food_item_access(food_item_id)
     if unauthorized:
         return unauthorized
