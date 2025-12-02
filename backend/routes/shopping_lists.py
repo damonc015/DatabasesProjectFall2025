@@ -143,7 +143,6 @@ def complete_shopping_list(shopping_list_id):
             
         return jsonify({'message': 'Shopping list completed', 'shopping_list_id': shopping_list_id}), 200
 
-# get all items in a shopping list by slid
 @document_api_route(bp, 'get', '/<int:shopping_list_id>/items', 'Get shopping list items', 'Returns all items in a shopping list')
 @handle_db_error
 def get_shopping_list_items(shopping_list_id):
@@ -157,6 +156,7 @@ def get_shopping_list_items(shopping_list_id):
                 l.LocationName,
                 sli.PackageID,
                 p.Label AS PackageLabel,
+                p.BaseUnitAmt AS PackageBaseUnitAmt,
                 CEILING(sli.NeededQty / p.BaseUnitAmt) AS NeededQty,
                 sli.PurchasedQty,
                 sli.TotalPrice,

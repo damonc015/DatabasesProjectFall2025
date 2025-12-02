@@ -124,6 +124,7 @@ def get_items_not_on_active_list():
                 ROUND(getCurrentStock(fi.FoodItemID) / IFNULL(pp.BaseUnitAmt, 1), 2) AS CurrentStock,
                 loc.LocationID AS LocationID,
                 pp.PackageID AS PackageID,
+                pp.BaseUnitAmt AS PackageBaseUnitAmt,
                 ROUND(IFNULL(sl.TargetLevel, 0) / IFNULL(pp.BaseUnitAmt, 1), 2) AS TargetLevel
             FROM FoodItem fi
             LEFT JOIN StockLevel sl ON fi.FoodItemID = sl.FoodItemID

@@ -6,6 +6,7 @@ import useShoppingListStore from '../../../../stores/useShoppingListStore';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { useActiveShoppingList } from '../../../../hooks/useShoppingLists';
 import { useUpdateShoppingListItems, useCompleteActiveShoppingList } from '../../../../hooks/useShoppingListMutations';
+import { packagesToBaseUnits } from '../../Inventory/utils';
 
 const SaveModal = () => {
   const { householdId, user } = useCurrentUser();
@@ -28,15 +29,25 @@ const SaveModal = () => {
       const itemsToList = [...tempCreateListBelowThresholdItems];
 
       if (itemsToList.length > 0) {
-        const cleanedItems = itemsToList.map((item) => ({
-          FoodItemID: item.FoodItemID,
-          LocationID: item.LocationID || null,
-          PackageID: item.PackageID || null,
-          NeededQuantity: parseFloat(item.NeededQty),
-          PurchasedQuantity: parseInt(item.PurchasedQty, 10) || 0,
-          TotalPrice: parseFloat(item.TotalPrice) || 0,
-          Status: item.Status || 'active',
-        }));
+        const cleanedItems = itemsToList.map((item) => {
+          const neededQtyPackages = parseFloat(item.NeededQty);
+          const packageBaseAmt = parseFloat(item.PackageBaseUnitAmt);
+          const packagesValue = Number.isFinite(neededQtyPackages) ? neededQtyPackages : 0;
+          const needsConversion = Number.isFinite(packageBaseAmt) && packageBaseAmt > 0;
+          const normalizedNeededQty = needsConversion
+            ? packagesToBaseUnits(packagesValue, packageBaseAmt)
+            : packagesValue;
+
+          return {
+            FoodItemID: item.FoodItemID,
+            LocationID: item.LocationID || null,
+            PackageID: item.PackageID || null,
+            NeededQuantity: normalizedNeededQty,
+            PurchasedQuantity: parseInt(item.PurchasedQty, 10) || 0,
+            TotalPrice: parseFloat(item.TotalPrice) || 0,
+            Status: item.Status || 'active',
+          };
+        });
 
         // console.log('Sending items to update:', cleanedItems);
 

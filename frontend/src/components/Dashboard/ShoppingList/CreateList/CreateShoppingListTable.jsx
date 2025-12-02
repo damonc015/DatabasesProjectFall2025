@@ -83,6 +83,7 @@ export default function CreateShoppingListTable() {
         CurrentStock: item.CurrentStock,
         LocationID: item.LocationID,
         PackageID: item.PackageID,
+        PackageBaseUnitAmt: item.PackageBaseUnitAmt ?? null,
         TargetLevel: item.TargetLevel,
       }));
       setTempCreateListBelowThresholdItems(processedData);
@@ -100,6 +101,7 @@ export default function CreateShoppingListTable() {
         CurrentStock: item.CurrentStock,
         LocationID: item.LocationID,
         PackageID: item.PackageID,
+        PackageBaseUnitAmt: item.PackageBaseUnitAmt ?? null,
         TargetLevel: item.TargetLevel,
       }));
       setTempCreateListAtThresholdItems(processedData);
